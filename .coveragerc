@@ -1,7 +1,7 @@
 # .coveragerc to control coverage.py
 [run]
 branch = True
-include = "repo_name/*"  # If multiple targets, add here
+include = "benchmark_simulator/*"  # If multiple targets, add here
 
 [report]
 # Regexes for lines to exclude from consideration

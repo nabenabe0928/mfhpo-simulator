@@ -8,11 +8,11 @@ with open("requirements.txt", "r") as f:
 
 
 setuptools.setup(
-    name="repo-template",
+    name="mfhpo-simulator",
     version="0.0.1",
     author="nabenabe0928",
     author_email="shuhei.watanabe.utokyo@gmail.com",
-    url="https://github.com/nabenabe0928/repo-template",
+    url="https://github.com/nabenabe0928/mfhpo-simulator",
     packages=setuptools.find_packages(),
     python_requires=">=3.8",
     platforms=["Linux"],

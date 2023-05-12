@@ -43,7 +43,7 @@ jobs:
     - name: Test with pytest
       run: |
         if [ ${{ matrix.code-cov }} ]; then
-          codecov='--cov=repo_name --cov-report=xml  --cov-config=.coveragerc';
+          codecov='--cov=benchmark_simulator --cov-report=xml  --cov-config=.coveragerc';
         fi
         python -m pytest -W ignore -v $codecov test
     - name: Upload coverage
