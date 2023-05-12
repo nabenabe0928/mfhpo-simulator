@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Callable
+from typing import Any, Callable, Dict, Optional
 
 import ConfigSpace as CS
 
@@ -43,20 +43,19 @@ def run_dehb(
         n_workers=n_workers,
         output_path="dehb-log/"
     )
-    kwargs = obj_func.get_shared_data()
+    # kwargs = obj_func.get_shared_data()
+    kwargs = {}
     dehb.run(fevals=max_evals, **kwargs)
 
 
 class Wrapper:
-    def __init__(self, bench):
+    def __init__(self, bench: Any):
         self._bench = bench
 
-    def get_shared_data(self):
-        kwargs = dict(bench_data=self._bench.get_data()) if hasattr(self._bench, "get_data") else {}
-        return kwargs
-
-    def __call__(self, eval_config, budget, seed, bench_data=None):
-        output = self._bench(eval_config, budget, seed, **({} if bench_data is None else dict(bench_data=bench_data)))
+    def __call__(
+        self, eval_config: Dict[str, Any], budget: int, seed: Optional[int], **data_to_scatter: Any
+    ) -> Dict[str, Any]:
+        output = self._bench(eval_config, budget, seed, **data_to_scatter)
         ret_vals = dict(fitness=output["loss"], cost=output["runtime"])
         return ret_vals
 

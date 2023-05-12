@@ -156,25 +156,24 @@ class WorkerFunc:
         elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
             _delete_state(index=cached_state_index, **kwargs)
 
-    def _proc_output(self, eval_config: Dict[str, Any], budget: int, bench_data: Optional[Any]) -> Dict[str, float]:
+    def _proc_output(self, eval_config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict[str, float]:
         config_hash = hash(str(eval_config))
         kwargs = dict(config_hash=config_hash, budget=budget)
         cached_state, cached_state_index = self._get_cached_state_and_index(**kwargs)
         cached_runtime, _, _, seed = cached_state
-        bench_data_kwargs = {} if bench_data is None else dict(bench_data=bench_data)
-        output = self._func(eval_config=eval_config, budget=budget, seed=seed, **bench_data_kwargs)
+        output = self._func(eval_config=eval_config, budget=budget, seed=seed, **data_to_scatter)
         loss, total_runtime = output[self._loss_key], output[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime)
         self._cumtime += actual_runtime
         self._update_state(total_runtime=total_runtime, cached_state_index=cached_state_index, seed=seed, **kwargs)
         return {self._loss_key: loss, self._runtime_key: actual_runtime}
 
-    def __call__(self, eval_config: Dict[str, Any], budget: int, bench_data: Optional[Any] = None) -> Dict[str, float]:
+    def __call__(self, eval_config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict[str, float]:
         if self._terminated:
             return {self._loss_key: INF, self._runtime_key: INF}
 
         self._cumtime += time.time() - self._prev_timestamp  # sampling time
-        output = self._proc_output(eval_config, budget, bench_data)
+        output = self._proc_output(eval_config, budget, **data_to_scatter)
         _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=self._cumtime)
         _wait_until_next(path=self._cumtime_path, worker_id=self._worker_id)
         self._prev_timestamp = time.time()
@@ -230,13 +229,13 @@ class CentralWorker:
         _allocate_proc_to_worker(path=_path, pid=pid)
         self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._n_workers)
 
-    def __call__(self, eval_config: Dict[str, Any], budget: int, bench_data: Optional[Any] = None) -> Dict:
+    def __call__(self, eval_config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict:
         pid = os.getpid()
         if len(self._pid_to_index) != self._n_workers:
             self._init_alloc(pid)
 
         worker_index = self._pid_to_index[pid]
-        output = self._workers[worker_index](eval_config=eval_config, budget=budget, bench_data=bench_data)
+        output = self._workers[worker_index](eval_config=eval_config, budget=budget, **data_to_scatter)
         if _is_simulator_terminated(self._result_path, max_evals=self._max_evals):
             self._workers[worker_index].finish()
 

@@ -135,23 +135,27 @@ def _is_min_cumtime(path: str, worker_id: str) -> bool:
     return min(cumtime for cumtime in cumtimes.values()) == proc_cumtime
 
 
-def _wait_proc_allocation(path: str, n_workers: int, waiting_time: float = 1e-2) -> Dict[int, int]:
+def _wait_proc_allocation(
+    path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
+) -> Dict[int, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
     while not _is_allocation_ready(path, n_workers=n_workers):
         time.sleep(waiting_time)
-        if time.time() - start >= n_workers * 5:
+        if time.time() - start >= time_limit:
             raise TimeoutError("Timeout in the allocation of procs. Please make sure n_workers is correct.")
 
     return _complete_proc_allocation(path)
 
 
-def _wait_all_workers(path: str, n_workers: int, waiting_time: float = 1e-2) -> Dict[str, int]:
+def _wait_all_workers(
+    path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
+) -> Dict[str, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
     while not _is_simulator_ready(path, n_workers=n_workers):
         time.sleep(waiting_time)
-        if time.time() - start >= n_workers * 5:
+        if time.time() - start >= time_limit:
             raise TimeoutError("Timeout in creating a simulator. Please make sure n_workers is correct.")
 
     return _get_worker_id_to_idx(path)

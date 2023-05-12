@@ -2,7 +2,7 @@ from typing import Any, Dict, NewType, Optional, Protocol, Tuple
 
 
 class _ObjectiveFunc(Protocol):
-    def __call__(self, config: Dict[str, Any], budget: int, seed: Optional[int] = None) -> Dict[str, float]:
+    def __call__(self, eval_config: Dict[str, Any], budget: int, seed: Optional[int] = None) -> Dict[str, float]:
         raise NotImplementedError
 
 

@@ -1,10 +1,10 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import ConfigSpace as CS
 
 
 class TestFunc:
-    def __call__(self, eval_config: Dict[str, float], budget: int, seed):
+    def __call__(self, eval_config: Dict[str, float], budget: int, seed: Optional[int] = None):
         return dict(loss=eval_config["x"]**2, runtime=budget / 1.0)
 
     @property
