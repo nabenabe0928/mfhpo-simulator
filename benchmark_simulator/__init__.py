@@ -1,4 +1,4 @@
-from benchmark_simulator.example import hello
+from benchmark_simulator.simulator import CentralWorker, WorkerFunc
 
 
 __version__ = "0.0.1"
@@ -9,4 +9,4 @@ __author_email__ = "shuhei.watanabe.utokyo@gmail.com"
 __url__ = "https://github.com/nabenabe0928/mfhpo-simulator"
 
 
-__all__ = ["hello"]
+__all__ = ["CentralWorker", "WorkerFunc"]
