@@ -60,11 +60,7 @@ import time
 from multiprocessing import Pool
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
-
 from benchmark_simulator._constants import (
-    _ObjectiveFunc,
-    _StateType,
     DIR_NAME,
     INF,
     INIT_STATE,
@@ -72,6 +68,8 @@ from benchmark_simulator._constants import (
     RESULT_FILE_NAME,
     STATE_CACHE_FILE_NAME,
     WORKER_CUMTIME_FILE_NAME,
+    _ObjectiveFunc,
+    _StateType,
 )
 from benchmark_simulator._secure_proc import (
     _allocate_proc_to_worker,
@@ -87,6 +85,8 @@ from benchmark_simulator._secure_proc import (
     _wait_until_next,
 )
 from benchmark_simulator._utils import _generate_time_hash
+
+import numpy as np
 
 
 class WorkerFunc:
@@ -136,7 +136,7 @@ class WorkerFunc:
         if cached_state_index is None:
             init_state = INIT_STATE[:]
             # initial seed, note: 1 << 30 is a huge number that fits 32bit.
-            init_state[-1] = self._rng.randint(1 << 30)
+            init_state[-1] = self._rng.randint(1 << 30)  # type: ignore
             return init_state, None
         else:
             return cached_states[cached_state_index][:], cached_state_index

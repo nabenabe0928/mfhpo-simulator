@@ -1,21 +1,22 @@
 import fcntl
 import os
-from _io import TextIOWrapper
-from typing import Dict, List, Optional
 import time
+from typing import Dict, List, Optional
 
-import numpy as np
-
-import ujson as json
+from _io import TextIOWrapper
 
 from benchmark_simulator._constants import (
-    _StateType,
     PROC_ALLOC_NAME,
     RESULT_FILE_NAME,
     STATE_CACHE_FILE_NAME,
     WORKER_CUMTIME_FILE_NAME,
+    _StateType,
 )
 from benchmark_simulator._utils import secure_edit, secure_read
+
+import numpy as np
+
+import ujson as json  # type: ignore
 
 
 def _init_simulator(dir_name: str) -> None:

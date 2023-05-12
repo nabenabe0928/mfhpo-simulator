@@ -13,7 +13,7 @@ def _generate_time_hash() -> str:
 
 
 def secure_read(func: Callable) -> Callable:
-    def _inner(path: str, waiting_time: float = 1e-4, **kwargs) -> Any:
+    def _inner(path: str, waiting_time: float = 1e-4, **kwargs: Any) -> Any:
         start = time.time()
         waiting_time *= 1 + np.random.random()
         fetched, output = False, None
@@ -34,7 +34,7 @@ def secure_read(func: Callable) -> Callable:
 
 
 def secure_edit(func: Callable) -> Callable:
-    def _inner(path: str, waiting_time: float = 1e-4, **kwargs) -> Any:
+    def _inner(path: str, waiting_time: float = 1e-4, **kwargs: Any) -> Any:
         start = time.time()
         waiting_time *= 1 + np.random.random()
         fetched, output = False, None
