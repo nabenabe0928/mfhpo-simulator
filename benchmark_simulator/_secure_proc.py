@@ -1,6 +1,7 @@
 import fcntl
 import os
 import time
+import warnings
 from typing import Dict, List, Optional
 
 from _io import TextIOWrapper
@@ -161,7 +162,14 @@ def _wait_all_workers(
     return _get_worker_id_to_idx(path)
 
 
-def _wait_until_next(path: str, worker_id: str, waiting_time: float = 1e-4) -> None:
+def _wait_until_next(path: str, worker_id: str, waiting_time: float = 1e-4, warning_interval: int = 10) -> None:
+    start = time.time()
     waiting_time *= 1 + np.random.random()
     while not _is_min_cumtime(path, worker_id=worker_id):
         time.sleep(waiting_time)
+        if int(time.time() - start + 1) % warning_interval == 0:
+            warnings.warn(
+                "Workers might be hanging. Please check if your code calls WorkerFunc.finish() at the end.\n"
+                "Note that if samplers or the objective function need long time (> 10 seconds), "
+                "please ignore this warning."
+            )

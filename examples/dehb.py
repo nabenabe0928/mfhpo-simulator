@@ -13,19 +13,36 @@ from benchmark_simulator.simulator import CentralWorker
 from examples.toy import TestFunc
 
 
+class Wrapper:
+    def __init__(self, bench: Any):
+        self._bench = bench
+
+    def __call__(
+        self, eval_config: Dict[str, Any], fidel: int, seed: Optional[int], **data_to_scatter: Any
+    ) -> Dict[str, Any]:
+        output = self._bench(eval_config, fidel, seed, **data_to_scatter)
+        ret_vals = dict(fitness=output["loss"], cost=output["runtime"])
+        return ret_vals
+
+
+class DEHBCentralWorker(CentralWorker):
+    def __call__(self, config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict[str, float]:
+        return super().__call__(eval_config=config, fidel=budget)
+
+
 def run_dehb(
     obj_func: Callable,
     config_space: CS.ConfigurationSpace,
-    min_budget: int,
-    max_budget: int,
+    min_fidel: int,
+    max_fidel: int,
     n_workers: int,
     subdir_name: str,
     max_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
-    worker = CentralWorker(
+    worker = DEHBCentralWorker(
         obj_func=obj_func,
         n_workers=n_workers,
-        max_budget=max_budget,
+        max_fidel=max_fidel,
         max_evals=max_evals,
         subdir_name=subdir_name,
         loss_key="fitness",
@@ -36,8 +53,8 @@ def run_dehb(
         f=worker,
         cs=config_space,
         dimensions=len(config_space),
-        min_budget=min_budget,
-        max_budget=max_budget,
+        min_budget=min_fidel,
+        max_budget=max_fidel,
         eta=3,
         client=None,
         n_workers=n_workers,
@@ -46,18 +63,6 @@ def run_dehb(
     # kwargs = obj_func.get_shared_data()
     kwargs = {}
     dehb.run(fevals=max_evals, **kwargs)
-
-
-class Wrapper:
-    def __init__(self, bench: Any):
-        self._bench = bench
-
-    def __call__(
-        self, eval_config: Dict[str, Any], budget: int, seed: Optional[int], **data_to_scatter: Any
-    ) -> Dict[str, Any]:
-        output = self._bench(eval_config, budget, seed, **data_to_scatter)
-        ret_vals = dict(fitness=output["loss"], cost=output["runtime"])
-        return ret_vals
 
 
 if __name__ == "__main__":
@@ -73,8 +78,8 @@ if __name__ == "__main__":
     run_dehb(
         obj_func=wrapped_func,
         config_space=bench.config_space,
-        min_budget=bench.min_budget,
-        max_budget=bench.max_budget,
+        min_fidel=bench.min_fidel,
+        max_fidel=bench.max_fidel,
         n_workers=4,
         subdir_name=subdir_name,
     )
