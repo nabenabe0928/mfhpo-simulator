@@ -90,7 +90,7 @@ import numpy as np
 DEFAULT_SEED = 42
 
 
-class WorkerFunc:
+class ObjectiveFuncWorker:
     def __init__(
         self,
         subdir_name: str,
@@ -278,7 +278,7 @@ class WorkerFunc:
         self._terminated = True
 
 
-class CentralWorker:
+class CentralWorkerManager:
     def __init__(
         self,
         subdir_name: str,
@@ -340,7 +340,7 @@ class CentralWorker:
             continual_eval=continual_eval,
         )
         self._n_workers = n_workers
-        self._workers: List[WorkerFunc]
+        self._workers: List[ObjectiveFuncWorker]
         self._init_workers(worker_kwargs, seeds=seeds)
 
         self._dir_name = self._workers[0].dir_name
@@ -354,7 +354,7 @@ class CentralWorker:
         pool = Pool()
         results = []
         for _, seed in enumerate(seeds):
-            results.append(pool.apply_async(WorkerFunc, kwds=dict(**worker_kwargs, seed=seed)))
+            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=dict(**worker_kwargs, seed=seed)))
 
         pool.close()
         pool.join()

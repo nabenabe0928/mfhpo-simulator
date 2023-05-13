@@ -9,7 +9,7 @@ import numpy as np
 from dehb import DEHB
 
 from benchmark_simulator._constants import DIR_NAME
-from benchmark_simulator.simulator import CentralWorker
+from benchmark_simulator.simulator import CentralWorkerManager
 from examples.toy import TestFunc
 
 
@@ -25,7 +25,7 @@ class Wrapper:
         return ret_vals
 
 
-class DEHBCentralWorker(CentralWorker):
+class DEHBCentralWorkerManager(CentralWorkerManager):
     def __call__(self, config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict[str, float]:
         return super().__call__(eval_config=config, fidel=budget)
 
@@ -39,7 +39,7 @@ def run_dehb(
     subdir_name: str,
     max_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
-    worker = DEHBCentralWorker(
+    worker = DEHBCentralWorkerManager(
         obj_func=obj_func,
         n_workers=n_workers,
         max_fidel=max_fidel,

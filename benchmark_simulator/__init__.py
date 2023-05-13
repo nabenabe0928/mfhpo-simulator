@@ -1,4 +1,4 @@
-from benchmark_simulator.simulator import CentralWorker, WorkerFunc
+from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
 
 
 __version__ = "0.0.1"
@@ -9,4 +9,4 @@ __author_email__ = "shuhei.watanabe.utokyo@gmail.com"
 __url__ = "https://github.com/nabenabe0928/mfhpo-simulator"
 
 
-__all__ = ["CentralWorker", "WorkerFunc"]
+__all__ = ["CentralWorkerManager", "ObjectiveFuncWorker"]

@@ -169,7 +169,7 @@ def _wait_until_next(path: str, worker_id: str, waiting_time: float = 1e-4, warn
         time.sleep(waiting_time)
         if int(time.time() - start + 1) % warning_interval == 0:
             warnings.warn(
-                "Workers might be hanging. Please check if your code calls WorkerFunc.finish() at the end.\n"
+                "Workers might be hanging. Please make sure `max_evals` is smaller than the actual max_evals.\n"
                 "Note that if samplers or the objective function need long time (> 10 seconds), "
                 "please ignore this warning."
             )
