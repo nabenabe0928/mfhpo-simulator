@@ -45,9 +45,9 @@ STATE_CACHE_FILE_NAME = "state_cache.json"
 INF = 1 << 40
 _RuntimeType = NewType("_RuntimeType", float)
 _CumtimeType = NewType("_CumtimeType", float)
-_BudgetType = NewType("_BudgetType", int)
+_FidelityType = NewType("_FidelityType", int)
 _SeedType = NewType("_SeedType", Optional[int])  # type: ignore
-_StateType = Tuple[_RuntimeType, _CumtimeType, _BudgetType, _SeedType]
+_StateType = Tuple[_RuntimeType, _CumtimeType, _FidelityType, _SeedType]
 INIT_STATE: _StateType = [0.0, 0.0, 0, None]  # type: ignore
 
 
