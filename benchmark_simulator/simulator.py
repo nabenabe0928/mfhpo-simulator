@@ -56,6 +56,7 @@ This file tells you how much time each worker virtually spends in the simulation
 and we need this information to manage the order of job allocations to each worker.
 """
 import os
+import threading
 import time
 from multiprocessing import Pool
 from typing import Any, Dict, List, Optional, Tuple
@@ -362,6 +363,7 @@ class CentralWorkerManager:
         )
         self._n_workers = n_workers
         self._workers: List[ObjectiveFuncWorker]
+        self._main_pid = os.getpid()
         self._init_workers(worker_kwargs, seeds=seeds)
 
         self._dir_name = self._workers[0].dir_name
@@ -412,6 +414,7 @@ class CentralWorkerManager:
                 Otherwise, any other metrics are optional.
         """
         pid = os.getpid()
+        pid = threading.get_ident() if pid == self._main_pid else pid
         if len(self._pid_to_index) != self._n_workers:
             self._init_alloc(pid)
 
