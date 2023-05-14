@@ -99,7 +99,7 @@ class ObjectiveFuncWorker:
         obj_func: _ObjectiveFunc,
         max_fidel: int,
         n_actual_evals_in_opt: int,
-        max_evals: int,
+        n_evals: int,
         loss_key: str = "loss",
         runtime_key: str = "runtime",
         seed: int = DEFAULT_SEED,
@@ -132,7 +132,7 @@ class ObjectiveFuncWorker:
                 how many times we call the objective function during the optimization.
                 This number is needed to automatically finish the worker class.
                 We cannot know the timing of the termination without this information, and thus optimizers hang.
-            max_evals (int):
+            n_evals (int):
                 How many configurations we would like to collect.
                 More specifically, how many times we call the objective function during the optimization.
                 We can guarantee that `results.json` has at least this number of evaluations.
@@ -157,7 +157,7 @@ class ObjectiveFuncWorker:
 
         self._rng = np.random.RandomState(seed)
         self._obj_func = obj_func
-        self._max_fidel, self._max_evals = max_fidel, max_evals
+        self._max_fidel, self._n_evals = max_fidel, n_evals
         self._loss_key, self._runtime_key = loss_key, runtime_key
         self._index = self._alloc_index(n_workers)
         self._prev_timestamp, self._waited_time, self._cumtime = time.time(), 0.0, 0.0
@@ -171,13 +171,13 @@ class ObjectiveFuncWorker:
     def dir_name(self) -> str:
         return self._dir_name
 
-    def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, max_evals: int) -> None:
-        if n_actual_evals_in_opt < n_workers + max_evals:
-            threshold = n_workers + max_evals
-            # In fact, n_workers + max_evals - 1 is the real minimum threshold.
+    def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, n_evals: int) -> None:
+        if n_actual_evals_in_opt < n_workers + n_evals:
+            threshold = n_workers + n_evals
+            # In fact, n_workers + n_evals - 1 is the real minimum threshold.
             raise ValueError(
                 "Cannot guarantee that optimziers will not hang. "
-                f"Use n_actual_evals_in_opt >= {threshold} (= max_evals + n_workers) at least. "
+                f"Use n_actual_evals_in_opt >= {threshold} (= n_evals + n_workers) at least. "
                 "Note that our package cannot change your optimizer setting, so "
                 "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
             )
@@ -251,7 +251,7 @@ class ObjectiveFuncWorker:
         row = dict(loss=results[self._loss_key], cumtime=self._cumtime, index=self._index)
         # Record the results to the main database when the cumulative runtime is the smallest
         _record_result(self._result_path, results=row)
-        if _is_simulator_terminated(self._result_path, max_evals=self._max_evals):
+        if _is_simulator_terminated(self._result_path, max_evals=self._n_evals):
             self._finish()
 
     def __call__(self, eval_config: Dict[str, Any], fidel: int, **data_to_scatter: Any) -> Dict[str, float]:
@@ -306,7 +306,7 @@ class CentralWorkerManager:
         obj_func: _ObjectiveFunc,
         max_fidel: int,
         n_actual_evals_in_opt: int,
-        max_evals: int,
+        n_evals: int,
         loss_key: str = "loss",
         runtime_key: str = "runtime",
         seeds: Optional[List[int]] = None,
@@ -335,7 +335,7 @@ class CentralWorkerManager:
                         It must return `objective metric` and `runtime` at least.
             max_fidel (int):
                 The maximum fidelity defined in the objective function.
-            max_evals (int):
+            n_evals (int):
                 How many configurations we evaluate.
                 More specifically, how many times we call the objective function during the optimization.
             loss_key (str):
@@ -356,7 +356,7 @@ class CentralWorkerManager:
             subdir_name=subdir_name,
             max_fidel=max_fidel,
             n_actual_evals_in_opt=n_actual_evals_in_opt,
-            max_evals=max_evals,
+            n_evals=n_evals,
             loss_key=loss_key,
             runtime_key=runtime_key,
             continual_eval=continual_eval,
