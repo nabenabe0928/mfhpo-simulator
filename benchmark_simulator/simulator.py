@@ -97,6 +97,7 @@ class ObjectiveFuncWorker:
         n_workers: int,
         obj_func: _ObjectiveFunc,
         max_fidel: int,
+        n_actual_evals_in_opt: int,
         max_evals: int,
         loss_key: str = "loss",
         runtime_key: str = "runtime",
@@ -124,9 +125,16 @@ class ObjectiveFuncWorker:
                         It must return `objective metric` and `runtime` at least.
             max_fidel (int):
                 The maximum fidelity defined in the objective function.
+            n_actual_evals_in_opt (int):
+                The number of evaluations that optimizers do and it is used only for raising an error in init.
+                Note that the number of evaluations means
+                how many times we call the objective function during the optimization.
+                This number is needed to automatically finish the worker class.
+                We cannot know the timing of the termination without this information, and thus optimizers hang.
             max_evals (int):
-                How many configurations we evaluate.
+                How many configurations we would like to collect.
                 More specifically, how many times we call the objective function during the optimization.
+                We can guarantee that `results.json` has at least this number of evaluations.
             loss_key (str):
                 The key of the objective metric used in `results` returned by func.
             runtime_key (str):
@@ -161,6 +169,17 @@ class ObjectiveFuncWorker:
     @property
     def dir_name(self) -> str:
         return self._dir_name
+
+    def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, max_evals: int) -> None:
+        if n_actual_evals_in_opt < n_workers + max_evals:
+            threshold = n_workers + max_evals
+            # In fact, n_workers + max_evals - 1 is the real minimum threshold.
+            raise ValueError(
+                "Cannot guarantee that optimziers will not hang. "
+                f"Use n_actual_evals_in_opt >= {threshold} (= max_evals + n_workers) at least. "
+                "Note that our package cannot change your optimizer setting, so "
+                "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
+            )
 
     def _init_worker(self) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
@@ -232,7 +251,7 @@ class ObjectiveFuncWorker:
         # Record the results to the main database when the cumulative runtime is the smallest
         _record_result(self._result_path, results=row)
         if _is_simulator_terminated(self._result_path, max_evals=self._max_evals):
-            self.finish()
+            self._finish()
 
     def __call__(self, eval_config: Dict[str, Any], fidel: int, **data_to_scatter: Any) -> Dict[str, float]:
         """The method to close the worker instance.
@@ -269,7 +288,7 @@ class ObjectiveFuncWorker:
         self._post_proc(results)
         return results
 
-    def finish(self) -> None:
+    def _finish(self) -> None:
         """The method to close the worker instance.
         This method must be called before we finish the optimization.
         If not called, optimization modules are likely to hang.
@@ -285,6 +304,7 @@ class CentralWorkerManager:
         n_workers: int,
         obj_func: _ObjectiveFunc,
         max_fidel: int,
+        n_actual_evals_in_opt: int,
         max_evals: int,
         loss_key: str = "loss",
         runtime_key: str = "runtime",
@@ -334,6 +354,7 @@ class CentralWorkerManager:
             n_workers=n_workers,
             subdir_name=subdir_name,
             max_fidel=max_fidel,
+            n_actual_evals_in_opt=n_actual_evals_in_opt,
             max_evals=max_evals,
             loss_key=loss_key,
             runtime_key=runtime_key,

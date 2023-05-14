@@ -39,10 +39,12 @@ def run_dehb(
     subdir_name: str,
     max_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
+    n_actual_evals_in_opt = max_evals + n_workers
     worker = DEHBCentralWorkerManager(
         obj_func=obj_func,
         n_workers=n_workers,
         max_fidel=max_fidel,
+        n_actual_evals_in_opt=n_actual_evals_in_opt,
         max_evals=max_evals,
         subdir_name=subdir_name,
         loss_key="fitness",
@@ -58,11 +60,11 @@ def run_dehb(
         eta=3,
         client=None,
         n_workers=n_workers,
-        output_path="dehb-log/"
+        output_path="dehb-log/",
     )
     # kwargs = obj_func.get_shared_data()
     kwargs = {}
-    dehb.run(fevals=max_evals, **kwargs)
+    dehb.run(fevals=n_actual_evals_in_opt, **kwargs)
 
 
 if __name__ == "__main__":
