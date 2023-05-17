@@ -47,7 +47,7 @@ def run_dehb(
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=max_evals,
         subdir_name=subdir_name,
-        loss_key="fitness",
+        obj_keys=["fitness"],
         runtime_key="cost",
     )
 

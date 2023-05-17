@@ -112,7 +112,7 @@ def _record_result(f: TextIOWrapper, results: Dict[str, float]) -> None:
 
 @secure_read
 def _is_simulator_terminated(f: TextIOWrapper, max_evals: int) -> bool:
-    return len(json.load(f)["loss"]) >= max_evals
+    return len(json.load(f)["cumtime"]) >= max_evals
 
 
 @secure_read
