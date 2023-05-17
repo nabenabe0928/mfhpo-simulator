@@ -8,3 +8,4 @@ pytest
 flake8
 black
 mypy
+dehb==0.0.5
