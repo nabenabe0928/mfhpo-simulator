@@ -57,12 +57,17 @@ def test_secure_read_time_limit():
 
     n_workers = 2
     pool = multiprocessing.Pool(processes=n_workers)
-    pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0)])
-    r = pool.apply_async(dummy_reader, args=[dict(path=name, time_limit=4e-4)])
+    results = []
+    for _ in range(10):
+        pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0)])
+        r = pool.apply_async(dummy_reader, args=[dict(path=name, time_limit=4e-4)])
+        results.append(r)
+
     pool.close()
     pool.join()
     with pytest.raises(TimeoutError):
-        r.get()
+        for r in results:
+            r.get()
 
     os.remove(name)
 
