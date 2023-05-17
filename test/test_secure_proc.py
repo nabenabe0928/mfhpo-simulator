@@ -42,6 +42,7 @@ def test_init_simulator():
     for fn in _get_file_paths(DIR_NAME):
         assert json.load(open(fn)) == {}
 
+    _init_for_tests()  # check what happens when we already have the files
     shutil.rmtree(DIR_NAME)
 
 
@@ -103,23 +104,53 @@ def test_record_cumtime():
 
 
 def test_cache_state():
-    _cache_state
+    # _StateType = Tuple[_RuntimeType, _CumtimeType, _FidelityType, _SeedType]
+    _init_for_tests()
+    path = os.path.join(DIR_NAME, STATE_CACHE_FILE_NAME)
+    cumtime = 0.0
+    ans = {0: []}
+    for update in [False, True]:
+        for i in range(10):
+            cumtime += i
+            state = [float(i), cumtime, i, i]
+            if update:
+                _cache_state(path, config_hash=0, new_state=state, update_index=i)
+                ans[0][i] = state
+            else:
+                _cache_state(path, config_hash=0, new_state=state)
+                ans[0].append(state)
 
+            assert _fetch_cache_states(path) == ans
 
-def test_delete_state():
-    _delete_state
+    for idx in [5, 6, 7, 4, 3, 2, 1, 0, 0]:
+        _delete_state(path, config_hash=0, index=idx)
+        ans[0].pop(idx)
+        assert _fetch_cache_states(path) == ans
+    else:
+        _delete_state(path, config_hash=0, index=idx)
+        assert _fetch_cache_states(path) == {}
 
-
-def test_fetch_cache_states():
-    _fetch_cache_states
-
-
-def test_is_simulator_terminated():
-    _is_simulator_terminated
+    shutil.rmtree(DIR_NAME)
 
 
 def test_record_result():
-    _record_result
+    _init_for_tests()
+    path = os.path.join(DIR_NAME, RESULT_FILE_NAME)
+    ans = {"cumtime": [], "loss": []}
+    for i in range(19):
+        _record_result(path, results={"loss": i, "cumtime": i})
+        ans["loss"].append(i)
+        ans["cumtime"].append(i)
+        assert not _is_simulator_terminated(path, max_evals=20)
+        assert json.load(open(path)) == ans
+    else:
+        _record_result(path, results={"loss": i + 1, "cumtime": i + 1})
+        ans["loss"].append(i + 1)
+        ans["cumtime"].append(i + 1)
+        assert _is_simulator_terminated(path, max_evals=20)
+        assert json.load(open(path)) == ans
+
+    shutil.rmtree(DIR_NAME)
 
 
 if __name__ == "__main__":
