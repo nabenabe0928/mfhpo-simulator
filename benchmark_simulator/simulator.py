@@ -397,6 +397,7 @@ class CentralWorkerManager:
             runtime_key=runtime_key,
             continual_eval=continual_eval,
         )
+        self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._n_workers = n_workers
         self._workers: List[ObjectiveFuncWorker]
         self._main_pid = os.getpid()
@@ -418,6 +419,8 @@ class CentralWorkerManager:
         seeds = [DEFAULT_SEED] * self._n_workers if seeds is None else seeds[:]
         if len(seeds) != self._n_workers:
             raise ValueError(f"The length of seeds must be n_workers={self._n_workers}, but got seeds={seeds}")
+        if os.path.exists(self.dir_name):
+            raise FileExistsError(f"The directory `{self.dir_name}` already exists. Remove it first.")
 
         pool = Pool()
         results = []

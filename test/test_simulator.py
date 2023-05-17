@@ -119,26 +119,47 @@ def test_call_considering_state():
     shutil.rmtree(worker.dir_name)
 
 
+def remove_tree():
+    try:
+        shutil.rmtree(PATH)
+    except FileNotFoundError:
+        pass
+
+
+def get_n_workers():
+    n_workers = 4 if os.system("hostname") == "EB-B9400CBA" else 2  # github actions has only 2 cores
+    return n_workers
+
+
 def test_central_worker_manager():
+    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = 4
-    manager = CentralWorkerManager(obj_func=dummy_func, **DEFAULT_KWARGS)
+    kwargs["n_workers"] = get_n_workers()
+    kwargs["n_actual_evals_in_opt"] = 15
+    manager = CentralWorkerManager(obj_func=dummy_func, **kwargs)
     assert kwargs["max_fidel"] == manager.max_fidel
     shutil.rmtree(manager.dir_name)
 
 
 def test_seeds_error_in_central_worker_manager():
+    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = 4
+    n_workers = get_n_workers()
+    kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 15
+    manager = CentralWorkerManager(obj_func=dummy_func, seeds=list(range(n_workers)), **kwargs)
+    with pytest.raises(FileExistsError):
+        CentralWorkerManager(obj_func=dummy_func, seeds=list(range(n_workers)), **kwargs)
+
+    shutil.rmtree(manager.dir_name)
     with pytest.raises(ValueError):
         CentralWorkerManager(obj_func=dummy_func, seeds=[0], **kwargs)
 
-    CentralWorkerManager(obj_func=dummy_func, seeds=[0, 1, 2, 3], **kwargs)
-    shutil.rmtree(PATH)
+    remove_tree()
 
 
-def test_optimize1():
+def test_optimize_seq():
+    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     manager = CentralWorkerManager(obj_func=dummy_func, seeds=[0], **kwargs)
 
@@ -147,16 +168,18 @@ def test_optimize1():
         fidel=1,
     )
     manager(**kwargs)
-    shutil.rmtree(PATH)
+    shutil.rmtree(manager.dir_name)
 
 
-def test_optimize4():
+def test_optimize_parallel():
+    remove_tree()
+    n_workers = get_n_workers()
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = 4
+    kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 16
-    manager = CentralWorkerManager(obj_func=dummy_func, seeds=[0, 1, 2, 3], **kwargs)
+    manager = CentralWorkerManager(obj_func=dummy_func, seeds=list(range(n_workers)), **kwargs)
 
-    pool = multiprocessing.Pool(processes=4)
+    pool = multiprocessing.Pool(processes=n_workers)
     res = []
     for _ in range(16):
         kwargs = dict(
@@ -171,7 +194,7 @@ def test_optimize4():
 
     pool.close()
     pool.join()
-    shutil.rmtree(PATH)
+    shutil.rmtree(manager.dir_name)
 
 
 if __name__ == "__main__":

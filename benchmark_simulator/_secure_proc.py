@@ -136,6 +136,14 @@ def _is_min_cumtime(path: str, worker_id: str) -> bool:
     return min(cumtime for cumtime in cumtimes.values()) == proc_cumtime
 
 
+def _get_timeout_message(cause: str, path: str) -> str:
+    dir_name = os.path.join(*path.split("/")[:-1])
+    msg = f"Timeout in {cause}. There could be two possible reasons:\n"
+    msg += f"(1) The path {dir_name} already existed before the execution of the program.\n"
+    msg += "(2) n_workers specified in your optimizer and that in the simulator might be different."
+    return msg
+
+
 def _wait_proc_allocation(
     path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
 ) -> Dict[int, int]:
@@ -144,7 +152,7 @@ def _wait_proc_allocation(
     while not _is_allocation_ready(path, n_workers=n_workers):
         time.sleep(waiting_time)
         if time.time() - start >= time_limit:
-            raise TimeoutError("Timeout in the allocation of procs. Please make sure n_workers is correct.")
+            raise TimeoutError(_get_timeout_message(cause="the allocation of procs", path=path))
 
     return _complete_proc_allocation(path)
 
@@ -157,7 +165,7 @@ def _wait_all_workers(
     while not _is_simulator_ready(path, n_workers=n_workers):
         time.sleep(waiting_time)
         if time.time() - start >= time_limit:
-            raise TimeoutError("Timeout in creating a simulator. Please make sure n_workers is correct.")
+            raise TimeoutError(_get_timeout_message(cause="creating a simulator", path=path))
 
     return _get_worker_id_to_idx(path)
 
