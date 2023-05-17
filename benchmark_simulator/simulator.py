@@ -154,6 +154,7 @@ class ObjectiveFuncWorker:
                 continual_eval=True calculates the runtime considers this.
                 If False, each call is considered to be processed from scratch.
         """
+        self._guarantee_no_hang(n_workers=n_workers, n_actual_evals_in_opt=n_actual_evals_in_opt, n_evals=n_evals)
         self._worker_id = _generate_time_hash()
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
         _, self._result_path, self._state_path, self._cumtime_path = _get_file_paths(self.dir_name)
