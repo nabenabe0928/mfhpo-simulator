@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import ObjectiveFuncWorker
 
+import ujson as json
+
 
 SUBDIR_NAME = "dummy"
 DEFAULT_KWARGS = dict(
@@ -87,17 +89,28 @@ def test_call():
 
 
 def test_call_considering_state():
-    n_evals = 10
+    n_evals = 20
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs.update(n_evals=n_evals)
+    kwargs.update(n_evals=n_evals, n_actual_evals_in_opt=21)
     worker = ObjectiveFuncWorker(
         obj_func=dummy_func,
         **kwargs,
     )
-    # for i in range(15):
-    #     results = worker(eval_config={"x": i}, fidel=i)
-    #     if i >= n_evals:
-    #         assert all(v > 1000 for v in results.values())
+    for i in range(10):
+        for j in range(2):
+            last = (i == 9) and (j == 1)
+            worker(eval_config={"x": 1}, fidel=i + 1)
+            states = json.load(open(worker._state_path))
+            assert len(states) == int(not last)
+
+            if last:
+                continue
+
+            key = next(iter(states))
+            ans = 2
+            if (i == 0 and j == 0) or (i == 9 and j == 0):
+                ans = 1
+            assert len(states[key]) == ans
 
     shutil.rmtree(worker.dir_name)
 
