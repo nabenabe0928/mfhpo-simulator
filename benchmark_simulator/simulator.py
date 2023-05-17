@@ -407,6 +407,10 @@ class CentralWorkerManager:
         self._pid_to_index: Dict[int, int] = {}
 
     @property
+    def dir_name(self) -> str:
+        return self._dir_name
+
+    @property
     def max_fidel(self) -> Optional[int]:
         return self._max_fidel
 
