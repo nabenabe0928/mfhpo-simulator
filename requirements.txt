@@ -1,4 +1,6 @@
 # For package
+ujson
+numpy
 
 # For local check
 pytest-cov
