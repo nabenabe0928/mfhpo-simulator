@@ -97,9 +97,9 @@ class ObjectiveFuncWorker:
         subdir_name: str,
         n_workers: int,
         obj_func: _ObjectiveFunc,
-        max_fidel: int,
         n_actual_evals_in_opt: int,
         n_evals: int,
+        max_fidel: Optional[int] = None,
         loss_key: str = "loss",
         runtime_key: str = "runtime",
         seed: int = DEFAULT_SEED,
@@ -124,8 +124,6 @@ class ObjectiveFuncWorker:
                 Returns:
                     results: Dict[str, float]
                         It must return `objective metric` and `runtime` at least.
-            max_fidel (int):
-                The maximum fidelity defined in the objective function.
             n_actual_evals_in_opt (int):
                 The number of evaluations that optimizers do and it is used only for raising an error in init.
                 Note that the number of evaluations means
@@ -136,6 +134,9 @@ class ObjectiveFuncWorker:
                 How many configurations we would like to collect.
                 More specifically, how many times we call the objective function during the optimization.
                 We can guarantee that `results.json` has at least this number of evaluations.
+            max_fidel (Optional[int]):
+                The maximum fidelity defined in the objective function.
+                If None, we assume that no fidelity is used.
             loss_key (str):
                 The key of the objective metric used in `results` returned by func.
             runtime_key (str):
@@ -156,6 +157,7 @@ class ObjectiveFuncWorker:
         self._init_worker()
 
         self._rng = np.random.RandomState(seed)
+        self._use_fidel = max_fidel is not None
         self._obj_func = obj_func
         self._max_fidel, self._n_evals = max_fidel, n_evals
         self._loss_key, self._runtime_key = loss_key, runtime_key
@@ -170,6 +172,10 @@ class ObjectiveFuncWorker:
     @property
     def dir_name(self) -> str:
         return self._dir_name
+
+    @property
+    def max_fidel(self) -> Optional[int]:
+        return self._max_fidel
 
     def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, n_evals: int) -> None:
         if n_actual_evals_in_opt < n_workers + n_evals:
@@ -192,44 +198,62 @@ class ObjectiveFuncWorker:
         time.sleep(1e-2)  # buffer before the optimization
         return worker_id_to_index[self._worker_id]
 
-    def _get_cached_state_and_index(self, config_hash: int, fidel: int) -> Tuple[_StateType, Optional[int]]:
+    def _get_init_state(self) -> Tuple[_StateType, Optional[int]]:
+        init_state = INIT_STATE[:]
+        # initial seed, note: 1 << 30 is a huge number that fits 32bit.
+        init_state[-1] = self._rng.randint(1 << 30)  # type: ignore
+        return init_state, None
+
+    def _get_cached_state_and_index(self, config_hash: int, fidel: Optional[int]) -> Tuple[_StateType, Optional[int]]:
+        if not self._use_fidel:  # no-fidelity opt does not use cache
+            return self._get_init_state()
+
         # _StateType = List[_RuntimeType, _CumtimeType, _FidelityType, _SeedType]
         cached_states = _fetch_cache_states(self._state_path).get(config_hash, [])[:]
         intermediate_avail = [state[1] <= self._cumtime and state[2] < fidel for state in cached_states]
         cached_state_index = intermediate_avail.index(True) if any(intermediate_avail) else None
         if cached_state_index is None:
-            init_state = INIT_STATE[:]
-            # initial seed, note: 1 << 30 is a huge number that fits 32bit.
-            init_state[-1] = self._rng.randint(1 << 30)  # type: ignore
-            return init_state, None
+            return self._get_init_state()
         else:
             return cached_states[cached_state_index][:], cached_state_index
 
     def _update_state(
         self,
         config_hash: int,
-        fidel: int,
+        fidel: Optional[int],
         total_runtime: float,
         seed: Optional[int],
         cached_state_index: Optional[int],
     ) -> None:
+        if not self._use_fidel:  # no-fidelity opt does not use cache
+            return
+
         kwargs = dict(path=self._state_path, config_hash=config_hash)
-        if fidel != self._max_fidel:  # update the cache data
+        if fidel != self.max_fidel:  # update the cache data
             new_state = [total_runtime, self._cumtime, fidel, seed]
             _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)
         elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
             _delete_state(index=cached_state_index, **kwargs)
 
-    def _proc_output(self, eval_config: Dict[str, Any], fidel: int, **data_to_scatter: Any) -> Dict[str, float]:
-        config_hash = hash(str(eval_config))
-        kwargs = dict(config_hash=config_hash, fidel=fidel)
-        cached_state, cached_state_index = self._get_cached_state_and_index(**kwargs)
+    def _proc_output(
+        self, eval_config: Dict[str, Any], fidel: Optional[int], **data_to_scatter: Any
+    ) -> Dict[str, float]:
+        config_hash: int = hash(str(eval_config))
+        cached_state, cached_state_index = self._get_cached_state_and_index(config_hash=config_hash, fidel=fidel)
         cached_runtime, _, _, seed = cached_state
-        results = self._obj_func(eval_config=eval_config, fidel=fidel, seed=seed, **data_to_scatter)
+        results = self._obj_func(
+            eval_config=eval_config, seed=seed, **(dict(fidel=fidel) if self._use_fidel else {}), **data_to_scatter
+        )
         loss, total_runtime = results[self._loss_key], results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime) if self._continual_eval else total_runtime
         self._cumtime += actual_runtime
-        self._update_state(total_runtime=total_runtime, cached_state_index=cached_state_index, seed=seed, **kwargs)
+        self._update_state(
+            total_runtime=total_runtime,
+            cached_state_index=cached_state_index,
+            seed=seed,
+            config_hash=config_hash,
+            fidel=fidel,
+        )
         return {self._loss_key: loss, self._runtime_key: actual_runtime}
 
     def _wait_other_workers(self) -> None:
@@ -254,7 +278,9 @@ class ObjectiveFuncWorker:
         if _is_simulator_terminated(self._result_path, max_evals=self._n_evals):
             self._finish()
 
-    def __call__(self, eval_config: Dict[str, Any], fidel: int, **data_to_scatter: Any) -> Dict[str, float]:
+    def __call__(
+        self, eval_config: Dict[str, Any], fidel: Optional[int] = None, **data_to_scatter: Any
+    ) -> Dict[str, float]:
         """The method to close the worker instance.
         This method must be called before we finish the optimization.
         If not called, optimization modules are likely to hang at the end.
@@ -262,8 +288,9 @@ class ObjectiveFuncWorker:
         Args:
             eval_config (Dict[str, Any]):
                 The configuration to be used in the objective function.
-            fidel (int):
+            fidel (Optional[int]):
                 The fidelity to be used in the objective function. Typically training epoch in deep learning.
+                If None, no-fidelity opt.
             **data_to_scatter (Any):
                 Data to scatter across workers.
                 For example, when the objective function instance has a large file,
@@ -281,6 +308,10 @@ class ObjectiveFuncWorker:
         """
         if self._terminated:
             return {self._loss_key: INF, self._runtime_key: INF}
+        if self.max_fidel is None and fidel is not None:
+            raise ValueError(
+                "Objective function got keyword `fidel`, but max_fidel was not provided in worker instantiation."
+            )
 
         sampling_time = max(0.0, time.time() - self._prev_timestamp - self._waited_time)
         self._cumtime += sampling_time
@@ -304,9 +335,9 @@ class CentralWorkerManager:
         subdir_name: str,
         n_workers: int,
         obj_func: _ObjectiveFunc,
-        max_fidel: int,
         n_actual_evals_in_opt: int,
         n_evals: int,
+        max_fidel: Optional[int] = None,
         loss_key: str = "loss",
         runtime_key: str = "runtime",
         seeds: Optional[List[int]] = None,
@@ -333,11 +364,12 @@ class CentralWorkerManager:
                 Returns:
                     results: Dict[str, float]
                         It must return `objective metric` and `runtime` at least.
-            max_fidel (int):
-                The maximum fidelity defined in the objective function.
             n_evals (int):
                 How many configurations we evaluate.
                 More specifically, how many times we call the objective function during the optimization.
+            max_fidel (Optional[int]):
+                The maximum fidelity defined in the objective function.
+                If None, we assume that no fidelity is used.
             loss_key (str):
                 The key of the objective metric used in `results` returned by func.
             runtime_key (str):
@@ -366,8 +398,13 @@ class CentralWorkerManager:
         self._main_pid = os.getpid()
         self._init_workers(worker_kwargs, seeds=seeds)
 
+        self._max_fidel = max_fidel
         self._dir_name = self._workers[0].dir_name
         self._pid_to_index: Dict[int, int] = {}
+
+    @property
+    def max_fidel(self) -> Optional[int]:
+        return self._max_fidel
 
     def _init_workers(self, worker_kwargs: Dict[str, Any], seeds: Optional[List[int]]) -> None:
         seeds = [DEFAULT_SEED] * self._n_workers if seeds is None else seeds[:]
@@ -388,7 +425,9 @@ class CentralWorkerManager:
         _allocate_proc_to_worker(path=_path, pid=pid)
         self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._n_workers)
 
-    def __call__(self, eval_config: Dict[str, Any], fidel: int, **data_to_scatter: Any) -> Dict[str, float]:
+    def __call__(
+        self, eval_config: Dict[str, Any], fidel: Optional[int] = None, **data_to_scatter: Any
+    ) -> Dict[str, float]:
         """The memta-wrapper method of the objective function method in WorkerFunc instances.
 
         This method recognizes each WorkerFunc by process ID and call the corresponding worker based on the ID.
@@ -396,8 +435,9 @@ class CentralWorkerManager:
         Args:
             eval_config (Dict[str, Any]):
                 The configuration to be used in the objective function.
-            fidel (int):
+            fidel (Optional[int]):
                 The fidelity to be used in the objective function. Typically training epoch in deep learning.
+                If None, no-fidelity opt.
             **data_to_scatter (Any):
                 Data to scatter across workers.
                 For example, when the objective function instance has a large file,
