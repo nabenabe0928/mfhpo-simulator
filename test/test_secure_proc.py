@@ -1,4 +1,5 @@
 import os
+import pytest
 import shutil
 import unittest
 
@@ -16,6 +17,7 @@ from benchmark_simulator._secure_proc import (
     _delete_state,
     _fetch_cache_states,
     _fetch_cumtimes,
+    _get_timeout_message,
     _get_worker_id_to_idx,
     _init_simulator,
     _is_allocation_ready,
@@ -24,6 +26,9 @@ from benchmark_simulator._secure_proc import (
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
+    _wait_all_workers,
+    _wait_proc_allocation,
+    _wait_until_next,
 )
 
 import ujson as json
@@ -35,6 +40,10 @@ DIR_NAME = "test/dummy"
 def _init_for_tests():
     os.makedirs(DIR_NAME, exist_ok=True)
     _init_simulator(DIR_NAME)
+
+
+def test_get_timeout_message():
+    assert isinstance(_get_timeout_message("dummy1", "dummy2/dummy3.json"), str)
 
 
 def test_init_simulator():
@@ -69,6 +78,11 @@ def test_allocate_proc_to_worker():
 
     assert _complete_proc_allocation(path) == ans
     assert _get_worker_id_to_idx(path) == {str(p): i for i, p in enumerate(ans.keys())}
+
+    _wait_proc_allocation(path, n_workers=10)
+    with pytest.raises(TimeoutError):
+        _wait_proc_allocation(path, n_workers=11, time_limit=0.1)
+
     shutil.rmtree(DIR_NAME)
 
 
@@ -99,6 +113,14 @@ def test_record_cumtime():
                 c1 = bool(_is_min_cumtime(path, worker_id=worker_id))
                 c2 = bool(min_id == idx)
                 assert not (c1 ^ c2)
+                if c1:
+                    _wait_until_next(path, worker_id=worker_id)
+                else:
+                    pass
+
+    _wait_all_workers(path, n_workers=n_reg)
+    with pytest.raises(TimeoutError):
+        _wait_all_workers(path, n_workers=n_reg + 1, time_limit=0.1)
 
     shutil.rmtree(DIR_NAME)
 
@@ -151,6 +173,14 @@ def test_record_result():
         assert json.load(open(path)) == ans
 
     shutil.rmtree(DIR_NAME)
+
+
+def test_wait_proc_allocation():
+    pass
+
+
+def test_wait_until_next():
+    pass
 
 
 if __name__ == "__main__":
