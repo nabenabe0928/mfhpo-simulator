@@ -57,6 +57,14 @@ Each list gets more than two elements if evaluations of the same configs happen.
     * workerN_id -- cumtimeN
 This file tells you how much time each worker virtually spends in the simulation
 and we need this information to manage the order of job allocations to each worker.
+
+5. mfhpo-simulator-info/*/timestamp.json
+    * worker1_id -- {"prev_timestamp": prev_timestamp1, "waited_time": waited_time1}
+    * worker1_id -- {"prev_timestamp": prev_timestamp2, "waited_time": waited_time2}
+    :
+    * workerN_id -- {"prev_timestamp": prev_timestampN, "waited_time": waited_timeN}
+This file tells the last checkpoint timestamp of each worker (prev_timestamp) and
+how much time each worker waited for other workers in the last call.
 """
 import os
 import threading
@@ -78,10 +86,13 @@ from benchmark_simulator._secure_proc import (
     _cache_state,
     _delete_state,
     _fetch_cache_states,
+    _fetch_cumtimes,
+    _fetch_timestamps,
     _init_simulator,
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
+    _record_timestamp,
     _wait_all_workers,
     _wait_proc_allocation,
     _wait_until_next,
@@ -157,7 +168,9 @@ class ObjectiveFuncWorker:
         self._guarantee_no_hang(n_workers=n_workers, n_actual_evals_in_opt=n_actual_evals_in_opt, n_evals=n_evals)
         self._worker_id = _generate_time_hash()
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
-        _, self._result_path, self._state_path, self._cumtime_path = _get_file_paths(self.dir_name)
+        _, self._result_path, self._state_path, self._cumtime_path, self._timestamp_path = _get_file_paths(
+            self.dir_name
+        )
         self._init_worker()
 
         self._rng = np.random.RandomState(seed)
@@ -250,8 +263,7 @@ class ObjectiveFuncWorker:
         )
         total_runtime = results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime) if self._continual_eval else total_runtime
-        self._cumtime += actual_runtime
-        assert actual_runtime >= 0
+        self._cumtime += actual_runtime  # TODO
         self._update_state(
             total_runtime=total_runtime,
             cached_state_index=cached_state_index,
@@ -269,8 +281,14 @@ class ObjectiveFuncWorker:
         """
         wait_start = time.time()
         _wait_until_next(path=self._cumtime_path, worker_id=self._worker_id)
-        self._waited_time = time.time() - wait_start
-        self._prev_timestamp = time.time()
+        self._waited_time = time.time() - wait_start  # TODO
+        self._prev_timestamp = time.time()  # TODO
+        _record_timestamp(
+            path=self._timestamp_path,
+            worker_id=self._worker_id,
+            prev_timestamp=self._prev_timestamp,
+            waited_time=self._waited_time,
+        )
 
     def _post_proc(self, results: Dict[str, float]) -> None:
         # First, record the simulated cumulative runtime after calling the objective
@@ -282,6 +300,17 @@ class ObjectiveFuncWorker:
         _record_result(self._result_path, results=row)
         if _is_simulator_terminated(self._result_path, max_evals=self._n_evals):
             self._finish()
+
+    def _load_timestamps(self) -> None:
+        timestamp_dict = _fetch_timestamps(self._timestamp_path)
+        if len(timestamp_dict) == 0:  # We do not need it right after the instantiation
+            return
+
+        timestamp = timestamp_dict[self._worker_id]
+        self._cumtime = _fetch_cumtimes(self._cumtime_path)[self._worker_id]
+        self._prev_timestamp = timestamp["prev_timestamp"]
+        self._waited_time = timestamp["waited_time"]
+        self._terminated = self._cumtime >= INF - 1e-5
 
     def __call__(
         self, eval_config: Dict[str, Any], fidel: Optional[int] = None, **data_to_scatter: Any
@@ -311,15 +340,16 @@ class ObjectiveFuncWorker:
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
         """
-        if self._terminated:
+        self._load_timestamps()
+        if self._terminated:  # TODO
             return {**{k: INF for k in self._obj_keys}, self._runtime_key: INF}
         if self.max_fidel is None and fidel is not None:
             raise ValueError(
                 "Objective function got keyword `fidel`, but max_fidel was not provided in worker instantiation."
             )
 
-        sampling_time = max(0.0, time.time() - self._prev_timestamp - self._waited_time)
-        self._cumtime += sampling_time
+        sampling_time = max(0.0, time.time() - self._prev_timestamp - self._waited_time)  # TODO
+        self._cumtime += sampling_time  # TODO
 
         results = self._proc_output(eval_config, fidel, **data_to_scatter)
         self._post_proc(results)
@@ -331,7 +361,7 @@ class ObjectiveFuncWorker:
         If not called, optimization modules are likely to hang.
         """
         _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=INF)
-        self._terminated = True
+        self._terminated = True  # TODO
 
 
 class CentralWorkerManager:

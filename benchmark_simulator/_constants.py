@@ -1,5 +1,10 @@
 import os
-from typing import Any, Dict, NewType, Optional, Protocol, Tuple
+from typing import Any, Dict, NewType, Optional, Protocol, Tuple, TypedDict
+
+
+class _TimeStampDictType(TypedDict):
+    prev_timestamp: float
+    waited_time: float
 
 
 class _ObjectiveFunc(Protocol):
@@ -43,6 +48,7 @@ WORKER_CUMTIME_FILE_NAME = "simulated_cumtime.json"
 RESULT_FILE_NAME = "results.json"
 PROC_ALLOC_NAME = "proc_alloc.json"
 STATE_CACHE_FILE_NAME = "state_cache.json"
+TIMESTAMP_FILE_NAME = "timestamp.json"
 INF = 1 << 40
 _RuntimeType = NewType("_RuntimeType", float)
 _CumtimeType = NewType("_CumtimeType", float)
@@ -52,10 +58,11 @@ _StateType = Tuple[_RuntimeType, _CumtimeType, _FidelityType, _SeedType]
 INIT_STATE: _StateType = [0.0, 0.0, 0, None]  # type: ignore
 
 
-def _get_file_paths(dir_name: str) -> Tuple[str, str, str, str]:
+def _get_file_paths(dir_name: str) -> Tuple[str, str, str, str, str]:
     return (
         os.path.join(dir_name, PROC_ALLOC_NAME),
         os.path.join(dir_name, RESULT_FILE_NAME),
         os.path.join(dir_name, STATE_CACHE_FILE_NAME),
         os.path.join(dir_name, WORKER_CUMTIME_FILE_NAME),
+        os.path.join(dir_name, TIMESTAMP_FILE_NAME),
     )

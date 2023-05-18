@@ -8,6 +8,8 @@ from typing import Any, Dict, Optional
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
 
+import numpy as np
+
 import ujson as json
 
 
@@ -194,7 +196,12 @@ def test_optimize_parallel():
 
     pool.close()
     pool.join()
-    shutil.rmtree(manager.dir_name)
+
+    path = manager.dir_name
+    out = json.load(open(os.path.join(path, "results.json")))
+    shutil.rmtree(path)
+    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    assert np.allclose(diffs, 0.0)
 
 
 if __name__ == "__main__":

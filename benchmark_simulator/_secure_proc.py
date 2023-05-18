@@ -10,8 +10,10 @@ from benchmark_simulator._constants import (
     PROC_ALLOC_NAME,
     RESULT_FILE_NAME,
     STATE_CACHE_FILE_NAME,
+    TIMESTAMP_FILE_NAME,
     WORKER_CUMTIME_FILE_NAME,
     _StateType,
+    _TimeStampDictType,
 )
 from benchmark_simulator._utils import secure_edit, secure_read
 
@@ -21,7 +23,7 @@ import ujson as json  # type: ignore
 
 
 def _init_simulator(dir_name: str) -> None:
-    for fn in [WORKER_CUMTIME_FILE_NAME, RESULT_FILE_NAME, STATE_CACHE_FILE_NAME, PROC_ALLOC_NAME]:
+    for fn in [WORKER_CUMTIME_FILE_NAME, RESULT_FILE_NAME, STATE_CACHE_FILE_NAME, PROC_ALLOC_NAME, TIMESTAMP_FILE_NAME]:
         path = os.path.join(dir_name, fn)
         with open(path, "a+") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
@@ -62,6 +64,14 @@ def _record_cumtime(f: TextIOWrapper, worker_id: str, cumtime: float) -> None:
 
 
 @secure_edit
+def _record_timestamp(f: TextIOWrapper, worker_id: str, prev_timestamp: float, waited_time: float) -> None:
+    record = json.load(f)
+    record[worker_id] = dict(prev_timestamp=prev_timestamp, waited_time=waited_time)
+    f.seek(0)
+    json.dump(record, f, indent=4)
+
+
+@secure_edit
 def _cache_state(f: TextIOWrapper, config_hash: int, new_state: _StateType, update_index: Optional[int] = None) -> None:
     cache = {int(k): v for k, v in json.load(f).items()}
     if config_hash not in cache:
@@ -95,6 +105,12 @@ def _fetch_cache_states(f: TextIOWrapper) -> Dict[int, List[_StateType]]:
 def _fetch_cumtimes(f: TextIOWrapper) -> Dict[str, float]:
     cumtimes = json.load(f)
     return cumtimes
+
+
+@secure_read
+def _fetch_timestamps(f: TextIOWrapper) -> Dict[str, _TimeStampDictType]:
+    timestamps = json.load(f)
+    return timestamps
 
 
 @secure_edit
