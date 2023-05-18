@@ -1,0 +1,4 @@
+# For package
+ujson
+numpy
+dehb==0.0.5

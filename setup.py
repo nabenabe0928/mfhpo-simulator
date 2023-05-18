@@ -2,7 +2,7 @@ import setuptools
 
 
 requirements = []
-with open("requirements.txt", "r") as f:
+with open("setup-requirements.txt", "r") as f:
     for line in f:
         requirements.append(line.strip())
 
