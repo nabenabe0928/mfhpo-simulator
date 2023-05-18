@@ -179,7 +179,7 @@ class ObjectiveFuncWorker:
         self._max_fidel, self._n_evals = max_fidel, n_evals
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
         self._index = self._alloc_index(n_workers)
-        self._prev_timestamp, self._waited_time, self._cumtime = time.time(), 0.0, 0.0
+        self._cumtime = 0.0
         self._continual_eval = continual_eval
         self._terminated = False
 
@@ -281,13 +281,11 @@ class ObjectiveFuncWorker:
         """
         wait_start = time.time()
         _wait_until_next(path=self._cumtime_path, worker_id=self._worker_id)
-        self._waited_time = time.time() - wait_start  # TODO
-        self._prev_timestamp = time.time()  # TODO
         _record_timestamp(
             path=self._timestamp_path,
             worker_id=self._worker_id,
-            prev_timestamp=self._prev_timestamp,
-            waited_time=self._waited_time,
+            prev_timestamp=time.time(),
+            waited_time=time.time() - wait_start,
         )
 
     def _post_proc(self, results: Dict[str, float]) -> None:
@@ -301,16 +299,15 @@ class ObjectiveFuncWorker:
         if _is_simulator_terminated(self._result_path, max_evals=self._n_evals):
             self._finish()
 
-    def _load_timestamps(self) -> None:
+    def _load_timestamps(self) -> Tuple[float, float]:
         timestamp_dict = _fetch_timestamps(self._timestamp_path)
         if len(timestamp_dict) == 0:  # We do not need it right after the instantiation
-            return
+            return 0.0, time.time()
 
         timestamp = timestamp_dict[self._worker_id]
         self._cumtime = _fetch_cumtimes(self._cumtime_path)[self._worker_id]
-        self._prev_timestamp = timestamp["prev_timestamp"]
-        self._waited_time = timestamp["waited_time"]
-        self._terminated = self._cumtime >= INF - 1e-5
+        self._terminated = self._cumtime >= INF - 1e-5  # INF means finish has been called.
+        return timestamp["waited_time"], timestamp["prev_timestamp"]
 
     def __call__(
         self, eval_config: Dict[str, Any], fidel: Optional[int] = None, **data_to_scatter: Any
@@ -340,15 +337,15 @@ class ObjectiveFuncWorker:
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
         """
-        self._load_timestamps()
-        if self._terminated:  # TODO
+        waited_time, prev_timestamp = self._load_timestamps()
+        if self._terminated:
             return {**{k: INF for k in self._obj_keys}, self._runtime_key: INF}
         if self.max_fidel is None and fidel is not None:
             raise ValueError(
                 "Objective function got keyword `fidel`, but max_fidel was not provided in worker instantiation."
             )
 
-        sampling_time = max(0.0, time.time() - self._prev_timestamp - self._waited_time)  # TODO
+        sampling_time = max(0.0, time.time() - prev_timestamp - waited_time)
         self._cumtime += sampling_time  # TODO
 
         results = self._proc_output(eval_config, fidel, **data_to_scatter)
@@ -361,7 +358,7 @@ class ObjectiveFuncWorker:
         If not called, optimization modules are likely to hang.
         """
         _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=INF)
-        self._terminated = True  # TODO
+        self._terminated = True
 
 
 class CentralWorkerManager:
