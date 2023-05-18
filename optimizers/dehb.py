@@ -1,5 +1,5 @@
 import os
-from typing import Any, List
+from typing import Any, Dict, List
 
 import ConfigSpace as CS
 
@@ -14,7 +14,7 @@ from optimizers.utils import BENCH_CHOICES, get_subdir_name, parse_args
 
 class DEHBCentralWorkerManager(CentralWorkerManager):
     # Adapt to the DEHB interface at https://github.com/automl/DEHB/
-    def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> float:
+    def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> Dict[str, float]:
         eval_config = config.get_dictionary()
         results = super().__call__(eval_config=eval_config, fidel=budget, **data_to_scatter)
         return dict(fitness=results[self.obj_keys[0]], cost=results[self.runtime_key])

@@ -22,7 +22,7 @@ class BOHBWorker(Worker):
         self.sleep_interval = sleep_interval
         self._worker = worker
 
-    def compute(self, config: Dict, budget: float, **kwargs):
+    def compute(self, config: Dict[str, Any], budget: int, **kwargs: Any) -> Dict[str, float]:
         results = self._worker(eval_config=config, fidel=budget)
         return dict(loss=results["loss"])
 
