@@ -194,6 +194,14 @@ class ObjectiveFuncWorker:
     def max_fidel(self) -> Optional[int]:
         return self._max_fidel
 
+    @property
+    def runtime_key(self) -> str:
+        return self._runtime_key
+
+    @property
+    def obj_keys(self) -> List[str]:
+        return self._obj_keys[:]
+
     def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, n_evals: int) -> None:
         if n_actual_evals_in_opt < n_workers + n_evals:
             threshold = n_workers + n_evals
@@ -425,6 +433,7 @@ class CentralWorkerManager:
             runtime_key=runtime_key,
             continual_eval=continual_eval,
         )
+        self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._n_workers = n_workers
         self._workers: List[ObjectiveFuncWorker]
@@ -442,6 +451,14 @@ class CentralWorkerManager:
     @property
     def max_fidel(self) -> Optional[int]:
         return self._max_fidel
+
+    @property
+    def runtime_key(self) -> str:
+        return self._runtime_key
+
+    @property
+    def obj_keys(self) -> List[str]:
+        return self._obj_keys[:]
 
     def _init_workers(self, worker_kwargs: Dict[str, Any], seeds: Optional[List[int]]) -> None:
         seeds = [DEFAULT_SEED] * self._n_workers if seeds is None else seeds[:]
