@@ -251,6 +251,7 @@ class ObjectiveFuncWorker:
         total_runtime = results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime) if self._continual_eval else total_runtime
         self._cumtime += actual_runtime
+        assert actual_runtime >= 0
         self._update_state(
             total_runtime=total_runtime,
             cached_state_index=cached_state_index,
