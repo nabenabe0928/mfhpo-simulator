@@ -12,7 +12,7 @@ from hpbandster.optimizers import BOHB
 
 import numpy as np
 
-from optimizers.utils import BENCH_CHOICES, get_subdir_name, parse_args
+from optimizers.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class BOHBWorker(Worker):
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     args = parse_args()
     subdir_name = get_subdir_name(args)
     np.random.seed(args.seed)
-    obj_func = BENCH_CHOICES[args.bench_name](dataset_id=args.dataset_id, seed=args.seed)
+    obj_func = get_bench_instance(args)
 
     run_id = f"bench={args.bench_name}_dataset={args.dataset_id}_nworkers={args.n_workers}_seed={args.seed}"
     run_bohb(
