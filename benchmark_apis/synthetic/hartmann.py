@@ -17,6 +17,8 @@ class MFHartmann(MFAbstractFunc):
             The random seed for the noise.
         bias (float):
             The bias term to change the rank correlation between low- and high-fidelities.
+            Larger values lead to less correlation.
+            The default value was used in the Dragonfly paper in the reference.
         runtime_factor (float):
             The runtime factor to change the maximum runtime.
             If max_fidel is given, the runtime will be the `runtime_factor` seconds.

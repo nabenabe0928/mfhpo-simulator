@@ -10,6 +10,10 @@ class MFBranin(MFAbstractFunc):
     Multi-fidelity Branin Function.
 
     Args:
+        delta_b, delta_c, delta_t (float):
+            The control parameters of the rank correlation between low- and high-fidelities.
+            Larger values lead to less correlation.
+            The default value was used in the Dragonfly paper in the reference.
         seed (Optional[int])
             The random seed for the noise.
         runtime_factor (float):
@@ -23,10 +27,18 @@ class MFBranin(MFAbstractFunc):
             URL: https://arxiv.org/pdf/1703.06240.pdf
     """
 
-    def __init__(self, seed: Optional[int] = None, runtime_factor: float = 3600.0):
+    def __init__(
+        self,
+        delta_b: float = 1e-2,
+        delta_c: float = 0.1,
+        delta_t: float = 5e-3,
+        seed: Optional[int] = None,
+        runtime_factor: float = 3600.0,
+    ):
         super().__init__(seed=seed, runtime_factor=runtime_factor)
         self._noise_std = float(np.sqrt(0.05))
         self._dim = 2
+        self._delta_b, self._delta_c, self._delta_t = delta_b, delta_c, delta_t
 
     def _fetch_coefs(self, z: float) -> Tuple[float, float, float, float, float, float]:
         """The coefficients used in Branin. See the reference for more details."""
@@ -35,11 +47,11 @@ class MFBranin(MFAbstractFunc):
         c0 = 5 / np.pi
         t0 = 1 / (8 * np.pi)
         a = 1.0
-        b = b0 - 0.01 * (1 - z)
-        c = c0 - 0.1 * (1 - z)
+        b = b0 - self._delta_b * (1 - z)
+        c = c0 - self._delta_b * (1 - z)
         r = 6
         s = 10
-        t = t0 + 0.005 * (1 - z)
+        t = t0 + self._delta_t * (1 - z)
         return a, b, c, r, s, t
 
     def _transform(self, x: np.ndarray) -> np.ndarray:
