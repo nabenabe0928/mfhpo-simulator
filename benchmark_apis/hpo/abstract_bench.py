@@ -17,6 +17,7 @@ class AbstractBench(metaclass=ABCMeta):
     _rng: np.random.RandomState
     _value_range: Dict[str, List[Union[int, float, str]]]
     dataset_name: str
+    _BENCH_TYPE = "HPO"
 
     def reseed(self, seed: int) -> None:
         self._rng = np.random.RandomState(seed)

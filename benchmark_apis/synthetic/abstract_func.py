@@ -24,6 +24,9 @@ class MFAbstractFunc(metaclass=ABCMeta):
             URL: https://arxiv.org/pdf/1703.06240.pdf
     """
 
+    _DATASET_NAMES = None
+    _BENCH_TYPE = "SYNTHETIC"
+
     def __init__(
         self,
         seed: Optional[int] = None,
