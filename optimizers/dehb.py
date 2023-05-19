@@ -9,7 +9,7 @@ from dehb import DEHB
 
 import numpy as np
 
-from optimizers.utils import BENCH_CHOICES, get_subdir_name, parse_args
+from optimizers.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class DEHBCentralWorkerManager(CentralWorkerManager):
@@ -70,7 +70,7 @@ def run_dehb(
 if __name__ == "__main__":
     args = parse_args()
     subdir_name = get_subdir_name(args)
-    bench = BENCH_CHOICES[args.bench_name](dataset_id=args.dataset_id, seed=args.seed, keep_benchdata=False)
+    bench = get_bench_instance(args, keep_benchdata=False)
 
     run_dehb(
         obj_func=bench,

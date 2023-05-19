@@ -35,10 +35,10 @@ def get_subdir_name(args: Namespace) -> str:
     return f"bench={bench_name}{dataset_part}_nworkers={args.n_workers}/{args.seed}"
 
 
-def get_bench_instance(args: Namespace) -> Any:
+def get_bench_instance(args: Namespace, keep_benchdata: bool = False) -> Any:
     bench_cls = BENCH_CHOICES[args.bench_name]
     if bench_cls._BENCH_TYPE == "HPO":
-        obj_func = bench_cls(dataset_id=args.dataset_id, seed=args.seed)
+        obj_func = bench_cls(dataset_id=args.dataset_id, seed=args.seed, keep_benchdata=keep_benchdata)
     else:
         kwargs = dict(dim=args.dim) if args.bench_name == "hartmann" else dict()
         obj_func = bench_cls(seed=args.seed, **kwargs)
