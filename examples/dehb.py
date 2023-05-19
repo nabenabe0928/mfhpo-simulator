@@ -1,58 +1,55 @@
 import os
-import shutil
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, List
 
 import ConfigSpace as CS
 
-import numpy as np
+from benchmark_simulator import CentralWorkerManager
 
 from dehb import DEHB
 
-from benchmark_simulator._constants import DIR_NAME
-from benchmark_simulator.simulator import CentralWorkerManager
-from examples.toy import TestFunc
+import numpy as np
 
-
-class Wrapper:
-    def __init__(self, bench: Any):
-        self._bench = bench
-
-    def __call__(
-        self, eval_config: Dict[str, Any], fidel: int, seed: Optional[int], **data_to_scatter: Any
-    ) -> Dict[str, Any]:
-        output = self._bench(eval_config, fidel, seed, **data_to_scatter)
-        ret_vals = dict(fitness=output["loss"], cost=output["runtime"])
-        return ret_vals
+from optimizers.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class DEHBCentralWorkerManager(CentralWorkerManager):
-    def __call__(self, config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict[str, float]:
-        return super().__call__(eval_config=config, fidel=budget)
+    # Adapt to the DEHB interface at https://github.com/automl/DEHB/
+    def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> Dict[str, float]:
+        eval_config = config.get_dictionary()
+        results = super().__call__(eval_config=eval_config, fidel=budget, **data_to_scatter)
+        return dict(fitness=results[self.obj_keys[0]], cost=results[self.runtime_key])
 
 
 def run_dehb(
-    obj_func: Callable,
+    obj_func: Any,
     config_space: CS.ConfigurationSpace,
+    subdir_name: str,
     min_fidel: int,
     max_fidel: int,
-    n_workers: int,
-    subdir_name: str,
-    max_evals: int = 450,  # eta=3,S=2,100 full evals
+    n_workers: int = 4,
+    n_actual_evals_in_opt: int = 455,
+    obj_keys: List[str] = ["loss"][:],
+    runtime_key: str = "runtime",
+    seed: int = 42,
+    continual_eval: bool = True,
+    n_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
-    n_actual_evals_in_opt = max_evals + n_workers
-    worker = DEHBCentralWorkerManager(
-        obj_func=obj_func,
-        n_workers=n_workers,
-        max_fidel=max_fidel,
-        n_actual_evals_in_opt=n_actual_evals_in_opt,
-        n_evals=max_evals,
+    np.random.seed(seed)
+    manager = DEHBCentralWorkerManager(
         subdir_name=subdir_name,
-        obj_keys=["fitness"],
-        runtime_key="cost",
+        n_workers=n_workers,
+        obj_func=obj_func,
+        n_actual_evals_in_opt=n_actual_evals_in_opt,
+        n_evals=n_evals,
+        max_fidel=max_fidel,
+        obj_keys=obj_keys,
+        runtime_key=runtime_key,
+        seeds=[seed] * n_workers,
+        continual_eval=continual_eval,
     )
 
     dehb = DEHB(
-        f=worker,
+        f=manager,
         cs=config_space,
         dimensions=len(config_space),
         min_budget=min_fidel,
@@ -62,26 +59,25 @@ def run_dehb(
         n_workers=n_workers,
         output_path="dehb-log/",
     )
-    # kwargs = obj_func.get_shared_data()
-    kwargs = {}
-    dehb.run(fevals=n_actual_evals_in_opt, **kwargs)
+    data_to_scatter = {}
+    if hasattr(obj_func, "get_benchdata"):
+        # This data is shared in memory, and thus the optimization becomes quicker!
+        data_to_scatter = {"benchdata": obj_func.get_benchdata()}
+
+    dehb.run(fevals=n_actual_evals_in_opt, **data_to_scatter)
 
 
 if __name__ == "__main__":
-    np.random.RandomState(0)
-    bench = TestFunc()
-    wrapped_func = Wrapper(bench)
-
-    subdir_name = "example_dehb"
-    dir_name = os.path.join(DIR_NAME, subdir_name)
-    if os.path.exists(dir_name):
-        shutil.rmtree(dir_name)
+    args = parse_args()
+    subdir_name = get_subdir_name(args)
+    bench = get_bench_instance(args, keep_benchdata=False)
 
     run_dehb(
-        obj_func=wrapped_func,
+        obj_func=bench,
         config_space=bench.config_space,
         min_fidel=bench.min_fidel,
         max_fidel=bench.max_fidel,
-        n_workers=4,
-        subdir_name=subdir_name,
+        n_workers=args.n_workers,
+        subdir_name=os.path.join("dehb", subdir_name),
+        seed=args.seed,
     )

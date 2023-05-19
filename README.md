@@ -32,16 +32,16 @@ Then you can run various examples:
 
 ```shell
 # Run BOHB with 4 workers on dataset_id=0 in HPOlib (HPOlib has 4 different datasets)
-$ python -m optimizers.bohb --seed 0 --dataset_id 0 --bench_name hpolib --n_workers 4
+$ python -m examples.bohb --seed 0 --dataset_id 0 --bench_name hpolib --n_workers 4
 
 # Run DEHB with 4 workers on dataset_id=0 in LCBench (LCBench has 34 different datasets)
-$ python -m optimizers.dehb --seed 0 --dataset_id 0 --bench_name lc --n_workers 4
+$ python -m examples.dehb --seed 0 --dataset_id 0 --bench_name lc --n_workers 4
 
 # Run NePS with 4 workers on dataset_id=0 in JAHS-Bench-201 (JAHS-Bench-201 has 3 different datasets)
-$ ./optimizers/neps.sh --seed 0 --dataset_id 0 --bench_name jahs --n_workers 4
+$ ./examples/neps.sh --seed 0 --dataset_id 0 --bench_name jahs --n_workers 4
 
 # Run SMAC3 with 4 workers on Hartmann (Hartmann has 3 or 6 dimensions)
-$ python -m optimizers.smac --seed 0 --dim 0 --bench_name hartmann --n_workers 4
+$ python -m examples.smac --seed 0 --dim 0 --bench_name hartmann --n_workers 4
 ```
 
 Each argument is defined as follows:
