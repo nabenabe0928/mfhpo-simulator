@@ -1,7 +1,45 @@
-n_workers=4
+dim=3
+dataset_id=0
+
+while [[ $# -gt 0 ]]; do
+    key="$1"
+
+    case $key in
+        --seed)
+            seed="$2"
+            shift
+            shift
+            ;;
+        --dataset_id)
+            dataset_id="$2"
+            shift
+            shift
+            ;;
+        --bench_name)
+            bench_name="$2"
+            shift
+            shift
+            ;;
+        --n_workers)
+            n_workers="$2"
+            shift
+            shift
+            ;;
+        --dim)
+            n_workers="$2"
+            shift
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+rm -r neps-log  # Here must be adapted to the exact log directory name.
 
 for num in `seq 1 ${n_workers}`; do
-    python -m optimizers.neps --seed 0 --dataset_id 0 --bench_name hpolib --n_workers $n_workers &
+    python -m optimizers.neps --seed $seed --dataset_id $dataset_id --bench_name $bench_name --n_workers $n_workers &
     pids[${num}]=$!
     echo "Start Proc. $num"
 done

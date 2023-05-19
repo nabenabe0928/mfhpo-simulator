@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Any, Dict, List
 
 import ConfigSpace as CS
@@ -9,7 +10,7 @@ import neps
 
 import numpy as np
 
-from optimizers.utils import BENCH_CHOICES, get_subdir_name, parse_args
+from optimizers.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class NEPSWorker(ObjectiveFuncWorker):
@@ -75,9 +76,16 @@ def run_neps(
 
 
 if __name__ == "__main__":
+    if os.path.exists("neps-log"):
+        warnings.warn(
+            "If `neps-log` already exists, NePS continues the optimization using the log, \n"
+            "so pleaase remove the `neps-log` if you would like to start the optimization from scratch."
+        )
+
     args = parse_args()
     subdir_name = get_subdir_name(args)
-    bench = BENCH_CHOICES[args.bench_name](dataset_id=args.dataset_id, seed=args.seed)
+    bench = get_bench_instance(args)
+
     run_neps(
         obj_func=bench,
         config_space=bench.config_space,
