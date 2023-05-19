@@ -2,14 +2,14 @@ import setuptools
 
 
 requirements = []
-with open("setup-requirements.txt", "r") as f:
+with open("requirements-for-setup.txt", "r") as f:
     for line in f:
         requirements.append(line.strip())
 
 
 setuptools.setup(
     name="mfhpo-simulator",
-    version="0.0.1",
+    version="0.0.2",
     author="nabenabe0928",
     author_email="shuhei.watanabe.utokyo@gmail.com",
     url="https://github.com/nabenabe0928/mfhpo-simulator",
