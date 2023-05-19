@@ -75,6 +75,40 @@ def test_guarantee_no_hang():
         shutil.rmtree(PATH)
 
 
+def test_error_in_keys():
+    n_evals = 10
+    kwargs = DEFAULT_KWARGS.copy()
+    kwargs.update(n_evals=n_evals)
+    with pytest.raises(KeyError):
+        worker = ObjectiveFuncWorker(
+            obj_func=dummy_func,
+            obj_keys=["dummy_loss"],
+            **kwargs,
+        )
+        worker(eval_config={"x": 0}, fidel=1)
+
+    shutil.rmtree(worker.dir_name)
+    with pytest.raises(KeyError):
+        worker = ObjectiveFuncWorker(
+            obj_func=dummy_func,
+            runtime_key="dummy_runtime",
+            **kwargs,
+        )
+        worker(eval_config={"x": 0}, fidel=1)
+
+    shutil.rmtree(worker.dir_name)
+
+    with pytest.raises(KeyError):
+        worker = ObjectiveFuncWorker(
+            obj_func=dummy_func,
+            obj_keys=["dummy_loss", "loss"],
+            **kwargs,
+        )
+        worker(eval_config={"x": 0}, fidel=1)
+
+    shutil.rmtree(worker.dir_name)
+
+
 def test_call():
     n_evals = 10
     kwargs = DEFAULT_KWARGS.copy()

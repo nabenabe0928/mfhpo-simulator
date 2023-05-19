@@ -260,6 +260,16 @@ class ObjectiveFuncWorker:
         elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
             _delete_state(index=cached_state_index, **kwargs)
 
+    def _validate_output(self, results: Dict[str, float]) -> None:
+        keys_in_output = set(results.keys())
+        keys = set(self.obj_keys + [self.runtime_key])
+        print(keys_in_output.intersection(keys), keys)
+        if keys_in_output.intersection(keys) != keys:
+            raise KeyError(
+                f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
+                f"but got {results}"
+            )
+
     def _proc_output(
         self, eval_config: Dict[str, Any], fidel: Optional[int], **data_to_scatter: Any
     ) -> Dict[str, float]:
@@ -269,6 +279,7 @@ class ObjectiveFuncWorker:
         results = self._obj_func(
             eval_config=eval_config, seed=seed, **(dict(fidel=fidel) if self._use_fidel else {}), **data_to_scatter
         )
+        self._validate_output(results)
         total_runtime = results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime) if self._continual_eval else total_runtime
         self._cumtime += actual_runtime  # TODO

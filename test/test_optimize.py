@@ -88,6 +88,7 @@ def test_dehb():
     shutil.rmtree(path)
     diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
     assert np.allclose(diffs, 0.0)
+    shutil.rmtree("dehb-log")
 
 
 if __name__ == "__main__":

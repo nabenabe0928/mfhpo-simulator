@@ -45,13 +45,31 @@ $ python -m examples.smac --seed 0 --dim 0 --bench_name hartmann --n_workers 4
 ```
 
 Each argument is defined as follows:
-1. --seed (int): The random seeds to be used.
-2. --bench_name (Literal["hpolib", "jahs", "lc", "hartmann", "branin"]): The benchmark to be used.
-3. --n_workers (int): The number of parallel workers to be used. Too high numbers may crash your system because the specified benchmark dataset must stay on the memory for each process/thread.
-4. --dataset_id (Optional[int]): The dataset ID to be used in the specified dataset (0 to 3 for HPOlib, 0 to 33 for LCBench, and 0 t0 2 for JAHS-Bench-201). The default value is 0.
-5. --dim (Optional[int]): The dimensionality of the Hartmann function and it is used only Hartmann function. The default value is 3.
+1. `--seed` (`int`): The random seeds to be used.
+2. `--bench_name` (`Literal["hpolib", "jahs", "lc", "hartmann", "branin"]`): The benchmark to be used.
+3. `--n_workers` (`int`): The number of parallel workers to be used. Too high numbers may crash your system because the specified benchmark dataset must stay on the memory for each process/thread.
+4. `--dataset_id` (`Optional[int]`): The dataset ID to be used in the specified dataset (0 to 3 for HPOlib, 0 to 33 for LCBench, and 0 t0 2 for JAHS-Bench-201). The default value is 0.
+5. `--dim` (`Optional[int]`): The dimensionality of the Hartmann function and it is used only Hartmann function. The default value is 3.
 
 Note that `--seed` does not guarantee the reproducitility because of the parallel processing nature.
+
+## Arguments of ObjectiveFuncWorker/CentralWorkerManager
+
+In most packages, users need to use `CentralWorkerManager`.
+However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps) are exceptions where you need to instantiate `ObjectiveFuncWorker`.
+Basically, we need to use `ObjectiveFuncWorker` for BOHB and NePS because they share the information in each worker via some types of server or they launch multiple independent threads.
+On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, users need to use `CentralWorkerManager`.
+Here, we describe the arguments of `CentralWorkerManager`:
+1. `subdir_name` (`str`): The directory to store the information.
+2. `n_workers` (`int`): The number of parallel workers.
+3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details.
+4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimiziers (this argument will be used only for raising an error).
+5. `n_evals` (`int`): The number of evaluations to be stored in the information.
+6. `max_fidel` (`Optional[int]`): The maximum fidelity value. If `None`, we just do a normal asynchronous optimization.
+7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`.
+8. `runtime_key` (`str`): The key is for runtime. The output of objective function must include runtime.
+9. `seed` (`Optional[List[int]]`): The list of seeds used in each worker.
+10. `continual_eval` (`bool`): Whether to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a train result of a neural network with a hyperparameter configuration `A` for 10 epochs and we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch, we set `continual_eval=True`.
 
 ## Citation
 
