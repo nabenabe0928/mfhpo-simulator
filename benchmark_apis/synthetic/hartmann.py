@@ -94,7 +94,7 @@ class MFHartmann(MFAbstractFunc):
             self._raise_error_for_wrong_dim()
 
     def _objective(self, x: np.ndarray, z: float) -> float:
-        alphas = self.alpha - self._bias * (1 - z)
+        alphas = self.alphas - self._bias * (1 - z)
         loss = -alphas @ np.exp(np.sum(-self.A * (x - self.P) ** 2, axis=-1))
         noise = self.noise_std * self._rng.normal()
         return float(loss + noise)
