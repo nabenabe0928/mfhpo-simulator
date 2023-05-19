@@ -76,8 +76,8 @@ from benchmark_simulator._constants import (
     DIR_NAME,
     INF,
     INIT_STATE,
+    ObjectiveFuncType,
     PROC_ALLOC_NAME,
-    _ObjectiveFunc,
     _StateType,
     _get_file_paths,
 )
@@ -110,7 +110,7 @@ class ObjectiveFuncWorker:
         self,
         subdir_name: str,
         n_workers: int,
-        obj_func: _ObjectiveFunc,
+        obj_func: ObjectiveFuncType,
         n_actual_evals_in_opt: int,
         n_evals: int,
         max_fidel: Optional[int] = None,
@@ -128,7 +128,7 @@ class ObjectiveFuncWorker:
                 The subdirectory name to store all running information.
             n_workers (int):
                 The number of workers to use. In other words, how many parallel workers to use.
-            func (_ObjectiveFunc):
+            func (ObjectiveFuncType):
                 A callable object that serves as the objective function.
                 Args:
                     eval_config: Dict[str, Any]
@@ -374,7 +374,7 @@ class CentralWorkerManager:
         self,
         subdir_name: str,
         n_workers: int,
-        obj_func: _ObjectiveFunc,
+        obj_func: ObjectiveFuncType,
         n_actual_evals_in_opt: int,
         n_evals: int,
         max_fidel: Optional[int] = None,
@@ -394,7 +394,7 @@ class CentralWorkerManager:
                 The subdirectory name to store all running information.
             n_workers (int):
                 The number of workers to use. In other words, how many parallel workers to use.
-            obj_func (_ObjectiveFunc):
+            obj_func (ObjectiveFuncType):
                 A callable object that serves as the objective function.
                 Args:
                     eval_config: Dict[str, Any]

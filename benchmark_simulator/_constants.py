@@ -7,7 +7,7 @@ class _TimeStampDictType(TypedDict):
     waited_time: float
 
 
-class _ObjectiveFunc(Protocol):
+class ObjectiveFuncType(Protocol):
     def __call__(
         self,
         eval_config: Dict[str, Any],
