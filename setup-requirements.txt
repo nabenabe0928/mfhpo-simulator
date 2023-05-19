@@ -1,4 +1,4 @@
 # For package
 ujson
 numpy
-dehb==0.0.5
+dehb==0.0.5  # only for tests
