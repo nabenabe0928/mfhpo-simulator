@@ -9,7 +9,7 @@ from dehb import DEHB
 
 import numpy as np
 
-from optimizers.utils import get_bench_instance, get_subdir_name, parse_args
+from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class DEHBCentralWorkerManager(CentralWorkerManager):

@@ -2,19 +2,12 @@
 ujson
 numpy
 
-# BOHB
-hpbandster==0.7.4
-
-# DEHB
-dehb==0.0.5
-
-# NEPS
-neural-pipeline-search==0.8.3
+# SMAC3 <=== cannot use it with JAHS
+smac==2.0.1
 
 # Benchmark requirements
 h5py
 PyQt5
-jahs-bench==1.1.0
 
 # For local check
 pytest-cov

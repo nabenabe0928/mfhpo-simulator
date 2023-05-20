@@ -263,7 +263,6 @@ class ObjectiveFuncWorker:
     def _validate_output(self, results: Dict[str, float]) -> None:
         keys_in_output = set(results.keys())
         keys = set(self.obj_keys + [self.runtime_key])
-        print(keys_in_output.intersection(keys), keys)
         if keys_in_output.intersection(keys) != keys:
             raise KeyError(
                 f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
@@ -282,7 +281,7 @@ class ObjectiveFuncWorker:
         self._validate_output(results)
         total_runtime = results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime) if self._continual_eval else total_runtime
-        self._cumtime += actual_runtime  # TODO
+        self._cumtime += actual_runtime
         self._update_state(
             total_runtime=total_runtime,
             cached_state_index=cached_state_index,
@@ -365,7 +364,7 @@ class ObjectiveFuncWorker:
             )
 
         sampling_time = max(0.0, time.time() - prev_timestamp - waited_time)
-        self._cumtime += sampling_time  # TODO
+        self._cumtime += sampling_time
 
         results = self._proc_output(eval_config, fidel, **data_to_scatter)
         self._post_proc(results)
