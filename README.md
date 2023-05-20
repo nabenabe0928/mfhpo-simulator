@@ -77,7 +77,7 @@ Please use the following format for the citation of this repository:
 
 ```
 @inproceedings{watanabe2023pareto,
-  title   = {{P}ython Wrapper for Simulating Asynchronous Optimization on Cheap Benchmarks without Any Wait},
+  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on Cheap Benchmarks without Any Wait},
   author  = {S. Watanabe},
   year    = {2023},
   journal = {arXiv:XXXX.XXXXX}
