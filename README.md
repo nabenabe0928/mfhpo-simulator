@@ -41,7 +41,7 @@ $ python -m examples.dehb --seed 0 --dataset_id 0 --bench_name lc --n_workers 4
 $ ./examples/neps.sh --seed 0 --dataset_id 0 --bench_name jahs --n_workers 4
 
 # Run SMAC3 with 4 workers on Hartmann (Hartmann has 3 or 6 dimensions)
-$ python -m examples.smac --seed 0 --dim 0 --bench_name hartmann --n_workers 4
+$ python -m examples.smac --seed 0 --dim 3 --bench_name hartmann --n_workers 4
 ```
 
 Each argument is defined as follows:

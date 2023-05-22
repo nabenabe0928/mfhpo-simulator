@@ -29,11 +29,12 @@ class MFHartmann(MFAbstractFunc):
             Authors: K. Kandasamy et. al
             URL: https://arxiv.org/pdf/1703.06240.pdf
     """
+    _DEFAULT_FIDEL_DIM = 4
 
     def __init__(
         self,
         dim: Literal[3, 6],
-        fidel_dim: int = 4,
+        fidel_dim: int = 1,
         seed: Optional[int] = None,
         bias: float = 0.1,
         runtime_factor: float = 3600.0,
@@ -103,7 +104,7 @@ class MFHartmann(MFAbstractFunc):
     def _runtime(self, x: np.ndarray, z: np.ndarray) -> float:
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/hartmann3_2/hartmann3_2_mf.py#L31-L34
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/hartmann6_4/hartmann6_4_mf.py#L27-L30
-        z1, z2, z3, z4 = z
+        z1, z2, z3, z4 = z if self.fidel_dim == self._DEFAULT_FIDEL_DIM else (z[0], z[0], z[0], z[0])
         factor = np.mean([z1, z3 * z4, z2**3]) if self.dim == 3 else np.mean([z1, z3, z2**2, z4**3])
         runtime = 0.1 + 0.9 * factor
         return float(runtime) * self._runtime_factor

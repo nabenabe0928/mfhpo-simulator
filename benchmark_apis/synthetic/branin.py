@@ -27,9 +27,11 @@ class MFBranin(MFAbstractFunc):
             URL: https://arxiv.org/pdf/1703.06240.pdf
     """
 
+    _DEFAULT_FIDEL_DIM = 3
+
     def __init__(
         self,
-        fidel_dim: int = 3,
+        fidel_dim: int = 1,
         delta_b: float = 1e-2,
         delta_c: float = 0.1,
         delta_t: float = 5e-3,
@@ -44,15 +46,16 @@ class MFBranin(MFAbstractFunc):
     def _fetch_coefs(self, z: np.ndarray) -> Tuple[float, float, float, float, float, float]:
         """The coefficients used in Branin. See the reference for more details."""
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/branin/branin.py#L20-L35
+        z1, z2, z3 = z if self.fidel_dim == self._DEFAULT_FIDEL_DIM else (z[0], z[0], z[0])
         b0 = 5.1 / (4 * np.pi**2)
         c0 = 5 / np.pi
         t0 = 1 / (8 * np.pi)
         a = 1.0
-        b = b0 - self._delta_b * (1 - z[0])
-        c = c0 - self._delta_c * (1 - z[1])
+        b = b0 - self._delta_b * (1 - z1)
+        c = c0 - self._delta_c * (1 - z2)
         r = 6
         s = 10
-        t = t0 + self._delta_t * (1 - z[2])
+        t = t0 + self._delta_t * (1 - z3)
         return a, b, c, r, s, t
 
     def _transform(self, x: np.ndarray) -> np.ndarray:

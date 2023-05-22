@@ -26,6 +26,7 @@ class MFAbstractFunc(metaclass=ABCMeta):
 
     _DATASET_NAMES = None
     _BENCH_TYPE = "SYNTHETIC"
+    _DEFAULT_FIDEL_DIM: int
 
     def __init__(
         self,
@@ -35,6 +36,11 @@ class MFAbstractFunc(metaclass=ABCMeta):
     ):
         if runtime_factor <= 0:
             raise ValueError(f"`runtime_factor` must be positive, but got {runtime_factor}")
+        if fidel_dim not in [self._DEFAULT_FIDEL_DIM, 1]:
+            raise ValueError(
+                f"The fidelity dimension of {self.__class__.__name__} must be either 1 or {self._DEFAULT_FIDEL_DIM}, "
+                f"but got {fidel_dim}"
+            )
 
         self._rng = np.random.RandomState(seed)
         self._fidel_dim = fidel_dim
