@@ -16,7 +16,8 @@ class DEHBCentralWorkerManager(CentralWorkerManager):
     # Adapt to the DEHB interface at https://github.com/automl/DEHB/
     def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> Dict[str, float]:
         eval_config = config.get_dictionary()
-        results = super().__call__(eval_config=eval_config, fidel=budget, **data_to_scatter)
+        fidels = {self.fidel_keys[0]: int(budget)}
+        results = super().__call__(eval_config=eval_config, fidels=fidels, **data_to_scatter)
         return dict(fitness=results[self.obj_keys[0]], cost=results[self.runtime_key])
 
 
@@ -26,12 +27,12 @@ def run_dehb(
     subdir_name: str,
     min_fidel: int,
     max_fidel: int,
+    fidel_key: str,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
     obj_keys: List[str] = ["loss"][:],
     runtime_key: str = "runtime",
     seed: int = 42,
-    continual_eval: bool = True,
     n_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
     np.random.seed(seed)
@@ -41,11 +42,11 @@ def run_dehb(
         obj_func=obj_func,
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
-        max_fidel=max_fidel,
+        continual_max_fidel=max_fidel,
+        fidel_keys=[fidel_key],
         obj_keys=obj_keys,
         runtime_key=runtime_key,
         seeds=[seed] * n_workers,
-        continual_eval=continual_eval,
     )
 
     dehb = DEHB(
@@ -71,12 +72,13 @@ if __name__ == "__main__":
     args = parse_args()
     subdir_name = get_subdir_name(args)
     bench = get_bench_instance(args, keep_benchdata=False)
-
+    fidel_key = "epoch" if "epoch" in bench.fidel_keys else "z0"
     run_dehb(
         obj_func=bench,
         config_space=bench.config_space,
-        min_fidel=bench.min_fidel,
-        max_fidel=bench.max_fidel,
+        min_fidel=bench.min_fidels[fidel_key],
+        max_fidel=bench.max_fidels[fidel_key],
+        fidel_key=fidel_key,
         n_workers=args.n_workers,
         subdir_name=os.path.join("dehb", subdir_name),
         seed=args.seed,

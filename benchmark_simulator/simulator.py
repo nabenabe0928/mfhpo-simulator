@@ -196,6 +196,14 @@ class ObjectiveFuncWorker:
         return self._dir_name
 
     @property
+    def obj_keys(self) -> List[str]:
+        return self._obj_keys[:]
+
+    @property
+    def runtime_key(self) -> str:
+        return self._runtime_key
+
+    @property
     def fidel_keys(self) -> List[str]:
         return self._fidel_keys[:]
 
@@ -491,6 +499,14 @@ class CentralWorkerManager:
     @property
     def dir_name(self) -> str:
         return self._dir_name
+
+    @property
+    def obj_keys(self) -> List[str]:
+        return self._obj_keys[:]
+
+    @property
+    def runtime_key(self) -> str:
+        return self._runtime_key
 
     @property
     def fidel_keys(self) -> List[str]:
