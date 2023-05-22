@@ -3,7 +3,7 @@ import os
 import pytest
 import shutil
 import unittest
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
@@ -20,21 +20,22 @@ DEFAULT_KWARGS = dict(
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
-    max_fidel=10,
+    continual_max_fidel=10,
+    fidel_keys=["epoch"],
 )
 
 
 def dummy_func(
     eval_config: Dict[str, Any],
-    fidel: Optional[int],
+    fidels: Optional[Dict[str, Union[float, int]]],
     seed: Optional[int],
 ) -> Dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=fidel)
+    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
 def dummy_no_fidel_func(
     eval_config: Dict[str, Any],
-    fidel: Optional[int] = None,
+    fidels: Optional[Dict[str, Union[float, int]]] = None,
     seed: Optional[int] = None,
 ) -> Dict[str, float]:
     return dict(loss=eval_config["x"], runtime=10)
@@ -42,23 +43,24 @@ def dummy_no_fidel_func(
 
 def dummy_func_with_data(
     eval_config: Dict[str, Any],
-    fidel: Optional[int],
+    fidels: Optional[Dict[str, Union[float, int]]],
     seed: Optional[int],
     **data_to_scatter: Any,
 ) -> Dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=fidel)
+    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
 def test_error_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs.pop("max_fidel")
+    kwargs.pop("continual_max_fidel")
+    kwargs.pop("fidel_keys")
     worker = ObjectiveFuncWorker(
         obj_func=dummy_no_fidel_func,
         **kwargs,
     )
-    worker(eval_config={"x": 0}, fidel=None)
+    worker(eval_config={"x": 0}, fidels=None)
     with pytest.raises(ValueError):
-        worker(eval_config={"x": 0}, fidel=0)
+        worker(eval_config={"x": 0}, fidels={"epoch": 0})
 
     shutil.rmtree(worker.dir_name)
 
@@ -85,7 +87,7 @@ def test_error_in_keys():
             obj_keys=["dummy_loss"],
             **kwargs,
         )
-        worker(eval_config={"x": 0}, fidel=1)
+        worker(eval_config={"x": 0}, fidels={"epoch": 1})
 
     shutil.rmtree(worker.dir_name)
     with pytest.raises(KeyError):
@@ -94,7 +96,7 @@ def test_error_in_keys():
             runtime_key="dummy_runtime",
             **kwargs,
         )
-        worker(eval_config={"x": 0}, fidel=1)
+        worker(eval_config={"x": 0}, fidels={"epoch": 1})
 
     shutil.rmtree(worker.dir_name)
 
@@ -104,7 +106,7 @@ def test_error_in_keys():
             obj_keys=["dummy_loss", "loss"],
             **kwargs,
         )
-        worker(eval_config={"x": 0}, fidel=1)
+        worker(eval_config={"x": 0}, fidels={"epoch": 1})
 
     shutil.rmtree(worker.dir_name)
 
@@ -118,12 +120,12 @@ def test_call():
         **kwargs,
     )
 
-    assert worker.max_fidel == kwargs["max_fidel"]
+    assert worker.max_fidel == kwargs["continual_max_fidel"]
     assert worker.runtime_key == "runtime"
     assert worker.obj_keys == ["loss"]
 
     for i in range(15):
-        results = worker(eval_config={"x": i}, fidel=i)
+        results = worker(eval_config={"x": i}, fidels={"epoch": i})
         if i >= n_evals:
             assert all(v > 1000 for v in results.values())
 
@@ -138,13 +140,13 @@ def test_call_considering_state():
         obj_func=dummy_func,
         **kwargs,
     )
-    worker(eval_config={"x": 1}, fidel=10)  # max-fidel and thus no need to cache
+    worker(eval_config={"x": 1}, fidels={"epoch": 10})  # max-fidel and thus no need to cache
     assert len(json.load(open(worker._state_path))) == 0
 
     for i in range(10):
         for j in range(2):
             last = (i == 9) and (j == 1)
-            worker(eval_config={"x": 1}, fidel=i + 1)
+            worker(eval_config={"x": 1}, fidels={"epoch": i + 1})
             states = json.load(open(worker._state_path))
             assert len(states) == int(not last)
 
@@ -178,7 +180,7 @@ def test_central_worker_manager():
     kwargs["n_workers"] = get_n_workers()
     kwargs["n_actual_evals_in_opt"] = 15
     manager = CentralWorkerManager(obj_func=dummy_func, **kwargs)
-    assert kwargs["max_fidel"] == manager.max_fidel
+    assert kwargs["continual_max_fidel"] == manager.max_fidel
     assert manager.runtime_key == "runtime"
     assert manager.obj_keys == ["loss"]
     shutil.rmtree(manager.dir_name)
@@ -208,7 +210,7 @@ def test_optimize_seq():
 
     kwargs = dict(
         eval_config={"x": 1},
-        fidel=1,
+        fidels={"epoch": 1},
     )
     manager(**kwargs)
     shutil.rmtree(manager.dir_name)
@@ -227,7 +229,7 @@ def test_optimize_parallel():
     for _ in range(16):
         kwargs = dict(
             eval_config={"x": 1},
-            fidel=1,
+            fidels={"epoch": 1},
         )
         r = pool.apply_async(manager, kwds=kwargs)
         res.append(r)

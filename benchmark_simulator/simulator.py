@@ -298,7 +298,8 @@ class ObjectiveFuncWorker:
         config_hash: int = hash(str(eval_config))
         cached_state, cached_state_index = self._get_cached_state_and_index(config_hash=config_hash, fidel=fidel)
         cached_runtime, _, _, seed = cached_state
-        results = self._obj_func(eval_config=eval_config, seed=seed, fidel=fidel, **data_to_scatter)
+        _fidels: Dict[str, Union[float, int]] = {self._fidel_keys[0]: fidel}
+        results = self._obj_func(eval_config=eval_config, seed=seed, fidels=_fidels, **data_to_scatter)
         self._validate_output(results)
         total_runtime = results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_runtime)
@@ -322,7 +323,9 @@ class ObjectiveFuncWorker:
                 )
 
             fidel = next(iter(fidels.values()))
-            assert isinstance(fidel, int)  # mypy redefinition
+            if not isinstance(fidel, int):
+                raise ValueError(f"Fidelity for continual evaluation must be integer, but got {fidel}")
+
             return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
         else:
             return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
