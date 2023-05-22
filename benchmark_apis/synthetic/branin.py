@@ -29,6 +29,7 @@ class MFBranin(MFAbstractFunc):
 
     def __init__(
         self,
+        fidel_dim: int = 3,
         delta_b: float = 1e-2,
         delta_c: float = 0.1,
         delta_t: float = 5e-3,
@@ -40,18 +41,18 @@ class MFBranin(MFAbstractFunc):
         self._dim = 2
         self._delta_b, self._delta_c, self._delta_t = delta_b, delta_c, delta_t
 
-    def _fetch_coefs(self, z: float) -> Tuple[float, float, float, float, float, float]:
+    def _fetch_coefs(self, z: np.ndarray) -> Tuple[float, float, float, float, float, float]:
         """The coefficients used in Branin. See the reference for more details."""
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/branin/branin.py#L20-L35
         b0 = 5.1 / (4 * np.pi**2)
         c0 = 5 / np.pi
         t0 = 1 / (8 * np.pi)
         a = 1.0
-        b = b0 - self._delta_b * (1 - z)
-        c = c0 - self._delta_c * (1 - z)
+        b = b0 - self._delta_b * (1 - z[0])
+        c = c0 - self._delta_c * (1 - z[1])
         r = 6
         s = 10
-        t = t0 + self._delta_t * (1 - z)
+        t = t0 + self._delta_t * (1 - z[2])
         return a, b, c, r, s, t
 
     def _transform(self, x: np.ndarray) -> np.ndarray:
@@ -59,7 +60,7 @@ class MFBranin(MFAbstractFunc):
         x[0] -= 5
         return x
 
-    def _objective(self, x: np.ndarray, z: float) -> float:
+    def _objective(self, x: np.ndarray, z: np.ndarray) -> float:
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/branin/branin.py#L20-L35
         x = self._transform(x)
         a, b, c, r, s, t = self._fetch_coefs(z)
@@ -68,7 +69,7 @@ class MFBranin(MFAbstractFunc):
         noise = self.noise_std * self._rng.normal()
         return float(loss + noise)
 
-    def _runtime(self, x: np.ndarray, z: float) -> float:
+    def _runtime(self, x: np.ndarray, z: np.ndarray) -> float:
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/branin/branin_mf.py#L24-L26
-        runtime = 0.05 + 0.95 * z**1.5
+        runtime = 0.05 + 0.95 * z[0]**1.5
         return float(runtime) * self._runtime_factor

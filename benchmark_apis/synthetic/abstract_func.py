@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
 
 import ConfigSpace as CS
 
@@ -29,6 +29,7 @@ class MFAbstractFunc(metaclass=ABCMeta):
 
     def __init__(
         self,
+        fidel_dim: int,
         seed: Optional[int] = None,
         runtime_factor: float = 3600.0,
     ):
@@ -36,6 +37,7 @@ class MFAbstractFunc(metaclass=ABCMeta):
             raise ValueError(f"`runtime_factor` must be positive, but got {runtime_factor}")
 
         self._rng = np.random.RandomState(seed)
+        self._fidel_dim = fidel_dim
         self._runtime_factor = runtime_factor
         self._dim: int
         self._noise_std: float
@@ -45,17 +47,25 @@ class MFAbstractFunc(metaclass=ABCMeta):
         return self._dim
 
     @property
+    def fidel_dim(self) -> int:
+        return self._fidel_dim
+
+    @property
     def runtime_factor(self) -> float:
         return self._runtime_factor
 
     @property
-    def min_fidel(self) -> int:
+    def min_fidels(self) -> Dict[str, Union[float, int]]:
         # the real minimum is 3
-        return 11
+        return {f"z{d}": 11 for d in range(self.fidel_dim)}
 
     @property
-    def max_fidel(self) -> int:
-        return 100
+    def max_fidels(self) -> Dict[str, Union[float, int]]:
+        return {f"z{d}": 100 for d in range(self.fidel_dim)}
+
+    @property
+    def fidel_keys(self) -> List[str]:
+        return [f"z{d}" for d in range(self.fidel_dim)]
 
     @property
     def config_space(self) -> CS.ConfigurationSpace:
@@ -68,21 +78,21 @@ class MFAbstractFunc(metaclass=ABCMeta):
         return self._noise_std
 
     @abstractmethod
-    def _objective(self, x: np.ndarray, z: float) -> float:
+    def _objective(self, x: np.ndarray, z: np.ndarray) -> float:
         raise NotImplementedError
 
     @abstractmethod
-    def _runtime(self, x: np.ndarray, z: float) -> float:
+    def _runtime(self, x: np.ndarray, z: np.ndarray) -> float:
         raise NotImplementedError
 
     def __call__(
         self,
         eval_config: Dict[str, float],
-        fidel: int = 100,
+        fidels: Dict[str, int],
         seed: Optional[int] = None,
     ) -> Dict[str, float]:
         x = np.array([eval_config[f"x{d}"] for d in range(self._dim)])
-        z = fidel / self.max_fidel
+        z = np.array([fidels[k] / max_fidel for k, max_fidel in self.max_fidels.items()])
         loss = self._objective(x=x, z=z)
         runtime = self._runtime(x=x, z=z)
         return dict(loss=loss, runtime=runtime)

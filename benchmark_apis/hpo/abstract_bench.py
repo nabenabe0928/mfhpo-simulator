@@ -45,11 +45,16 @@ class AbstractBench(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def min_fidel(self) -> int:
+    def min_fidels(self) -> Dict[str, Union[float, int]]:
         # eta ** S <= R/r < eta ** (S + 1) to have S rungs.
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def max_fidel(self) -> int:
+    def max_fidels(self) -> Dict[str, Union[float, int]]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def fidel_keys(self) -> List[str]:
         raise NotImplementedError

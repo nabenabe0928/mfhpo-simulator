@@ -1,11 +1,14 @@
 import os
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import ConfigSpace as CS
 
 from benchmark_apis.hpo.abstract_bench import AbstractBench, DATA_DIR_NAME
 
 from yahpo_gym import benchmark_set, local_config
+
+
+FIDEL_KEY = "epoch"
 
 
 class LCBenchSurrogate:
@@ -35,7 +38,7 @@ class LCBenchSurrogate:
     def __call__(self, eval_config: Dict[str, Union[int, float]], fidel: int) -> Dict[str, float]:
         _eval_config = eval_config.copy()
         _eval_config["OpenML_task_id"] = self._dataset_id
-        _eval_config["epoch"] = fidel
+        _eval_config[FIDEL_KEY] = fidel
         output = self._surrogate.objective_function(_eval_config)[0]
         return dict(loss=1.0 - output[self._target_metric], runtime=output["time"])
 
@@ -144,7 +147,7 @@ class LCBench(AbstractBench):
     def __call__(
         self,
         eval_config: Dict[str, Union[int, float]],
-        fidel: int = 52,
+        fidels: Dict[str, Union[float, int]] = {FIDEL_KEY: 52},
         seed: Optional[int] = None,
         benchdata: Optional[LCBenchSurrogate] = None,
     ) -> Dict[str, float]:
@@ -152,7 +155,7 @@ class LCBench(AbstractBench):
             raise ValueError("data must be provided when `keep_benchdata` is False")
 
         surrogate = benchdata if self._surrogate is None else self._surrogate
-        fidel = int(min(self._TRUE_MAX_FIDEL, fidel))
+        fidel = int(min(self._TRUE_MAX_FIDEL, fidels[FIDEL_KEY]))
         self._validate_config(eval_config=eval_config)
         return surrogate(eval_config=eval_config, fidel=fidel)
 
@@ -173,10 +176,14 @@ class LCBench(AbstractBench):
         return config_space
 
     @property
-    def min_fidel(self) -> int:
-        return 6
+    def min_fidels(self) -> Dict[str, Union[float, int]]:
+        return {FIDEL_KEY: 6}
 
     @property
-    def max_fidel(self) -> int:
+    def max_fidels(self) -> Dict[str, Union[float, int]]:
         # in reality, the max_fidel is 52, but make it 54 only for computational convenience.
-        return 54
+        return {FIDEL_KEY: 54}
+
+    @property
+    def fidel_keys(self) -> List[str]:
+        return [FIDEL_KEY]

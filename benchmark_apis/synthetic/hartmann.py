@@ -33,11 +33,12 @@ class MFHartmann(MFAbstractFunc):
     def __init__(
         self,
         dim: Literal[3, 6],
+        fidel_dim: int = 4,
         seed: Optional[int] = None,
         bias: float = 0.1,
         runtime_factor: float = 3600.0,
     ):
-        super().__init__(seed=seed, runtime_factor=runtime_factor)
+        super().__init__(seed=seed, runtime_factor=runtime_factor, fidel_dim=fidel_dim)
         if dim not in [3, 6]:
             self._raise_error_for_wrong_dim()
 
@@ -93,15 +94,15 @@ class MFHartmann(MFAbstractFunc):
         else:
             self._raise_error_for_wrong_dim()
 
-    def _objective(self, x: np.ndarray, z: float) -> float:
+    def _objective(self, x: np.ndarray, z: np.ndarray) -> float:
         alphas = self.alphas - self._bias * (1 - z)
         loss = -alphas @ np.exp(np.sum(-self.A * (x - self.P) ** 2, axis=-1))
         noise = self.noise_std * self._rng.normal()
         return float(loss + noise)
 
-    def _runtime(self, x: np.ndarray, z: float) -> float:
+    def _runtime(self, x: np.ndarray, z: np.ndarray) -> float:
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/hartmann3_2/hartmann3_2_mf.py#L31-L34
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/hartmann6_4/hartmann6_4_mf.py#L27-L30
-        factor = np.mean([z, z**2, z**3]) if self.dim == 3 else np.mean([z, z, z**2, z**3])
+        factor = np.mean([z[0], z[2]*z[3], z[1]**3]) if self.dim == 3 else np.mean([z[0], z[2], z[1]**2, z[3]**3])
         runtime = 0.1 + 0.9 * factor
         return float(runtime) * self._runtime_factor
