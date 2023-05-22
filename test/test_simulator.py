@@ -47,7 +47,18 @@ def dummy_func_with_data(
     seed: Optional[int],
     **data_to_scatter: Any,
 ) -> Dict[str, float]:
+    assert len(data_to_scatter) > 0
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
+
+
+def dummy_func_with_many_fidelities(
+    eval_config: Dict[str, Any],
+    fidels: Optional[Dict[str, Union[float, int]]],
+    seed: Optional[int],
+    **data_to_scatter: Any,
+) -> Dict[str, float]:
+    runtime = fidels["z1"] + fidels["z2"] + fidels["z3"]
+    return dict(loss=eval_config["x"], runtime=runtime)
 
 
 def test_error_fidel_in_call():
@@ -180,6 +191,43 @@ def test_error_in_keys():
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1})
+
+    shutil.rmtree(worker.dir_name)
+
+
+def test_call_with_many_fidelities():
+    n_evals = 10
+    kwargs = DEFAULT_KWARGS.copy()
+    kwargs.update(n_evals=n_evals)
+    kwargs["fidel_keys"] = ["z1", "z2", "z3"]
+    kwargs.pop("continual_max_fidel")
+    worker = ObjectiveFuncWorker(
+        obj_func=dummy_func_with_many_fidelities,
+        **kwargs,
+    )
+
+    for i in range(15):
+        results = worker(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i})
+        if i >= n_evals:
+            assert all(v > 1000 for v in results.values())
+
+    shutil.rmtree(worker.dir_name)
+
+
+def test_call_with_data():
+    n_evals = 10
+    kwargs = DEFAULT_KWARGS.copy()
+    kwargs.update(n_evals=n_evals)
+    worker = ObjectiveFuncWorker(
+        obj_func=dummy_func_with_data,
+        **kwargs,
+    )
+
+    data = np.ones(100)
+    for i in range(15):
+        results = worker(eval_config={"x": i}, fidels={"epoch": i}, data=data)
+        if i >= n_evals:
+            assert all(v > 1000 for v in results.values())
 
     shutil.rmtree(worker.dir_name)
 
