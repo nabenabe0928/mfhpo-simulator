@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, NewType, Optional, Protocol, Tuple, TypedDict
+from typing import Any, Dict, NewType, Optional, Protocol, Tuple, TypedDict, Union
 
 
 class _TimeStampDictType(TypedDict):
@@ -11,7 +11,7 @@ class ObjectiveFuncType(Protocol):
     def __call__(
         self,
         eval_config: Dict[str, Any],
-        fidel: Optional[int] = None,
+        fidels: Optional[Dict[str, Union[float, int]]] = None,
         seed: Optional[int] = None,
         **data_to_scatter: Any,
     ) -> Dict[str, float]:
@@ -20,8 +20,8 @@ class ObjectiveFuncType(Protocol):
         Args:
             eval_config (Dict[str, Any]):
                 The configuration to be used in the objective function.
-            fidel (Optional[int]):
-                The fidelity to be used in the objective function. Typically training epoch in deep learning.
+            fidels (Optional[Dict[str, Union[float, int]]):
+                The fidelities to be used in the objective function. Typically training epoch in deep learning.
                 If None, we assume that no fidelity is used.
             seed (Optional[int]):
                 The random seed to be used in the objective function.
