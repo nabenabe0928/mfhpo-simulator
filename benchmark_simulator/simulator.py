@@ -178,6 +178,7 @@ class ObjectiveFuncWorker:
         self._obj_func = obj_func
         self._max_fidel, self._n_evals = max_fidel, n_evals
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
+        self._stored_obj_keys = list(set(self._obj_keys + [runtime_key]))
         self._index = self._alloc_index(n_workers)
         self._cumtime = 0.0
         self._continual_eval = continual_eval
@@ -201,6 +202,10 @@ class ObjectiveFuncWorker:
     @property
     def obj_keys(self) -> List[str]:
         return self._obj_keys[:]
+
+    @property
+    def stored_obj_keys(self) -> List[str]:
+        return self._stored_obj_keys[:]
 
     def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, n_evals: int) -> None:
         if n_actual_evals_in_opt < n_workers + n_evals:
@@ -262,14 +267,25 @@ class ObjectiveFuncWorker:
 
     def _validate_output(self, results: Dict[str, float]) -> None:
         keys_in_output = set(results.keys())
-        keys = set(self.obj_keys + [self.runtime_key])
+        keys = set(self.stored_obj_keys)
         if keys_in_output.intersection(keys) != keys:
             raise KeyError(
                 f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
                 f"but got {results}"
             )
 
-    def _proc_output(
+    def _proc_output_from_scratch(
+        self, eval_config: Dict[str, Any], fidel: Optional[int], **data_to_scatter: Any
+    ) -> Dict[str, float]:
+        seed = self._rng.randint(1 << 30)  # type: ignore
+        results = self._obj_func(
+            eval_config=eval_config, seed=seed, **(dict(fidel=fidel) if self._use_fidel else {}), **data_to_scatter
+        )
+        self._validate_output(results)
+        self._cumtime += results[self._runtime_key]
+        return {k: results[k] for k in self.stored_obj_keys}
+
+    def _proc_output_from_existing_state(
         self, eval_config: Dict[str, Any], fidel: Optional[int], **data_to_scatter: Any
     ) -> Dict[str, float]:
         config_hash: int = hash(str(eval_config))
@@ -280,7 +296,7 @@ class ObjectiveFuncWorker:
         )
         self._validate_output(results)
         total_runtime = results[self._runtime_key]
-        actual_runtime = max(0.0, total_runtime - cached_runtime) if self._continual_eval else total_runtime
+        actual_runtime = max(0.0, total_runtime - cached_runtime)
         self._cumtime += actual_runtime
         self._update_state(
             total_runtime=total_runtime,
@@ -290,6 +306,14 @@ class ObjectiveFuncWorker:
             fidel=fidel,
         )
         return {**{k: results[k] for k in self._obj_keys}, self._runtime_key: actual_runtime}
+
+    def _proc_output(
+        self, eval_config: Dict[str, Any], fidel: Optional[int], **data_to_scatter: Any
+    ) -> Dict[str, float]:
+        if self._continual_eval:
+            return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
+        else:
+            return self._proc_output_from_scratch(eval_config=eval_config, fidel=fidel, **data_to_scatter)
 
     def _wait_other_workers(self) -> None:
         """
