@@ -103,6 +103,7 @@ class MFHartmann(MFAbstractFunc):
     def _runtime(self, x: np.ndarray, z: np.ndarray) -> float:
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/hartmann3_2/hartmann3_2_mf.py#L31-L34
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/hartmann6_4/hartmann6_4_mf.py#L27-L30
-        factor = np.mean([z[0], z[2]*z[3], z[1]**3]) if self.dim == 3 else np.mean([z[0], z[2], z[1]**2, z[3]**3])
+        z1, z2, z3, z4 = z
+        factor = np.mean([z1, z3 * z4, z2**3]) if self.dim == 3 else np.mean([z1, z3, z2**2, z4**3])
         runtime = 0.1 + 0.9 * factor
         return float(runtime) * self._runtime_factor

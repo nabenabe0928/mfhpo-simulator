@@ -71,5 +71,6 @@ class MFBranin(MFAbstractFunc):
 
     def _runtime(self, x: np.ndarray, z: np.ndarray) -> float:
         # https://github.com/dragonfly/dragonfly/blob/master/examples/synthetic/branin/branin_mf.py#L24-L26
-        runtime = 0.05 + 0.95 * z[0]**1.5
+        z1 = z[0]
+        runtime = 0.05 + 0.95 * z1**1.5
         return float(runtime) * self._runtime_factor
