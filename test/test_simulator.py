@@ -241,9 +241,9 @@ def test_call():
         **kwargs,
     )
 
-    assert worker.max_fidel == kwargs["continual_max_fidel"]
-    assert worker.runtime_key == "runtime"
-    assert worker.obj_keys == ["loss"]
+    assert worker._max_fidel == kwargs["continual_max_fidel"]
+    assert worker._runtime_key == "runtime"
+    assert worker._obj_keys == ["loss"]
 
     for i in range(15):
         results = worker(eval_config={"x": i}, fidels={"epoch": i})
@@ -301,9 +301,9 @@ def test_central_worker_manager():
     kwargs["n_workers"] = get_n_workers()
     kwargs["n_actual_evals_in_opt"] = 15
     manager = CentralWorkerManager(obj_func=dummy_func, **kwargs)
-    assert kwargs["continual_max_fidel"] == manager.max_fidel
-    assert manager.runtime_key == "runtime"
-    assert manager.obj_keys == ["loss"]
+    assert manager._max_fidel == kwargs["continual_max_fidel"]
+    assert manager._runtime_key == "runtime"
+    assert manager._obj_keys == ["loss"]
     shutil.rmtree(manager.dir_name)
 
 

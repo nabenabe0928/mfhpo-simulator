@@ -195,22 +195,6 @@ class ObjectiveFuncWorker:
     def dir_name(self) -> str:
         return self._dir_name
 
-    @property
-    def max_fidel(self) -> Optional[int]:
-        return self._max_fidel
-
-    @property
-    def runtime_key(self) -> str:
-        return self._runtime_key
-
-    @property
-    def obj_keys(self) -> List[str]:
-        return self._obj_keys[:]
-
-    @property
-    def stored_obj_keys(self) -> List[str]:
-        return self._stored_obj_keys[:]
-
     def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, n_evals: int) -> None:
         if n_actual_evals_in_opt < n_workers + n_evals:
             threshold = n_workers + n_evals
@@ -264,7 +248,7 @@ class ObjectiveFuncWorker:
         cached_state_index: Optional[int],
     ) -> None:
         kwargs = dict(path=self._state_path, config_hash=config_hash)
-        if fidel != self.max_fidel:  # update the cache data, TODO: Fix
+        if fidel != self._max_fidel:  # update the cache data, TODO: Fix
             new_state = [total_runtime, self._cumtime, fidel, seed]
             _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)
         elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
@@ -272,7 +256,7 @@ class ObjectiveFuncWorker:
 
     def _validate_output(self, results: Dict[str, float]) -> None:
         keys_in_output = set(results.keys())
-        keys = set(self.stored_obj_keys)
+        keys = set(self._stored_obj_keys)
         if keys_in_output.intersection(keys) != keys:
             raise KeyError(
                 f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
@@ -290,7 +274,7 @@ class ObjectiveFuncWorker:
         results = self._obj_func(eval_config=eval_config, seed=seed, fidels=fidels, **data_to_scatter)
         self._validate_output(results)
         self._cumtime += results[self._runtime_key]
-        return {k: results[k] for k in self.stored_obj_keys}
+        return {k: results[k] for k in self._stored_obj_keys}
 
     def _proc_output_from_existing_state(
         self, eval_config: Dict[str, Any], fidel: int, **data_to_scatter: Any
@@ -502,18 +486,6 @@ class CentralWorkerManager:
     @property
     def dir_name(self) -> str:
         return self._dir_name
-
-    @property
-    def max_fidel(self) -> Optional[int]:
-        return self._max_fidel
-
-    @property
-    def runtime_key(self) -> str:
-        return self._runtime_key
-
-    @property
-    def obj_keys(self) -> List[str]:
-        return self._obj_keys[:]
 
     def _init_workers(self, worker_kwargs: Dict[str, Any], seeds: Optional[List[int]]) -> None:
         seeds = [DEFAULT_SEED] * self._n_workers if seeds is None else seeds[:]
