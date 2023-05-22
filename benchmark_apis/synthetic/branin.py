@@ -48,7 +48,7 @@ class MFBranin(MFAbstractFunc):
         t0 = 1 / (8 * np.pi)
         a = 1.0
         b = b0 - self._delta_b * (1 - z)
-        c = c0 - self._delta_b * (1 - z)
+        c = c0 - self._delta_c * (1 - z)
         r = 6
         s = 10
         t = t0 + self._delta_t * (1 - z)
