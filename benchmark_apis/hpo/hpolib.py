@@ -10,6 +10,9 @@ import numpy as np
 from benchmark_apis.hpo.abstract_bench import AbstractBench, DATA_DIR_NAME, VALUE_RANGES
 
 
+FIDEL_KEY = "epoch"
+
+
 class RowDataType(TypedDict):
     valid_mse: List[Dict[int, float]]
     runtime: List[float]
@@ -72,7 +75,7 @@ class HPOLib(AbstractBench):
     def __call__(
         self,
         eval_config: Dict[str, Union[int, str]],
-        fidel: int = 100,
+        fidels: Dict[str, int] = {FIDEL_KEY: 100},
         seed: Optional[int] = None,
         benchdata: Optional[HPOLibDatabase] = None,
     ) -> Dict[str, float]:
@@ -80,11 +83,11 @@ class HPOLib(AbstractBench):
             raise ValueError("data must be provided when `keep_benchdata` is False")
 
         db = benchdata if self._db is None else self._db
-        fidel = int(fidel)
+        fidel = int(fidels[FIDEL_KEY])
         idx = seed % 4 if seed is not None else self._rng.randint(4)
         key = json.dumps({k: self._value_range[k][int(v)] for k, v in eval_config.items()}, sort_keys=True)
         loss = db[key]["valid_mse"][idx][fidel - 1]
-        runtime = db[key]["runtime"][idx] * fidel / self.max_fidel
+        runtime = db[key]["runtime"][idx] * fidel / self.max_fidels[FIDEL_KEY]
         return dict(loss=np.log(loss), runtime=runtime)
 
     @property
@@ -92,9 +95,13 @@ class HPOLib(AbstractBench):
         return self._fetch_discrete_config_space()
 
     @property
-    def min_fidel(self) -> int:
-        return 11
+    def min_fidels(self) -> Dict[str, Union[float, int]]:
+        return {FIDEL_KEY: 11}
 
     @property
-    def max_fidel(self) -> int:
-        return 100
+    def max_fidels(self) -> Dict[str, Union[float, int]]:
+        return {FIDEL_KEY: 100}
+
+    @property
+    def fidel_keys(self) -> List[str]:
+        return [FIDEL_KEY]

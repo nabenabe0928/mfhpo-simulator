@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import ConfigSpace as CS
 
@@ -9,6 +9,10 @@ try:
     import jahs_bench
 except ModuleNotFoundError:  # We cannot use jahs with smac
     pass
+
+
+FIDEL_KEY = "epoch"
+RESOL_KEY = "Resolution"
 
 
 class JAHSBenchSurrogate:
@@ -34,10 +38,15 @@ class JAHSBenchSurrogate:
                 f"Then untar the file in {benchdata_path}."
             )
 
-    def __call__(self, eval_config: Dict[str, Union[int, str, float]], fidel: int = 200) -> Dict[str, float]:
-        eval_config.update(Optimizer="SGD", Resolution=1.0)
+    def __call__(
+        self,
+        eval_config: Dict[str, Union[int, str, float]],
+        fidels: Dict[str, Union[float, int]] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
+    ) -> Dict[str, float]:
+        nepochs = fidels.get(FIDEL_KEY, 200)
+        eval_config.update({"Optimizer": "SGD", RESOL_KEY: fidels.get(RESOL_KEY, 1.0)})
         eval_config = {k: int(v) if k[:-1] == "Op" else v for k, v in eval_config.items()}
-        output = self._surrogate(eval_config, nepochs=fidel)[fidel]
+        output = self._surrogate(eval_config, nepochs=nepochs)[nepochs]
         return dict(loss=100 - output[self._target_metric], runtime=output["runtime"])
 
 
@@ -66,7 +75,7 @@ class JAHSBench201(AbstractBench):
     def __call__(
         self,
         eval_config: Dict[str, Union[int, str, float]],
-        fidel: int = 200,
+        fidels: Dict[str, Union[float, int]] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
         seed: Optional[int] = None,
         benchdata: Optional[JAHSBenchSurrogate] = None,
     ) -> Dict[str, float]:
@@ -74,7 +83,6 @@ class JAHSBench201(AbstractBench):
             raise ValueError("data must be provided when `keep_benchdata` is False")
 
         surrogate = benchdata if self._surrogate is None else self._surrogate
-        fidel = int(fidel)
         EPS = 1e-12
         _eval_config = {
             k: self._value_range[k][int(v)] if k in self._value_range else float(v) for k, v in eval_config.items()
@@ -83,7 +91,7 @@ class JAHSBench201(AbstractBench):
         assert 1e-3 - EPS <= _eval_config["LearningRate"] <= 1.0 + EPS
         assert isinstance(_eval_config["WeightDecay"], float)
         assert 1e-5 - EPS <= _eval_config["WeightDecay"] <= 1e-2 + EPS
-        return surrogate(_eval_config, fidel)
+        return surrogate(_eval_config, fidels)
 
     @property
     def config_space(self) -> CS.ConfigurationSpace:
@@ -97,9 +105,13 @@ class JAHSBench201(AbstractBench):
         return config_space
 
     @property
-    def min_fidel(self) -> int:
-        return 22
+    def min_fidels(self) -> Dict[str, Union[float, int]]:
+        return {FIDEL_KEY: 22, RESOL_KEY: 0.0}
 
     @property
-    def max_fidel(self) -> int:
-        return 200
+    def max_fidels(self) -> Dict[str, Union[float, int]]:
+        return {FIDEL_KEY: 200, RESOL_KEY: 1.0}
+
+    @property
+    def fidel_keys(self) -> List[str]:
+        return [FIDEL_KEY, RESOL_KEY]
