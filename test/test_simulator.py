@@ -52,6 +52,16 @@ def dummy_func_with_data(
 
 def test_error_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
+    worker = ObjectiveFuncWorker(
+        obj_func=dummy_no_fidel_func,
+        **kwargs,
+    )
+    # Objective function did not get keyword `fidels`
+    with pytest.raises(ValueError):
+        worker(eval_config={"x": 0}, fidels=None)
+
+    shutil.rmtree(worker.dir_name)
+
     kwargs.pop("continual_max_fidel")
     kwargs.pop("fidel_keys")
     worker = ObjectiveFuncWorker(
@@ -59,6 +69,7 @@ def test_error_fidel_in_call():
         **kwargs,
     )
     worker(eval_config={"x": 0}, fidels=None)
+    # Objective function got keyword `fidels`
     with pytest.raises(ValueError):
         worker(eval_config={"x": 0}, fidels={"epoch": 0})
 
@@ -73,6 +84,68 @@ def test_guarantee_no_hang():
             obj_func=dummy_no_fidel_func,
             **kwargs,
         )
+    if os.path.exists(PATH):
+        shutil.rmtree(PATH)
+
+
+def test_validate_fidel_args():
+    kwargs = DEFAULT_KWARGS.copy()
+    for fidel_keys in [None, ["a", "b"], []]:
+        kwargs["fidel_keys"] = fidel_keys
+        with pytest.raises(ValueError):
+            ObjectiveFuncWorker(
+                obj_func=dummy_no_fidel_func,
+                **kwargs,
+            )
+        if os.path.exists(PATH):
+            shutil.rmtree(PATH)
+
+
+def test_errors_in_proc_output():
+    kwargs = DEFAULT_KWARGS.copy()
+    # fidels is None or len(fidels.values()) != 1
+    with pytest.raises(ValueError):
+        worker = ObjectiveFuncWorker(
+            obj_func=dummy_func,
+            **kwargs,
+        )
+        worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
+
+    if os.path.exists(PATH):
+        shutil.rmtree(PATH)
+
+    # Fidelity for continual evaluation must be integer
+    with pytest.raises(ValueError):
+        worker = ObjectiveFuncWorker(
+            obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
+            **kwargs,
+        )
+        worker(eval_config={"x": 0}, fidels={"epoch": 1.0})
+
+    if os.path.exists(PATH):
+        shutil.rmtree(PATH)
+
+    kwargs.pop("continual_max_fidel")
+    # The keys in fidels must be identical to fidel_keys
+    with pytest.raises(KeyError):
+        worker = ObjectiveFuncWorker(
+            obj_func=dummy_func,
+            **kwargs,
+        )
+        worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
+
+    if os.path.exists(PATH):
+        shutil.rmtree(PATH)
+
+    kwargs["fidel_keys"] = ["dummy-fidel"]
+    # The keys in fidels must be identical to fidel_keys
+    with pytest.raises(KeyError):
+        worker = ObjectiveFuncWorker(
+            obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
+            **kwargs,
+        )
+        worker(eval_config={"x": 0}, fidels={"epoch": 1})
+
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
 

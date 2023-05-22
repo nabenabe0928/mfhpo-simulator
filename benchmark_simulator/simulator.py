@@ -186,7 +186,7 @@ class ObjectiveFuncWorker:
         self._cumtime = 0.0
         self._continual_eval = continual_max_fidel is not None
         self._terminated = False
-        self._validate_args()
+        self._validate_fidel_args()
 
     def __repr__(self) -> str:
         return f"Worker-{self._worker_id}"
@@ -222,7 +222,7 @@ class ObjectiveFuncWorker:
                 "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
             )
 
-    def _validate_args(self) -> None:
+    def _validate_fidel_args(self) -> None:
         # Guarantee the sufficiency: self._continual_eval ==> len(self._fidel_keys) == 1
         if self._continual_eval and len(self._fidel_keys) != 1:
             raise ValueError(
