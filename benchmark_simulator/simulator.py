@@ -166,6 +166,16 @@ class ObjectiveFuncWorker:
                 for call with configA and training_epoch=30.
                 continual_eval=True calculates the runtime considers this.
                 If False, each call is considered to be processed from scratch.
+
+        Attributes:
+            dir_name (str):
+                The directory name where all the information will be stored.
+            obj_keys (List[str]):
+                The objective (or constraint) names that will be stored in the result file.
+            runtime_key (str):
+                The runtime name that will be used for the scheduling.
+            fidel_keys (List[str]):
+                The fidelity names that will be used in the input `fidels`.
         """
         self._guarantee_no_hang(n_workers=n_workers, n_actual_evals_in_opt=n_actual_evals_in_opt, n_evals=n_evals)
         self._worker_id = _generate_time_hash()
@@ -472,6 +482,16 @@ class CentralWorkerManager:
                 for call with configA and training_epoch=30.
                 continual_eval=True calculates the runtime considers this.
                 If False, each call is considered to be processed from scratch.
+
+        Attributes:
+            dir_name (str):
+                The directory name where all the information will be stored.
+            obj_keys (List[str]):
+                The objective (or constraint) names that will be stored in the result file.
+            runtime_key (str):
+                The runtime name that will be used for the scheduling.
+            fidel_keys (List[str]):
+                The fidelity names that will be used in the input `fidels`.
         """
         worker_kwargs = dict(
             obj_func=obj_func,

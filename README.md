@@ -65,11 +65,11 @@ Here, we describe the arguments of `CentralWorkerManager`:
 3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details.
 4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimiziers (this argument will be used only for raising an error).
 5. `n_evals` (`int`): The number of evaluations to be stored in the information.
-6. `max_fidel` (`Optional[int]`): The maximum fidelity value. If `None`, we just do a normal asynchronous optimization.
+6. `continual_max_fidel` (`Optional[int]`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a train result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
 7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`.
 8. `runtime_key` (`str`): The key is for runtime. The output of objective function must include runtime.
-9. `seed` (`Optional[List[int]]`): The list of seeds used in each worker.
-10. `continual_eval` (`bool`): Whether to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a train result of a neural network with a hyperparameter configuration `A` for 10 epochs and we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch, we set `continual_eval=True`.
+9. `obj_keys` (`List[str]`): The list of fidelity names that will be feeded to the objective function. and
+10. `seed` (`Optional[List[int]]`): The list of seeds used in each worker.
 
 ## Citation
 
