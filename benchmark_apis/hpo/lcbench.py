@@ -40,7 +40,7 @@ class LCBenchSurrogate:
         _eval_config["OpenML_task_id"] = self._dataset_id
         _eval_config[FIDEL_KEY] = fidel
         output = self._surrogate.objective_function(_eval_config)[0]
-        return dict(loss=1.0 - output[self._target_metric], runtime=output["time"])
+        return dict(loss=float(1.0 - output[self._target_metric]), runtime=float(output["time"]))
 
 
 class LCBench(AbstractBench):

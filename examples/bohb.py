@@ -23,7 +23,9 @@ class BOHBWorker(Worker):
         self._worker = worker
 
     def compute(self, config: Dict[str, Any], budget: int, **kwargs: Any) -> Dict[str, float]:
-        results = self._worker(eval_config=config, fidel=budget)
+        fidel_keys = self._worker.fidel_keys
+        fidels = dict(epoch=int(budget)) if "epoch" in fidel_keys else {k: int(budget) for k in fidel_keys}
+        results = self._worker(eval_config=config, fidels=fidels)
         return dict(loss=results["loss"])
 
 
@@ -33,25 +35,25 @@ def get_bohb_workers(
     obj_func: Any,
     subdir_name: str,
     max_fidel: int,
+    fidel_key: str,
     n_workers: int,
     n_actual_evals_in_opt: int,
     n_evals: int,
     obj_keys: List[str],
     runtime_key: str,
     seed: int,
-    continual_eval: bool,
 ) -> List[BOHBWorker]:
     kwargs = dict(
         obj_func=obj_func,
         n_workers=n_workers,
         subdir_name=subdir_name,
-        max_fidel=max_fidel,
+        continual_max_fidel=max_fidel,
         obj_keys=obj_keys,
         runtime_key=runtime_key,
+        fidel_keys=[fidel_key],
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
         seed=seed,
-        continual_eval=continual_eval,
     )
 
     pool = Pool()
@@ -79,12 +81,12 @@ def run_bohb(
     subdir_name: str,
     min_fidel: int,
     max_fidel: int,
+    fidel_key: str,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
     obj_keys: List[str] = ["loss"][:],
     runtime_key: str = "runtime",
     seed: int = 42,
-    continual_eval: bool = True,
     run_id: str = "bohb-run",
     ns_host: str = "127.0.0.1",
     n_evals: int = 450,  # eta=3,S=2,100 full evals
@@ -98,13 +100,13 @@ def run_bohb(
         obj_func=obj_func,
         subdir_name=subdir_name,
         max_fidel=max_fidel,
+        fidel_key=fidel_key,
         n_workers=n_workers,
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
         obj_keys=obj_keys,
         runtime_key=runtime_key,
         seed=seed,
-        continual_eval=continual_eval,
     )
     bohb = BOHB(
         configspace=config_space,
@@ -124,11 +126,13 @@ if __name__ == "__main__":
     obj_func = get_bench_instance(args)
 
     run_id = f"bench={args.bench_name}_dataset={args.dataset_id}_nworkers={args.n_workers}_seed={args.seed}"
+    fidel_key = "epoch" if "epoch" in obj_func.fidel_keys else "z0"
     run_bohb(
         obj_func=obj_func,
         config_space=obj_func.config_space,
-        min_fidel=obj_func.min_fidel,
-        max_fidel=obj_func.max_fidel,
+        min_fidel=obj_func.min_fidels[fidel_key],
+        max_fidel=obj_func.max_fidels[fidel_key],
+        fidel_key=fidel_key,
         n_workers=args.n_workers,
         subdir_name=os.path.join("bohb", subdir_name),
     )
