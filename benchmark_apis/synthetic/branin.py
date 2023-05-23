@@ -38,7 +38,7 @@ class MFBranin(MFAbstractFunc):
         seed: Optional[int] = None,
         runtime_factor: float = 3600.0,
     ):
-        super().__init__(seed=seed, runtime_factor=runtime_factor)
+        super().__init__(fidel_dim=fidel_dim, seed=seed, runtime_factor=runtime_factor)
         self._noise_std = float(np.sqrt(0.05))
         self._dim = 2
         self._delta_b, self._delta_c, self._delta_t = delta_b, delta_c, delta_t

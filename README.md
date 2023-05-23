@@ -21,6 +21,8 @@ $ pip install mfhpo-simulator
 
 ## Test
 
+The very minimal example is provided in [examples/minimal.py](examples/minimal.py) and you can run by `python -m examples.minimal` after the setup below.
+
 If you would like to know the examples of the usage, please clone the whole repository:
 
 ```shell

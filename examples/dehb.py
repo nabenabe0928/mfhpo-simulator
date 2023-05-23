@@ -52,11 +52,8 @@ def run_dehb(
     dehb = DEHB(
         f=manager,
         cs=config_space,
-        dimensions=len(config_space),
         min_budget=min_fidel,
         max_budget=max_fidel,
-        eta=3,
-        client=None,
         n_workers=n_workers,
         output_path="dehb-log/",
     )
