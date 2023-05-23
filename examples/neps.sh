@@ -39,7 +39,7 @@ done
 rm -r neps-log  # Here must be adapted to the exact log directory name.
 
 for num in `seq 1 ${n_workers}`; do
-    python -m optimizers.neps --seed $seed --dataset_id $dataset_id --bench_name $bench_name --n_workers $n_workers &
+    python -m examples.neps --seed $seed --dataset_id $dataset_id --bench_name $bench_name --n_workers $n_workers &
     pids[${num}]=$!
     echo "Start Proc. $num"
 done

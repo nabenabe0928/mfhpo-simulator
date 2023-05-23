@@ -16,8 +16,9 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 class NEPSWorker(ObjectiveFuncWorker):
     def __call__(self, **eval_config: Dict[str, Any]) -> Dict[str, float]:
         _eval_config = eval_config.copy()
-        fidel = _eval_config.pop("fidel")  # Fidelity param name must be "fidel"
-        return super().__call__(eval_config=_eval_config, fidel=fidel)
+        fidel_key = self.fidel_keys[0]
+        fidels = {fidel_key: _eval_config.pop(fidel_key)}
+        return super().__call__(eval_config=_eval_config, fidels=fidels)
 
 
 def get_pipeline_space(config_space: CS.ConfigurationSpace) -> Dict[str, neps.search_spaces.parameter.Parameter]:
@@ -42,12 +43,12 @@ def run_neps(
     subdir_name: str,
     min_fidel: int,
     max_fidel: int,
+    fidel_key: str,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
     obj_keys: List[str] = ["loss"][:],
     runtime_key: str = "runtime",
     seed: int = 42,
-    continual_eval: bool = True,
     n_evals: int = 450,  # eta=3,S=2,100 full evals
 ):
     np.random.seed(seed)
@@ -57,15 +58,14 @@ def run_neps(
         obj_func=obj_func,
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
-        max_fidel=max_fidel,
+        fidel_keys=[fidel_key],
+        continual_max_fidel=max_fidel,
         obj_keys=obj_keys,
         runtime_key=runtime_key,
         seed=seed,
-        continual_eval=continual_eval,
     )
     pipeline_space = get_pipeline_space(config_space)
-    # Fidelity param name must be "fidel"
-    pipeline_space["fidel"] = neps.IntegerParameter(lower=min_fidel, upper=max_fidel, is_fidelity=True)
+    pipeline_space[fidel_key] = neps.IntegerParameter(lower=min_fidel, upper=max_fidel, is_fidelity=True)
 
     neps.run(
         run_pipeline=worker,
@@ -85,12 +85,14 @@ if __name__ == "__main__":
     args = parse_args()
     subdir_name = get_subdir_name(args)
     bench = get_bench_instance(args)
+    fidel_key = "epoch" if "epoch" in bench.fidel_keys else "z0"
 
     run_neps(
         obj_func=bench,
         config_space=bench.config_space,
-        min_fidel=bench.min_fidel,
-        max_fidel=bench.max_fidel,
+        min_fidel=bench.min_fidels[fidel_key],
+        max_fidel=bench.max_fidels[fidel_key],
+        fidel_key=fidel_key,
         n_workers=args.n_workers,
         subdir_name=os.path.join("neps", subdir_name),
         seed=args.seed,

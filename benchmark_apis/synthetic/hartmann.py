@@ -29,6 +29,7 @@ class MFHartmann(MFAbstractFunc):
             Authors: K. Kandasamy et. al
             URL: https://arxiv.org/pdf/1703.06240.pdf
     """
+
     _DEFAULT_FIDEL_DIM = 4
 
     def __init__(
