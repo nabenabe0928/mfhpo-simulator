@@ -69,6 +69,8 @@ how much time each worker waited for other workers in the last call.
 import os
 import threading
 import time
+from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 from multiprocessing import Pool
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -102,7 +104,79 @@ from benchmark_simulator._utils import _generate_time_hash
 import numpy as np
 
 
-class ObjectiveFuncWorker:
+@dataclass(frozen=True)
+class _WrapperArgs:
+    subdir_name: str
+    n_workers: int
+    obj_func: ObjectiveFuncType
+    n_actual_evals_in_opt: int
+    n_evals: int
+    obj_keys: List[str]
+    runtime_key: str
+    fidel_keys: Optional[List[str]]
+    seed: Optional[int]
+    continual_max_fidel: Optional[int]
+
+
+class _BaseWrapperInterface(metaclass=ABCMeta):
+    """A base wrapper class for each worker or manager.
+    This wrapper class serves the shared interface of worker and manager class.
+
+    Args:
+        subdir_name (str):
+            The subdirectory name to store all running information.
+        n_workers (int):
+            The number of workers to use. In other words, how many parallel workers to use.
+        obj_func (ObjectiveFuncType):
+            A callable object that serves as the objective function.
+            Args:
+                eval_config: Dict[str, Any]
+                fidels: Optional[Dict[str, Union[float, int]]]
+                seed: Optional[int]
+                **data_to_scatter: Any
+            Returns:
+                results: Dict[str, float]
+                    It must return `objective metric` and `runtime` at least.
+        n_actual_evals_in_opt (int):
+            The number of evaluations that optimizers do and it is used only for raising an error in init.
+            Note that the number of evaluations means
+            how many times we call the objective function during the optimization.
+            This number is needed to automatically finish the worker class.
+            We cannot know the timing of the termination without this information, and thus optimizers hang.
+        n_evals (int):
+            How many configurations we would like to collect.
+            More specifically, how many times we call the objective function during the optimization.
+            We can guarantee that `results.json` has at least this number of evaluations.
+        fidel_keys (Optional[List[str]]):
+            The fidelity names to be used in the objective function.
+            If None, we assume that no fidelity is used.
+        obj_keys (List[str]):
+            The keys of the objective metrics used in `results` returned by func.
+        runtime_key (str):
+            The key of the runtime metric used in `results` returned by func.
+        seed (Optional[int]):
+            The random seed to be used to allocate random seed to each call.
+        continual_max_fidel (Optional[int]):
+            The maximum fidelity to used in continual evaluations.
+            This is valid only if we use a single fidelity.
+            If not None, each call is a continuation from the call with the same eval_config and lower fidel.
+            For example, when we already trained the objective with configA and training_epoch=10,
+            we probably would like to continue the training from epoch 10 rather than from scratch
+            for call with configA and training_epoch=30.
+            continual_eval=True calculates the runtime considers this.
+            If False, each call is considered to be processed from scratch.
+
+    Attributes:
+        dir_name (str):
+            The directory name where all the information will be stored.
+        obj_keys (List[str]):
+            The objective (or constraint) names that will be stored in the result file.
+        runtime_key (str):
+            The runtime name that will be used for the scheduling.
+        fidel_keys (List[str]):
+            The fidelity names that will be used in the input `fidels`.
+    """
+
     def __init__(
         self,
         subdir_name: str,
@@ -116,87 +190,22 @@ class ObjectiveFuncWorker:
         seed: Optional[int] = None,
         continual_max_fidel: Optional[int] = None,
     ):
-        """A worker class for each worker.
-        This worker class is supposed to be instantiated for each worker.
-        For example, if we use 4 workers for an optimization, then four instances should be created.
-
-        Args:
-            subdir_name (str):
-                The subdirectory name to store all running information.
-            n_workers (int):
-                The number of workers to use. In other words, how many parallel workers to use.
-            func (ObjectiveFuncType):
-                A callable object that serves as the objective function.
-                Args:
-                    eval_config: Dict[str, Any]
-                    fidels: Optional[Dict[str, Union[float, int]]]
-                    seed: Optional[int]
-                    **data_to_scatter: Any
-                Returns:
-                    results: Dict[str, float]
-                        It must return `objective metric` and `runtime` at least.
-            n_actual_evals_in_opt (int):
-                The number of evaluations that optimizers do and it is used only for raising an error in init.
-                Note that the number of evaluations means
-                how many times we call the objective function during the optimization.
-                This number is needed to automatically finish the worker class.
-                We cannot know the timing of the termination without this information, and thus optimizers hang.
-            n_evals (int):
-                How many configurations we would like to collect.
-                More specifically, how many times we call the objective function during the optimization.
-                We can guarantee that `results.json` has at least this number of evaluations.
-            fidel_keys (Optional[List[str]]):
-                The fidelity names to be used in the objective function.
-                If None, we assume that no fidelity is used.
-            obj_keys (List[str]):
-                The keys of the objective metrics used in `results` returned by func.
-            runtime_key (str):
-                The key of the runtime metric used in `results` returned by func.
-            seed (Optional[int]):
-                The random seed to be used to allocate random seed to each call.
-            continual_max_fidel (Optional[int]):
-                The maximum fidelity to used in continual evaluations.
-                This is valid only if we use a single fidelity.
-                If not None, each call is a continuation from the call with the same eval_config and lower fidel.
-                For example, when we already trained the objective with configA and training_epoch=10,
-                we probably would like to continue the training from epoch 10 rather than from scratch
-                for call with configA and training_epoch=30.
-                continual_eval=True calculates the runtime considers this.
-                If False, each call is considered to be processed from scratch.
-
-        Attributes:
-            dir_name (str):
-                The directory name where all the information will be stored.
-            obj_keys (List[str]):
-                The objective (or constraint) names that will be stored in the result file.
-            runtime_key (str):
-                The runtime name that will be used for the scheduling.
-            fidel_keys (List[str]):
-                The fidelity names that will be used in the input `fidels`.
-        """
-        self._guarantee_no_hang(n_workers=n_workers, n_actual_evals_in_opt=n_actual_evals_in_opt, n_evals=n_evals)
-        self._worker_id = _generate_time_hash()
-        self._dir_name = os.path.join(DIR_NAME, subdir_name)
-        _, self._result_path, self._state_path, self._cumtime_path, self._timestamp_path = _get_file_paths(
-            self.dir_name
+        self._wrapper_args = _WrapperArgs(
+            subdir_name=subdir_name,
+            n_workers=n_workers,
+            obj_func=obj_func,
+            n_actual_evals_in_opt=n_actual_evals_in_opt,
+            n_evals=n_evals,
+            fidel_keys=fidel_keys,
+            obj_keys=obj_keys,
+            runtime_key=runtime_key,
+            seed=seed,
+            continual_max_fidel=continual_max_fidel,
         )
-        self._init_worker()
-
-        self._rng = np.random.RandomState(seed)
-        self._use_fidel = fidel_keys is not None
-        self._obj_func = obj_func
-        self._max_fidel, self._n_evals = continual_max_fidel, n_evals
+        self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
         self._fidel_keys = [] if fidel_keys is None else fidel_keys[:]
-        self._stored_obj_keys = list(set(self._obj_keys + [runtime_key]))
-        self._index = self._alloc_index(n_workers)
-        self._cumtime = 0.0
-        self._continual_eval = continual_max_fidel is not None
-        self._terminated = False
-        self._validate_fidel_args()
-
-    def __repr__(self) -> str:
-        return f"Worker-{self._worker_id}"
+        self._init_wrapper()
 
     @property
     def dir_name(self) -> str:
@@ -214,7 +223,41 @@ class ObjectiveFuncWorker:
     def fidel_keys(self) -> List[str]:
         return self._fidel_keys[:]
 
-    def _guarantee_no_hang(self, n_workers: int, n_actual_evals_in_opt: int, n_evals: int) -> None:
+    @abstractmethod
+    def _init_wrapper(self) -> None:
+        raise NotImplementedError
+
+
+class ObjectiveFuncWorker(_BaseWrapperInterface):
+    """A worker class for each worker.
+    This worker class is supposed to be instantiated for each worker.
+    For example, if we use 4 workers for an optimization, then four instances should be created.
+    """
+
+    def _init_wrapper(self) -> None:
+        self._guarantee_no_hang()
+        self._worker_id = _generate_time_hash()
+        _, self._result_path, self._state_path, self._cumtime_path, self._timestamp_path = _get_file_paths(
+            self.dir_name
+        )
+        self._init_worker()
+
+        self._rng = np.random.RandomState(self._wrapper_args.seed)
+        self._use_fidel = self._wrapper_args.fidel_keys is not None
+        self._obj_func = self._wrapper_args.obj_func
+        self._stored_obj_keys = list(set(self.obj_keys + [self.runtime_key]))
+        self._index = self._alloc_index()
+        self._cumtime = 0.0
+        self._continual_eval = self._wrapper_args.continual_max_fidel is not None
+        self._terminated = False
+        self._validate_fidel_args()
+
+    def __repr__(self) -> str:
+        return f"Worker-{self._worker_id}"
+
+    def _guarantee_no_hang(self) -> None:
+        n_workers, n_evals = self._wrapper_args.n_workers, self._wrapper_args.n_evals
+        n_actual_evals_in_opt = self._wrapper_args.n_actual_evals_in_opt
         if n_actual_evals_in_opt < n_workers + n_evals:
             threshold = n_workers + n_evals
             # In fact, n_workers + n_evals - 1 is the real minimum threshold.
@@ -237,8 +280,8 @@ class ObjectiveFuncWorker:
         _init_simulator(dir_name=self.dir_name)
         _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=0.0)
 
-    def _alloc_index(self, n_workers: int) -> int:
-        worker_id_to_index = _wait_all_workers(path=self._cumtime_path, n_workers=n_workers)
+    def _alloc_index(self) -> int:
+        worker_id_to_index = _wait_all_workers(path=self._cumtime_path, n_workers=self._wrapper_args.n_workers)
         time.sleep(1e-2)  # buffer before the optimization
         return worker_id_to_index[self._worker_id]
 
@@ -267,7 +310,7 @@ class ObjectiveFuncWorker:
         cached_state_index: Optional[int],
     ) -> None:
         kwargs = dict(path=self._state_path, config_hash=config_hash)
-        if fidel != self._max_fidel:  # update the cache data, TODO: Fix
+        if fidel != self._wrapper_args.continual_max_fidel:  # update the cache data
             new_state = [total_runtime, self._cumtime, fidel, seed]
             _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)
         elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
@@ -356,7 +399,7 @@ class ObjectiveFuncWorker:
         row = dict(cumtime=self._cumtime, index=self._index, **{k: results[k] for k in self._obj_keys})
         # Record the results to the main database when the cumulative runtime is the smallest
         _record_result(self._result_path, results=row)
-        if _is_simulator_terminated(self._result_path, max_evals=self._n_evals):
+        if _is_simulator_terminated(self._result_path, max_evals=self._wrapper_args.n_evals):
             self._finish()
 
     def _load_timestamps(self) -> Tuple[float, float]:
@@ -425,119 +468,28 @@ class ObjectiveFuncWorker:
         self._terminated = True
 
 
-class CentralWorkerManager:
-    def __init__(
-        self,
-        subdir_name: str,
-        n_workers: int,
-        obj_func: ObjectiveFuncType,
-        n_actual_evals_in_opt: int,
-        n_evals: int,
-        fidel_keys: Optional[List[str]] = None,
-        obj_keys: List[str] = ["loss"][:],
-        runtime_key: str = "runtime",
-        seed: Optional[int] = None,
-        continual_max_fidel: Optional[int] = None,
-    ):
-        """A central worker manager class.
-        This class is supposed to be instantiated if the optimizer module uses multiprocessing.
-        For example, Dask, multiprocessing, and joblib would need this class.
-        This class recognizes each worker by process ID.
-        Therefore, process ID for each worker must be always unique and identical.
+class CentralWorkerManager(_BaseWrapperInterface):
+    """A central worker manager class.
+    This class is supposed to be instantiated if the optimizer module uses multiprocessing.
+    For example, Dask, multiprocessing, and joblib would need this class.
+    This class recognizes each worker by process ID.
+    Therefore, process ID for each worker must be always unique and identical.
+    """
 
-        Args:
-            subdir_name (str):
-                The subdirectory name to store all running information.
-            n_workers (int):
-                The number of workers to use. In other words, how many parallel workers to use.
-            obj_func (ObjectiveFuncType):
-                A callable object that serves as the objective function.
-                Args:
-                    eval_config: Dict[str, Any]
-                    fidels: Optional[Dict[str, Union[float, int]]]
-                    seed: Optional[int]
-                    **data_to_scatter: Any
-                Returns:
-                    results: Dict[str, float]
-                        It must return `objective metric` and `runtime` at least.
-            n_evals (int):
-                How many configurations we evaluate.
-                More specifically, how many times we call the objective function during the optimization.
-            fidel_keys (Optional[List[str]]):
-                The fidelity names to be used in the objective function.
-                If None, we assume that no fidelity is used.
-            obj_keys (List[str]):
-                The keys of the objective metrics used in `results` returned by func.
-            runtime_key (str):
-                The key of the runtime metric used in `results` returned by func.
-            continual_max_fidel (Optional[int]):
-                The maximum fidelity to used in continual evaluations.
-                This is valid only if we use a single fidelity.
-                If not None, each call is a continuation from the call with the same eval_config and lower fidel.
-                For example, when we already trained the objective with configA and training_epoch=10,
-                we probably would like to continue the training from epoch 10 rather than from scratch
-                for call with configA and training_epoch=30.
-                continual_eval=True calculates the runtime considers this.
-                If False, each call is considered to be processed from scratch.
-
-        Attributes:
-            dir_name (str):
-                The directory name where all the information will be stored.
-            obj_keys (List[str]):
-                The objective (or constraint) names that will be stored in the result file.
-            runtime_key (str):
-                The runtime name that will be used for the scheduling.
-            fidel_keys (List[str]):
-                The fidelity names that will be used in the input `fidels`.
-        """
-        worker_kwargs = dict(
-            obj_func=obj_func,
-            n_workers=n_workers,
-            subdir_name=subdir_name,
-            fidel_keys=fidel_keys,
-            n_actual_evals_in_opt=n_actual_evals_in_opt,
-            n_evals=n_evals,
-            obj_keys=obj_keys[:],
-            runtime_key=runtime_key,
-            continual_max_fidel=continual_max_fidel,
-            seed=seed,
-        )
-        self._fidel_keys = [] if fidel_keys is None else fidel_keys[:]
-        self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
-        self._dir_name = os.path.join(DIR_NAME, subdir_name)
-        self._n_workers = n_workers
+    def _init_wrapper(self) -> None:
         self._workers: List[ObjectiveFuncWorker]
         self._main_pid = os.getpid()
-        self._init_workers(worker_kwargs)
-
-        self._max_fidel = continual_max_fidel
-        self._dir_name = self._workers[0].dir_name
+        self._init_workers()
         self._pid_to_index: Dict[int, int] = {}
 
-    @property
-    def dir_name(self) -> str:
-        return self._dir_name
-
-    @property
-    def obj_keys(self) -> List[str]:
-        return self._obj_keys[:]
-
-    @property
-    def runtime_key(self) -> str:
-        return self._runtime_key
-
-    @property
-    def fidel_keys(self) -> List[str]:
-        return self._fidel_keys[:]
-
-    def _init_workers(self, worker_kwargs: Dict[str, Any]) -> None:
+    def _init_workers(self) -> None:
         if os.path.exists(self.dir_name):
             raise FileExistsError(f"The directory `{self.dir_name}` already exists. Remove it first.")
 
         pool = Pool()
         results = []
-        for _ in range(self._n_workers):
-            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=dict(**worker_kwargs)))
+        for _ in range(self._wrapper_args.n_workers):
+            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=self._wrapper_args.__dict__))
 
         pool.close()
         pool.join()
@@ -546,7 +498,7 @@ class CentralWorkerManager:
     def _init_alloc(self, pid: int) -> None:
         _path = os.path.join(self._dir_name, PROC_ALLOC_NAME)
         _allocate_proc_to_worker(path=_path, pid=pid)
-        self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._n_workers)
+        self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._wrapper_args.n_workers)
 
     def __call__(
         self, eval_config: Dict[str, Any], fidels: Optional[Dict[str, Union[float, int]]] = None, **data_to_scatter: Any
@@ -578,7 +530,7 @@ class CentralWorkerManager:
         """
         pid = os.getpid()
         pid = threading.get_ident() if pid == self._main_pid else pid
-        if len(self._pid_to_index) != self._n_workers:
+        if len(self._pid_to_index) != self._wrapper_args.n_workers:
             self._init_alloc(pid)
 
         worker_index = self._pid_to_index[pid]
