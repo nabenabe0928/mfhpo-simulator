@@ -28,6 +28,18 @@ $ git clone mfhpo-simulator
 $ pip install -r requirements-for-developer.txt
 ```
 
+Note that the environment for SMAC3 is separately defined due to some dependency issues:
+
+```shell
+$ pip install -r requirements-for-smac.txt
+```
+
+Additionally, we need to increase the `retries` in the following parts:
+- intensifier/intensifier.py (L53)
+- facade/abstract_facade.py (L414)
+- main/config_selector.py (L54)
+For example, we used `retries=100` to prevent unnecessary termination of executions.
+
 Then you can run various examples:
 
 ```shell
