@@ -79,7 +79,7 @@ def test_error_fidel_in_call():
         obj_func=dummy_no_fidel_func,
         **kwargs,
     )
-    worker(eval_config={"x": 0}, fidels=None)
+    worker(eval_config={"x": 0})  # no error without fidel!
     # Objective function got keyword `fidels`
     with pytest.raises(ValueError):
         worker(eval_config={"x": 0}, fidels={"epoch": 0})
