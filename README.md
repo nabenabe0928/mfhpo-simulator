@@ -59,7 +59,7 @@ $ python -m examples.smac --seed 0 --dim 3 --bench_name hartmann --n_workers 4
 ```
 
 Each argument is defined as follows:
-1. `--seed` (`int`): The random seeds to be used.
+1. `--seed` (`int`): The random seed to be used.
 2. `--bench_name` (`Literal["hpolib", "jahs", "lc", "hartmann", "branin"]`): The benchmark to be used.
 3. `--n_workers` (`int`): The number of parallel workers to be used. Too high numbers may crash your system because the specified benchmark dataset must stay on the memory for each process/thread.
 4. `--dataset_id` (`Optional[int]`): The dataset ID to be used in the specified dataset (0 to 3 for HPOlib, 0 to 33 for LCBench, and 0 t0 2 for JAHS-Bench-201). The default value is 0.
@@ -83,7 +83,7 @@ Here, we describe the arguments of `CentralWorkerManager`:
 7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`.
 8. `runtime_key` (`str`): The key is for runtime. The output of objective function must include runtime.
 9. `obj_keys` (`List[str]`): The list of fidelity names that will be feeded to the objective function. and
-10. `seed` (`Optional[List[int]]`): The list of seeds used in each worker.
+10. `seed` (`Optional[int]`): The random seed to be used in each worker.
 
 ## Citation
 

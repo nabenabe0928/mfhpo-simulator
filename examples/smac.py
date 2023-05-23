@@ -55,7 +55,7 @@ def run_smac(
         n_evals=n_evals,
         obj_keys=obj_keys,
         runtime_key=runtime_key,
-        seeds=[seed] * n_workers,
+        seed=seed,
         fidel_keys=[fidel_key],
         continual_max_fidel=max_fidel,
     )

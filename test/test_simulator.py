@@ -309,19 +309,15 @@ def test_central_worker_manager():
     shutil.rmtree(manager.dir_name)
 
 
-def test_seeds_error_in_central_worker_manager():
+def test_seed_error_in_central_worker_manager():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 15
-    manager = CentralWorkerManager(obj_func=dummy_func, seeds=list(range(n_workers)), **kwargs)
+    CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
     with pytest.raises(FileExistsError):
-        CentralWorkerManager(obj_func=dummy_func, seeds=list(range(n_workers)), **kwargs)
-
-    shutil.rmtree(manager.dir_name)
-    with pytest.raises(ValueError):
-        CentralWorkerManager(obj_func=dummy_func, seeds=[0], **kwargs)
+        CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
 
     remove_tree()
 
@@ -329,7 +325,7 @@ def test_seeds_error_in_central_worker_manager():
 def test_optimize_seq():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    manager = CentralWorkerManager(obj_func=dummy_func, seeds=[0], **kwargs)
+    manager = CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
 
     kwargs = dict(
         eval_config={"x": 1},
@@ -345,7 +341,7 @@ def test_optimize_parallel():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 16
-    manager = CentralWorkerManager(obj_func=dummy_func, seeds=list(range(n_workers)), **kwargs)
+    manager = CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []

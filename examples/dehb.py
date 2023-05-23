@@ -46,7 +46,7 @@ def run_dehb(
         fidel_keys=[fidel_key],
         obj_keys=obj_keys,
         runtime_key=runtime_key,
-        seeds=[seed] * n_workers,
+        seed=seed,
     )
 
     dehb = DEHB(

@@ -102,9 +102,6 @@ from benchmark_simulator._utils import _generate_time_hash
 import numpy as np
 
 
-DEFAULT_SEED = 42
-
-
 class ObjectiveFuncWorker:
     def __init__(
         self,
@@ -116,7 +113,7 @@ class ObjectiveFuncWorker:
         fidel_keys: Optional[List[str]] = None,
         obj_keys: List[str] = ["loss"][:],
         runtime_key: str = "runtime",
-        seed: int = DEFAULT_SEED,
+        seed: Optional[int] = None,
         continual_max_fidel: Optional[int] = None,
     ):
         """A worker class for each worker.
@@ -155,7 +152,7 @@ class ObjectiveFuncWorker:
                 The keys of the objective metrics used in `results` returned by func.
             runtime_key (str):
                 The key of the runtime metric used in `results` returned by func.
-            seed (int):
+            seed (Optional[int]):
                 The random seed to be used to allocate random seed to each call.
             continual_max_fidel (Optional[int]):
                 The maximum fidelity to used in continual evaluations.
@@ -439,7 +436,7 @@ class CentralWorkerManager:
         fidel_keys: Optional[List[str]] = None,
         obj_keys: List[str] = ["loss"][:],
         runtime_key: str = "runtime",
-        seeds: Optional[List[int]] = None,
+        seed: Optional[int] = None,
         continual_max_fidel: Optional[int] = None,
     ):
         """A central worker manager class.
@@ -503,6 +500,7 @@ class CentralWorkerManager:
             obj_keys=obj_keys[:],
             runtime_key=runtime_key,
             continual_max_fidel=continual_max_fidel,
+            seed=seed,
         )
         self._fidel_keys = [] if fidel_keys is None else fidel_keys[:]
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
@@ -510,7 +508,7 @@ class CentralWorkerManager:
         self._n_workers = n_workers
         self._workers: List[ObjectiveFuncWorker]
         self._main_pid = os.getpid()
-        self._init_workers(worker_kwargs, seeds=seeds)
+        self._init_workers(worker_kwargs)
 
         self._max_fidel = continual_max_fidel
         self._dir_name = self._workers[0].dir_name
@@ -532,17 +530,14 @@ class CentralWorkerManager:
     def fidel_keys(self) -> List[str]:
         return self._fidel_keys[:]
 
-    def _init_workers(self, worker_kwargs: Dict[str, Any], seeds: Optional[List[int]]) -> None:
-        seeds = [DEFAULT_SEED] * self._n_workers if seeds is None else seeds[:]
-        if len(seeds) != self._n_workers:
-            raise ValueError(f"The length of seeds must be n_workers={self._n_workers}, but got seeds={seeds}")
+    def _init_workers(self, worker_kwargs: Dict[str, Any]) -> None:
         if os.path.exists(self.dir_name):
             raise FileExistsError(f"The directory `{self.dir_name}` already exists. Remove it first.")
 
         pool = Pool()
         results = []
-        for _, seed in enumerate(seeds):
-            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=dict(**worker_kwargs, seed=seed)))
+        for _ in range(self._n_workers):
+            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=dict(**worker_kwargs)))
 
         pool.close()
         pool.join()
