@@ -76,8 +76,8 @@ Here, we describe the arguments of `CentralWorkerManager`:
 Please use the following format for the citation of this repository:
 
 ```
-@inproceedings{watanabe2023pareto,
-  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on Cheap Benchmarks without Any Wait},
+@inproceedings{watanabe2023mfo-simulator,
+  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on HPO Benchmarks without Any Wait},
   author  = {S. Watanabe},
   year    = {2023},
   journal = {arXiv:XXXX.XXXXX}
