@@ -12,9 +12,11 @@ For this reason, the timing each configuration is taken into account must be ord
 In this package, we automatically sort out this problem by pending to pass the hyperparameter configurations to be evaluated internally and in turn, we obtain the right order of each hyperparameter configurations to evaluated.
 
 **NOTE**
+
 Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
 Therefore, if any workers die, our current wrapper hangs and keeps warning.
 The hang problem will be addressed in the future, but I am not sure if I will support any additional workers after the initialization yet.
+Furthermore, our package does not guarantee expected functionality on Mac and Windows OS as our package has not been tested only on Ubuntu.
 
 ## Setup
 
