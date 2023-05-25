@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List, Union
+from typing import Any, ClassVar, Final
 import os
 
 import ConfigSpace as CS
@@ -9,15 +11,17 @@ import json
 import numpy as np
 
 
-DATA_DIR_NAME = os.path.join(os.environ["HOME"], "tabular_benchmarks")
-VALUE_RANGES = json.load(open("benchmark_apis/hpo/discrete_search_spaces.json"))
+DATA_DIR_NAME: Final[str] = os.path.join(os.environ["HOME"], "tabular_benchmarks")
+SEARCH_SPACE_PATH: Final[str] = "benchmark_apis/hpo/discrete_search_spaces.json"
+VALUE_RANGES: Final[dict[str, list[int | float | str | bool]]] = json.load(open(SEARCH_SPACE_PATH))
 
 
 class AbstractBench(metaclass=ABCMeta):
+    _BENCH_TYPE: Final[ClassVar[str]] = "HPO"
+    _target_metric: ClassVar[str]
+    _value_range: ClassVar[dict[str, list[int | float | str | bool]]]
     _rng: np.random.RandomState
-    _value_range: Dict[str, List[Union[int, float, str]]]
     dataset_name: str
-    _BENCH_TYPE = "HPO"
 
     def reseed(self, seed: int) -> None:
         self._rng = np.random.RandomState(seed)
@@ -45,16 +49,16 @@ class AbstractBench(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def min_fidels(self) -> Dict[str, Union[float, int]]:
+    def min_fidels(self) -> dict[str, int | float]:
         # eta ** S <= R/r < eta ** (S + 1) to have S rungs.
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def max_fidels(self) -> Dict[str, Union[float, int]]:
+    def max_fidels(self) -> dict[str, int | float]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def fidel_keys(self) -> List[str]:
+    def fidel_keys(self) -> list[str]:
         raise NotImplementedError

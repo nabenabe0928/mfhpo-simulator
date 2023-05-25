@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import fcntl
 import os
 import time
 import warnings
-from typing import Dict, List, Optional
 
 from _io import TextIOWrapper
 
@@ -46,7 +47,7 @@ def _allocate_proc_to_worker(f: TextIOWrapper, pid: int) -> None:
 
 
 @secure_edit
-def _complete_proc_allocation(f: TextIOWrapper) -> Dict[int, int]:
+def _complete_proc_allocation(f: TextIOWrapper) -> dict[int, int]:
     alloc = json.load(f)
     sorted_pids = np.sort([int(pid) for pid in alloc.keys()])
     alloc = {pid: idx for idx, pid in enumerate(sorted_pids)}
@@ -72,14 +73,16 @@ def _record_timestamp(f: TextIOWrapper, worker_id: str, prev_timestamp: float, w
 
 
 @secure_edit
-def _cache_state(f: TextIOWrapper, config_hash: int, new_state: _StateType, update_index: Optional[int] = None) -> None:
-    cache = {int(k): v for k, v in json.load(f).items()}
-    if config_hash not in cache:
-        cache[config_hash] = [new_state]
+def _cache_state(f: TextIOWrapper, config_hash: int, new_state: _StateType, update_index: int | None = None) -> None:
+    config_hash_str = str(config_hash)
+    cache = json.load(f)
+    _new_state = [new_state.runtime, new_state.cumtime, new_state.fidel, new_state.seed]
+    if config_hash_str not in cache:
+        cache[config_hash_str] = [_new_state]
     elif update_index is not None:
-        cache[config_hash][update_index] = new_state
+        cache[config_hash_str][update_index] = _new_state
     else:
-        cache[config_hash].append(new_state)
+        cache[config_hash_str].append(_new_state)
 
     f.seek(0)
     json.dump(cache, f, indent=4)
@@ -87,34 +90,36 @@ def _cache_state(f: TextIOWrapper, config_hash: int, new_state: _StateType, upda
 
 @secure_edit
 def _delete_state(f: TextIOWrapper, config_hash: int, index: int) -> None:
-    cache = {int(k): v for k, v in json.load(f).items()}
-    cache[config_hash].pop(index)
-    if len(cache[config_hash]) == 0:
-        cache.pop(config_hash)
+    cache = json.load(f)
+    config_hash_str = str(config_hash)
+    cache[config_hash_str].pop(index)
+    if len(cache[config_hash_str]) == 0:
+        cache.pop(config_hash_str)
 
     f.seek(0)
     json.dump(cache, f, indent=4)
 
 
 @secure_read
-def _fetch_cache_states(f: TextIOWrapper) -> Dict[int, List[_StateType]]:
-    return {int(k): v for k, v in json.load(f).items()}
+def _fetch_cache_states(f: TextIOWrapper, config_hash: int) -> list[_StateType]:
+    states = json.load(f).get(str(config_hash), [])
+    return [_StateType(runtime=state[0], cumtime=state[1], fidel=state[2], seed=state[3]) for state in states]
 
 
 @secure_read
-def _fetch_cumtimes(f: TextIOWrapper) -> Dict[str, float]:
+def _fetch_cumtimes(f: TextIOWrapper) -> dict[str, float]:
     cumtimes = json.load(f)
     return cumtimes
 
 
 @secure_read
-def _fetch_timestamps(f: TextIOWrapper) -> Dict[str, _TimeStampDictType]:
+def _fetch_timestamps(f: TextIOWrapper) -> dict[str, _TimeStampDictType]:
     timestamps = json.load(f)
     return timestamps
 
 
 @secure_edit
-def _record_result(f: TextIOWrapper, results: Dict[str, float]) -> None:
+def _record_result(f: TextIOWrapper, results: dict[str, float]) -> None:
     record = json.load(f)
     for key, val in results.items():
         if key not in record:
@@ -142,7 +147,7 @@ def _is_allocation_ready(f: TextIOWrapper, n_workers: int) -> bool:
 
 
 @secure_read
-def _get_worker_id_to_idx(f: TextIOWrapper) -> Dict[str, int]:
+def _get_worker_id_to_idx(f: TextIOWrapper) -> dict[str, int]:
     return {worker_id: idx for idx, worker_id in enumerate(json.load(f).keys())}
 
 
@@ -162,7 +167,7 @@ def _get_timeout_message(cause: str, path: str) -> str:
 
 def _wait_proc_allocation(
     path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
-) -> Dict[int, int]:
+) -> dict[int, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
     while not _is_allocation_ready(path, n_workers=n_workers):
@@ -175,7 +180,7 @@ def _wait_proc_allocation(
 
 def _wait_all_workers(
     path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
-) -> Dict[str, int]:
+) -> dict[str, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
     while not _is_simulator_ready(path, n_workers=n_workers):

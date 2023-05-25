@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import pytest
 import shutil
@@ -8,6 +10,7 @@ from benchmark_simulator._constants import (
     RESULT_FILE_NAME,
     STATE_CACHE_FILE_NAME,
     PROC_ALLOC_NAME,
+    _StateType,
     _get_file_paths,
 )
 from benchmark_simulator._secure_proc import (
@@ -130,27 +133,28 @@ def test_cache_state():
     _init_for_tests()
     path = os.path.join(DIR_NAME, STATE_CACHE_FILE_NAME)
     cumtime = 0.0
-    ans = {0: []}
+    ans = []
     for update in [False, True]:
         for i in range(10):
             cumtime += i
-            state = [float(i), cumtime, i, i]
+            state = _StateType(runtime=float(i), cumtime=cumtime, fidel=i, seed=i)
             if update:
                 _cache_state(path, config_hash=0, new_state=state, update_index=i)
-                ans[0][i] = state
+                ans[i] = state
             else:
                 _cache_state(path, config_hash=0, new_state=state)
-                ans[0].append(state)
+                ans.append(state)
 
-            assert _fetch_cache_states(path) == ans
+            print(ans, _fetch_cache_states(path, config_hash=0))
+            assert _fetch_cache_states(path, config_hash=0) == ans
 
     for idx in [5, 6, 7, 4, 3, 2, 1, 0, 0]:
         _delete_state(path, config_hash=0, index=idx)
-        ans[0].pop(idx)
-        assert _fetch_cache_states(path) == ans
+        ans.pop(idx)
+        assert _fetch_cache_states(path, config_hash=0) == ans
     else:
         _delete_state(path, config_hash=0, index=idx)
-        assert _fetch_cache_states(path) == {}
+        assert _fetch_cache_states(path, config_hash=0) == []
 
     shutil.rmtree(DIR_NAME)
 
@@ -173,14 +177,6 @@ def test_record_result():
         assert json.load(open(path)) == ans
 
     shutil.rmtree(DIR_NAME)
-
-
-def test_wait_proc_allocation():
-    pass
-
-
-def test_wait_until_next():
-    pass
 
 
 if __name__ == "__main__":

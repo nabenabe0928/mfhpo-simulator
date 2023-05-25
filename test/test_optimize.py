@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 import shutil
 import unittest
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import CentralWorkerManager
@@ -17,8 +19,8 @@ import ujson as json
 
 class ToyFunc:
     def __call__(
-        self, eval_config: Dict[str, float], fidels: Optional[Dict[str, Union[float, int]]], seed: Optional[int] = None
-    ) -> Dict[str, float]:
+        self, eval_config: dict[str, float], fidels: dict[str, int | float] | None, seed: int | None = None
+    ) -> dict[str, float]:
         return dict(loss=eval_config["x"] ** 2, runtime=fidels["epoch"] / 1.0)
 
     @property
@@ -42,18 +44,18 @@ class Wrapper:
 
     def __call__(
         self,
-        eval_config: Dict[str, Any],
-        fidels: Dict[str, Union[float, int]],
-        seed: Optional[int],
+        eval_config: dict[str, Any],
+        fidels: dict[str, int | float],
+        seed: int | None,
         **data_to_scatter: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         output = self._bench(eval_config, fidels, seed, **data_to_scatter)
         ret_vals = dict(fitness=output["loss"], cost=output["runtime"])
         return ret_vals
 
 
 class DEHBCentralWorkerManager(CentralWorkerManager):
-    def __call__(self, config: Dict[str, Any], budget: int, **data_to_scatter: Any) -> Dict[str, float]:
+    def __call__(self, config: dict[str, Any], budget: int, **data_to_scatter: Any) -> dict[str, float]:
         return super().__call__(eval_config=config, fidels={"epoch": int(budget)})
 
 

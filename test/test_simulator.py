@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import multiprocessing
 import os
 import pytest
 import shutil
 import unittest
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
@@ -26,37 +28,37 @@ DEFAULT_KWARGS = dict(
 
 
 def dummy_func(
-    eval_config: Dict[str, Any],
-    fidels: Optional[Dict[str, Union[float, int]]],
-    seed: Optional[int],
-) -> Dict[str, float]:
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
+) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
 def dummy_no_fidel_func(
-    eval_config: Dict[str, Any],
-    fidels: Optional[Dict[str, Union[float, int]]] = None,
-    seed: Optional[int] = None,
-) -> Dict[str, float]:
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None = None,
+    seed: int | None = None,
+) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=10)
 
 
 def dummy_func_with_data(
-    eval_config: Dict[str, Any],
-    fidels: Optional[Dict[str, Union[float, int]]],
-    seed: Optional[int],
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
     **data_to_scatter: Any,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     assert len(data_to_scatter) > 0
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
 def dummy_func_with_many_fidelities(
-    eval_config: Dict[str, Any],
-    fidels: Optional[Dict[str, Union[float, int]]],
-    seed: Optional[int],
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
     **data_to_scatter: Any,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     runtime = fidels["z1"] + fidels["z2"] + fidels["z3"]
     return dict(loss=eval_config["x"], runtime=runtime)
 

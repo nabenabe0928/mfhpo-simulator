@@ -1,4 +1,6 @@
-from typing import Literal, Optional
+from __future__ import annotations
+
+from typing import ClassVar, Final, Literal
 
 from benchmark_apis.synthetic.abstract_func import MFAbstractFunc
 
@@ -13,7 +15,7 @@ class MFHartmann(MFAbstractFunc):
         dim (Literal[3, 6]):
             The dimension of the search space.
             Either 3 or 6.
-        seed (Optional[int])
+        seed (int | None)
             The random seed for the noise.
         bias (float):
             The bias term to change the rank correlation between low- and high-fidelities.
@@ -30,13 +32,13 @@ class MFHartmann(MFAbstractFunc):
             URL: https://arxiv.org/pdf/1703.06240.pdf
     """
 
-    _DEFAULT_FIDEL_DIM = 4
+    _DEFAULT_FIDEL_DIM: Final[ClassVar[int]] = 4
 
     def __init__(
         self,
         dim: Literal[3, 6],
         fidel_dim: int = 1,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         bias: float = 0.1,
         runtime_factor: float = 3600.0,
     ):
@@ -49,7 +51,7 @@ class MFHartmann(MFAbstractFunc):
         self._noise_std = float(np.sqrt(noise_var))
         self._bias = bias
 
-    def _raise_error_for_wrong_dim(self, dim) -> None:
+    def _raise_error_for_wrong_dim(self, dim: int) -> None:
         raise ValueError(f"`dim` for Hartmann function must be either 3 or 6, but got {dim}")
 
     @property

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import multiprocessing
 import os
 import pytest
 import time
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 from _io import TextIOWrapper
 
@@ -13,12 +15,12 @@ from benchmark_simulator._utils import secure_edit, secure_read
 
 
 @secure_read
-def dummy_read(f: TextIOWrapper) -> Dict[str, Any]:
+def dummy_read(f: TextIOWrapper) -> dict[str, Any]:
     return json.load(f)
 
 
 @secure_edit
-def dummy_edit(f: TextIOWrapper, key: str, num: int) -> Dict[str, Any]:
+def dummy_edit(f: TextIOWrapper, key: str, num: int) -> dict[str, Any]:
     prev = json.load(f)
     f.seek(0)
     json.dump({key: num}, f, indent=4)
@@ -26,12 +28,12 @@ def dummy_edit(f: TextIOWrapper, key: str, num: int) -> Dict[str, Any]:
     return prev
 
 
-def dummy_reader(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def dummy_reader(kwargs: dict[str, Any]) -> dict[str, Any]:
     time.sleep(5e-4)
     return dummy_read(**kwargs)
 
 
-def dummy_editer(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def dummy_editer(kwargs: dict[str, Any]) -> dict[str, Any]:
     dummy_edit(**kwargs)
 
 

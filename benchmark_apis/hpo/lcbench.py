@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import Dict, List, Optional, Union
+from typing import ClassVar, Final
 
 import ConfigSpace as CS
 
@@ -35,7 +37,7 @@ class LCBenchSurrogate:
         local_config.init_config()
         local_config.set_data_path(DATA_DIR_NAME)
 
-    def __call__(self, eval_config: Dict[str, Union[int, float]], fidel: int) -> Dict[str, float]:
+    def __call__(self, eval_config: dict[str, int | float], fidel: int) -> dict[str, float]:
         _eval_config = eval_config.copy()
         _eval_config["OpenML_task_id"] = self._dataset_id
         _eval_config[FIDEL_KEY] = fidel
@@ -45,10 +47,10 @@ class LCBenchSurrogate:
 
 class LCBench(AbstractBench):
     # https://syncandshare.lrz.de/getlink/fiCMkzqj1bv1LfCUyvZKmLvd/
-    _target_metric = "val_balanced_accuracy"
-    _TRUE_MAX_FIDEL = 52
-    _N_DATASETS = 34
-    _DATASET_NAMES = (
+    _target_metric: ClassVar[str] = "val_balanced_accuracy"
+    _TRUE_MAX_FIDEL: Final[ClassVar[int]] = 52
+    _N_DATASETS: Final[ClassVar[int]] = 34
+    _DATASET_NAMES: Final[tuple[str]] = (
         "kddcup09",
         "covertype",
         "amazon-employee-access",
@@ -88,7 +90,7 @@ class LCBench(AbstractBench):
     def __init__(
         self,
         dataset_id: int,
-        seed: Optional[int] = None,  # surrogate is not stochastic
+        seed: int | None = None,  # surrogate is not stochastic
         keep_benchdata: bool = True,
     ):
         dataset_info = (
@@ -134,7 +136,7 @@ class LCBench(AbstractBench):
     def get_benchdata(self) -> LCBenchSurrogate:
         return LCBenchSurrogate(dataset_id=self._dataset_id, target_metric=self._target_metric)
 
-    def _validate_config(self, eval_config: Dict[str, Union[int, float]]) -> None:
+    def _validate_config(self, eval_config: dict[str, int | float]) -> None:
         EPS = 1e-12
         for hp in self._config_space.get_hyperparameters():
             lb, ub, name = hp.lower, hp.upper, hp.name
@@ -146,11 +148,11 @@ class LCBench(AbstractBench):
 
     def __call__(
         self,
-        eval_config: Dict[str, Union[int, float]],
-        fidels: Dict[str, Union[float, int]] = {FIDEL_KEY: 52},
-        seed: Optional[int] = None,
-        benchdata: Optional[LCBenchSurrogate] = None,
-    ) -> Dict[str, float]:
+        eval_config: dict[str, int | float],
+        fidels: dict[str, int | float] = {FIDEL_KEY: 52},
+        seed: int | None = None,
+        benchdata: LCBenchSurrogate | None = None,
+    ) -> dict[str, float]:
         if benchdata is None and self._surrogate is None:
             raise ValueError("data must be provided when `keep_benchdata` is False")
 
@@ -176,14 +178,14 @@ class LCBench(AbstractBench):
         return config_space
 
     @property
-    def min_fidels(self) -> Dict[str, Union[float, int]]:
+    def min_fidels(self) -> dict[str, int | float]:
         return {FIDEL_KEY: 6}
 
     @property
-    def max_fidels(self) -> Dict[str, Union[float, int]]:
+    def max_fidels(self) -> dict[str, int | float]:
         # in reality, the max_fidel is 52, but make it 54 only for computational convenience.
         return {FIDEL_KEY: 54}
 
     @property
-    def fidel_keys(self) -> List[str]:
+    def fidel_keys(self) -> list[str]:
         return [FIDEL_KEY]

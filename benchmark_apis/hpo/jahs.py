@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import Dict, List, Optional, Union
+from typing import ClassVar, Final
 
 import ConfigSpace as CS
 
@@ -11,8 +13,8 @@ except ModuleNotFoundError:  # We cannot use jahs with smac
     pass
 
 
-FIDEL_KEY = "epoch"
-RESOL_KEY = "Resolution"
+FIDEL_KEY: Final[str] = "epoch"
+RESOL_KEY: Final[str] = "Resolution"
 
 
 class JAHSBenchSurrogate:
@@ -40,9 +42,9 @@ class JAHSBenchSurrogate:
 
     def __call__(
         self,
-        eval_config: Dict[str, Union[int, str, float]],
-        fidels: Dict[str, Union[float, int]] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
-    ) -> Dict[str, float]:
+        eval_config: dict[str, int | float | str | bool],
+        fidels: dict[str, int | float] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
+    ) -> dict[str, float]:
         nepochs = fidels.get(FIDEL_KEY, 200)
         eval_config.update({"Optimizer": "SGD", RESOL_KEY: fidels.get(RESOL_KEY, 1.0)})
         eval_config = {k: int(v) if k[:-1] == "Op" else v for k, v in eval_config.items()}
@@ -52,14 +54,14 @@ class JAHSBenchSurrogate:
 
 class JAHSBench201(AbstractBench):
     # https://ml.informatik.uni-freiburg.de/research-artifacts/jahs_bench_201/v1.1.0/assembled_surrogates.tar
-    _target_metric = "valid-acc"
-    _N_DATASETS = 3
-    _DATASET_NAMES = ("cifar10", "fashion-mnist", "colorectal-histology")
+    _target_metric: ClassVar[str] = "valid-acc"
+    _N_DATASETS: Final[int] = 3
+    _DATASET_NAMES: Final[tuple[str]] = ("cifar10", "fashion-mnist", "colorectal-histology")
 
     def __init__(
         self,
         dataset_id: int,
-        seed: Optional[int] = None,  # surrogate is not stochastic
+        seed: int | None = None,  # surrogate is not stochastic
         keep_benchdata: bool = True,
     ):
         self.dataset_name = ["cifar10", "fashion_mnist", "colorectal_histology"][dataset_id]
@@ -74,11 +76,11 @@ class JAHSBench201(AbstractBench):
 
     def __call__(
         self,
-        eval_config: Dict[str, Union[int, str, float]],
-        fidels: Dict[str, Union[float, int]] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
-        seed: Optional[int] = None,
-        benchdata: Optional[JAHSBenchSurrogate] = None,
-    ) -> Dict[str, float]:
+        eval_config: dict[str, int | float | str | bool],
+        fidels: dict[str, int | float] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
+        seed: int | None = None,
+        benchdata: JAHSBenchSurrogate | None = None,
+    ) -> dict[str, float]:
         if benchdata is None and self._surrogate is None:
             raise ValueError("data must be provided when `keep_benchdata` is False")
 
@@ -105,13 +107,13 @@ class JAHSBench201(AbstractBench):
         return config_space
 
     @property
-    def min_fidels(self) -> Dict[str, Union[float, int]]:
+    def min_fidels(self) -> dict[str, int | float]:
         return {FIDEL_KEY: 22, RESOL_KEY: 0.0}
 
     @property
-    def max_fidels(self) -> Dict[str, Union[float, int]]:
+    def max_fidels(self) -> dict[str, int | float]:
         return {FIDEL_KEY: 200, RESOL_KEY: 1.0}
 
     @property
-    def fidel_keys(self) -> List[str]:
+    def fidel_keys(self) -> list[str]:
         return [FIDEL_KEY, RESOL_KEY]

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, NewType, Optional, Protocol, Tuple, TypedDict, Union
+from dataclasses import dataclass
+from typing import Any, Final, Protocol, TypedDict
 
 
 class _TimeStampDictType(TypedDict):
@@ -7,20 +10,28 @@ class _TimeStampDictType(TypedDict):
     waited_time: float
 
 
+@dataclass(frozen=True)
+class _StateType:
+    runtime: float = 0.0
+    cumtime: float = 0.0
+    fidel: int = 0
+    seed: int | None = None
+
+
 class ObjectiveFuncType(Protocol):
     def __call__(
         self,
-        eval_config: Dict[str, Any],
-        fidels: Optional[Dict[str, Union[float, int]]] = None,
-        seed: Optional[int] = None,
+        eval_config: dict[str, Any],
+        fidels: dict[str, int | float] | None = None,
+        seed: int | None = None,
         **data_to_scatter: Any,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """The prototype of the objective function.
 
         Args:
-            eval_config (Dict[str, Any]):
+            eval_config (dict[str, Any]):
                 The configuration to be used in the objective function.
-            fidels (Optional[Dict[str, Union[float, int]]):
+            fidels (Optional[dict[str, Union[float, int]]):
                 The fidelities to be used in the objective function. Typically training epoch in deep learning.
                 If None, we assume that no fidelity is used.
             seed (Optional[int]):
@@ -35,7 +46,7 @@ class ObjectiveFuncType(Protocol):
                 users must adapt by themselves.
 
         Returns:
-            results (Dict[str, float]):
+            results (dict[str, float]):
                 The results of the objective function given the inputs.
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
@@ -43,22 +54,16 @@ class ObjectiveFuncType(Protocol):
         raise NotImplementedError
 
 
-DIR_NAME = "mfhpo-simulator-info/"
-WORKER_CUMTIME_FILE_NAME = "simulated_cumtime.json"
-RESULT_FILE_NAME = "results.json"
-PROC_ALLOC_NAME = "proc_alloc.json"
-STATE_CACHE_FILE_NAME = "state_cache.json"
-TIMESTAMP_FILE_NAME = "timestamp.json"
-INF = 1 << 40
-_RuntimeType = NewType("_RuntimeType", float)
-_CumtimeType = NewType("_CumtimeType", float)
-_FidelityType = NewType("_FidelityType", int)
-_SeedType = NewType("_SeedType", Optional[int])  # type: ignore
-_StateType = Tuple[_RuntimeType, _CumtimeType, _FidelityType, _SeedType]
-INIT_STATE: _StateType = [0.0, 0.0, 0, None]  # type: ignore
+DIR_NAME: Final[str] = "mfhpo-simulator-info/"
+WORKER_CUMTIME_FILE_NAME: Final[str] = "simulated_cumtime.json"
+RESULT_FILE_NAME: Final[str] = "results.json"
+PROC_ALLOC_NAME: Final[str] = "proc_alloc.json"
+STATE_CACHE_FILE_NAME: Final[str] = "state_cache.json"
+TIMESTAMP_FILE_NAME: Final[str] = "timestamp.json"
+INF: Final[int] = 1 << 40
 
 
-def _get_file_paths(dir_name: str) -> Tuple[str, str, str, str, str]:
+def _get_file_paths(dir_name: str) -> tuple[str, str, str, str, str]:
     return (
         os.path.join(dir_name, PROC_ALLOC_NAME),
         os.path.join(dir_name, RESULT_FILE_NAME),
