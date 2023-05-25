@@ -114,7 +114,7 @@ def _fetch_cumtimes(f: TextIOWrapper) -> dict[str, float]:
 
 @secure_read
 def _fetch_timestamps(f: TextIOWrapper) -> dict[str, _TimeStampDictType]:
-    timestamps = json.load(f)
+    timestamps = {th: _TimeStampDictType(**ts_dict) for th, ts_dict in json.load(f).items()}
     return timestamps
 
 

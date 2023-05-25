@@ -82,6 +82,7 @@ from benchmark_simulator._constants import (
     ObjectiveFuncType,
     PROC_ALLOC_NAME,
     _StateType,
+    _TimeStampDictType,
     _get_file_paths,
 )
 from benchmark_simulator._secure_proc import (
@@ -402,15 +403,15 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         if _is_simulator_terminated(self._result_path, max_evals=self._wrapper_args.n_evals):
             self._finish()
 
-    def _load_timestamps(self) -> tuple[float, float]:
+    def _load_timestamps(self) -> _TimeStampDictType:
         timestamp_dict = _fetch_timestamps(self._timestamp_path)
         if len(timestamp_dict) == 0:  # We do not need it right after the instantiation
-            return 0.0, time.time()
+            return _TimeStampDictType(prev_timestamp=time.time(), waited_time=0.0)
 
         timestamp = timestamp_dict[self._worker_id]
         self._cumtime = _fetch_cumtimes(self._cumtime_path)[self._worker_id]
         self._terminated = self._cumtime >= INF - 1e-5  # INF means finish has been called.
-        return timestamp["waited_time"], timestamp["prev_timestamp"]
+        return timestamp
 
     def __call__(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None = None, **data_to_scatter: Any
@@ -440,7 +441,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
         """
-        waited_time, prev_timestamp = self._load_timestamps()
+        timestamp = self._load_timestamps()
         if self._terminated:
             return {**{k: INF for k in self._obj_keys}, self._runtime_key: INF}
         if not self._use_fidel and fidels is not None:
@@ -452,7 +453,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
                 "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
             )
 
-        sampling_time = max(0.0, time.time() - prev_timestamp - waited_time)
+        sampling_time = max(0.0, time.time() - timestamp.prev_timestamp - timestamp.waited_time)
         self._cumtime += sampling_time
 
         results = self._proc_output(eval_config, fidels, **data_to_scatter)
@@ -503,7 +504,7 @@ class CentralWorkerManager(_BaseWrapperInterface):
     def __call__(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None = None, **data_to_scatter: Any
     ) -> dict[str, float]:
-        """The memta-wrapper method of the objective function method in WorkerFunc instances.
+        """The meta-wrapper method of the objective function method in WorkerFunc instances.
 
         This method recognizes each WorkerFunc by process ID and call the corresponding worker based on the ID.
 

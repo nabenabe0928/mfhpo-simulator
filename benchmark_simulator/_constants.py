@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Final, Protocol, TypedDict
+from typing import Any, Final, Protocol
 
 
-class _TimeStampDictType(TypedDict):
+@dataclass(frozen=True)
+class _TimeStampDictType:
     prev_timestamp: float
     waited_time: float
 
