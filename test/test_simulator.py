@@ -70,7 +70,7 @@ def test_error_fidel_in_call():
         **kwargs,
     )
     # Objective function did not get keyword `fidels`
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Objective function did not get keyword `fidels`*"):
         worker(eval_config={"x": 0}, fidels=None)
 
     shutil.rmtree(worker.dir_name)
@@ -83,7 +83,7 @@ def test_error_fidel_in_call():
     )
     worker(eval_config={"x": 0})  # no error without fidel!
     # Objective function got keyword `fidels`
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Objective function got keyword `fidels`*"):
         worker(eval_config={"x": 0}, fidels={"epoch": 0})
 
     shutil.rmtree(worker.dir_name)
@@ -92,7 +92,7 @@ def test_error_fidel_in_call():
 def test_guarantee_no_hang():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_actual_evals_in_opt"] = 10
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Cannot guarantee that optimziers will not hang"):
         ObjectiveFuncWorker(
             obj_func=dummy_no_fidel_func,
             **kwargs,
@@ -105,7 +105,7 @@ def test_validate_fidel_args():
     kwargs = DEFAULT_KWARGS.copy()
     for fidel_keys in [None, ["a", "b"], []]:
         kwargs["fidel_keys"] = fidel_keys
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="continual_max_fidel is valid only if fidel_keys has only one element*"):
             ObjectiveFuncWorker(
                 obj_func=dummy_no_fidel_func,
                 **kwargs,
@@ -117,7 +117,7 @@ def test_validate_fidel_args():
 def test_errors_in_proc_output():
     kwargs = DEFAULT_KWARGS.copy()
     # fidels is None or len(fidels.values()) != 1
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="fidels must have only one element*"):
         worker = ObjectiveFuncWorker(
             obj_func=dummy_func,
             **kwargs,
@@ -128,7 +128,7 @@ def test_errors_in_proc_output():
         shutil.rmtree(PATH)
 
     # Fidelity for continual evaluation must be integer
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
         worker = ObjectiveFuncWorker(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
@@ -138,9 +138,19 @@ def test_errors_in_proc_output():
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
 
+    with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
+        worker = ObjectiveFuncWorker(
+            obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
+            **kwargs,
+        )
+        worker(eval_config={"x": 0}, fidels={"epoch": -1})
+
+    if os.path.exists(PATH):
+        shutil.rmtree(PATH)
+
     kwargs.pop("continual_max_fidel")
     # The keys in fidels must be identical to fidel_keys
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWorker(
             obj_func=dummy_func,
             **kwargs,
@@ -152,7 +162,7 @@ def test_errors_in_proc_output():
 
     kwargs["fidel_keys"] = ["dummy-fidel"]
     # The keys in fidels must be identical to fidel_keys
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWorker(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
@@ -167,7 +177,7 @@ def test_error_in_keys():
     n_evals = 10
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals)
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWorker(
             obj_func=dummy_func,
             obj_keys=["dummy_loss"],
@@ -176,7 +186,7 @@ def test_error_in_keys():
         worker(eval_config={"x": 0}, fidels={"epoch": 1})
 
     shutil.rmtree(worker.dir_name)
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWorker(
             obj_func=dummy_func,
             runtime_key="dummy_runtime",
@@ -186,7 +196,7 @@ def test_error_in_keys():
 
     shutil.rmtree(worker.dir_name)
 
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWorker(
             obj_func=dummy_func,
             obj_keys=["dummy_loss", "loss"],
