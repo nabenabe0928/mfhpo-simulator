@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import ConfigSpace as CS
 
@@ -15,10 +17,10 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 class SMACCentralWorkerManager(CentralWorkerManager):
     def __call__(
         self,
-        eval_config: Dict[str, Any],
+        eval_config: dict[str, Any],
         budget: int,
-        seed: Optional[int] = None,
-        data_to_scatter: Optional[Dict[str, Any]] = None,
+        seed: int | None = None,
+        data_to_scatter: dict[str, Any] | None = None,
     ) -> float:
         data_to_scatter = {} if data_to_scatter is None else data_to_scatter
         output = super().__call__(eval_config, {self.fidel_keys[0]: int(budget)}, **data_to_scatter)
@@ -31,12 +33,10 @@ def run_smac(
     subdir_name: str,
     min_fidel: int,
     max_fidel: int,
-    fidel_key: List[str],
+    fidel_key: list[str],
     n_workers: int = 4,
     n_init: int = 5,
     n_actual_evals_in_opt: int = 455,
-    obj_keys: List[str] = ["loss"][:],
-    runtime_key: str = "runtime",
     seed: int = 42,
     n_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
@@ -53,8 +53,6 @@ def run_smac(
         subdir_name=subdir_name,
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
-        obj_keys=obj_keys,
-        runtime_key=runtime_key,
         seed=seed,
         fidel_keys=[fidel_key],
         continual_max_fidel=max_fidel,

@@ -1,4 +1,4 @@
-from typing import Dict
+from __future__ import annotations
 
 import ConfigSpace as CS
 
@@ -10,7 +10,7 @@ from dehb import DEHB
 
 class DEHBCentralWorkerManager(CentralWorkerManager):
     # 0. Adapt the manager.__call__ to the DEHB interface at https://github.com/automl/DEHB/
-    def __call__(self, config: CS.Configuration, budget: int) -> Dict[str, float]:
+    def __call__(self, config: CS.Configuration, budget: int) -> dict[str, float]:
         eval_config = config.get_dictionary()
         results = super().__call__(eval_config=eval_config, fidels={self.fidel_keys[0]: int(budget)})
         return dict(fitness=results[self.obj_keys[0]], cost=results[self.runtime_key])

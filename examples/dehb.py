@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 import ConfigSpace as CS
 
@@ -14,7 +16,7 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 class DEHBCentralWorkerManager(CentralWorkerManager):
     # Adapt to the DEHB interface at https://github.com/automl/DEHB/
-    def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> Dict[str, float]:
+    def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> dict[str, float]:
         eval_config = config.get_dictionary()
         fidels = {self.fidel_keys[0]: int(budget)}
         results = super().__call__(eval_config=eval_config, fidels=fidels, **data_to_scatter)
@@ -30,8 +32,6 @@ def run_dehb(
     fidel_key: str,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
-    obj_keys: List[str] = ["loss"][:],
-    runtime_key: str = "runtime",
     seed: int = 42,
     n_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
@@ -44,8 +44,6 @@ def run_dehb(
         n_evals=n_evals,
         continual_max_fidel=max_fidel,
         fidel_keys=[fidel_key],
-        obj_keys=obj_keys,
-        runtime_key=runtime_key,
         seed=seed,
     )
 

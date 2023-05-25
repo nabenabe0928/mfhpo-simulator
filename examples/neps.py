@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 import warnings
-from typing import Any, Dict, List
+from typing import Any
 
 import ConfigSpace as CS
 
@@ -14,14 +16,14 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class NEPSWorker(ObjectiveFuncWorker):
-    def __call__(self, **eval_config: Dict[str, Any]) -> Dict[str, float]:
+    def __call__(self, **eval_config: dict[str, Any]) -> dict[str, float]:
         _eval_config = eval_config.copy()
         fidel_key = self.fidel_keys[0]
         fidels = {fidel_key: _eval_config.pop(fidel_key)}
         return super().__call__(eval_config=_eval_config, fidels=fidels)
 
 
-def get_pipeline_space(config_space: CS.ConfigurationSpace) -> Dict[str, neps.search_spaces.parameter.Parameter]:
+def get_pipeline_space(config_space: CS.ConfigurationSpace) -> dict[str, neps.search_spaces.parameter.Parameter]:
     pipeline_space = {}
     for hp_name in config_space:
         hp = config_space.get_hyperparameter(hp_name)
@@ -46,8 +48,6 @@ def run_neps(
     fidel_key: str,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
-    obj_keys: List[str] = ["loss"][:],
-    runtime_key: str = "runtime",
     seed: int = 42,
     n_evals: int = 450,  # eta=3,S=2,100 full evals
 ):
@@ -60,8 +60,6 @@ def run_neps(
         n_evals=n_evals,
         fidel_keys=[fidel_key],
         continual_max_fidel=max_fidel,
-        obj_keys=obj_keys,
-        runtime_key=runtime_key,
         seed=seed,
     )
     pipeline_space = get_pipeline_space(config_space)

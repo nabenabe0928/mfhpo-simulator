@@ -1,4 +1,5 @@
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from dataclasses import dataclass
 from typing import Any
 
 from benchmark_apis.hpo.hpolib import HPOLib
@@ -11,7 +12,16 @@ from benchmark_apis.synthetic.hartmann import MFHartmann
 BENCH_CHOICES = dict(lc=LCBench, hpolib=HPOLib, jahs=JAHSBench201, branin=MFBranin, hartmann=MFHartmann)
 
 
-def parse_args() -> Namespace:
+@dataclass(frozen=True)
+class ParsedArgs:
+    seed: int
+    dataset_id: int
+    dim: int
+    bench_name: str
+    n_workers: int
+
+
+def parse_args() -> ParsedArgs:
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int)
     parser.add_argument("--dataset_id", type=int, default=0, choices=list(range(34)))
@@ -19,10 +29,12 @@ def parse_args() -> Namespace:
     parser.add_argument("--bench_name", type=str, choices=list(BENCH_CHOICES.keys()))
     parser.add_argument("--n_workers", type=int)
     args = parser.parse_args()
-    return args
+
+    kwargs = {k: getattr(args, k) for k in ParsedArgs.__annotations__.keys()}
+    return ParsedArgs(**kwargs)
 
 
-def get_subdir_name(args: Namespace) -> str:
+def get_subdir_name(args: ParsedArgs) -> str:
     dataset_part = ""
     dataset_names = BENCH_CHOICES[args.bench_name]._DATASET_NAMES
     if dataset_names is not None:
@@ -35,7 +47,7 @@ def get_subdir_name(args: Namespace) -> str:
     return f"bench={bench_name}{dataset_part}_nworkers={args.n_workers}/{args.seed}"
 
 
-def get_bench_instance(args: Namespace, keep_benchdata: bool = True) -> Any:
+def get_bench_instance(args: ParsedArgs, keep_benchdata: bool = True) -> Any:
     bench_cls = BENCH_CHOICES[args.bench_name]
     if bench_cls._BENCH_TYPE == "HPO":
         obj_func = bench_cls(dataset_id=args.dataset_id, seed=args.seed, keep_benchdata=keep_benchdata)

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 from multiprocessing import Pool
-from typing import Any, Dict, List
+from typing import Any
 
 import ConfigSpace as CS
 
@@ -22,7 +24,7 @@ class BOHBWorker(Worker):
         self.sleep_interval = sleep_interval
         self._worker = worker
 
-    def compute(self, config: Dict[str, Any], budget: int, **kwargs: Any) -> Dict[str, float]:
+    def compute(self, config: dict[str, Any], budget: int, **kwargs: Any) -> dict[str, float]:
         fidel_keys = self._worker.fidel_keys
         fidels = dict(epoch=int(budget)) if "epoch" in fidel_keys else {k: int(budget) for k in fidel_keys}
         results = self._worker(eval_config=config, fidels=fidels)
@@ -39,17 +41,13 @@ def get_bohb_workers(
     n_workers: int,
     n_actual_evals_in_opt: int,
     n_evals: int,
-    obj_keys: List[str],
-    runtime_key: str,
     seed: int,
-) -> List[BOHBWorker]:
+) -> list[BOHBWorker]:
     kwargs = dict(
         obj_func=obj_func,
         n_workers=n_workers,
         subdir_name=subdir_name,
         continual_max_fidel=max_fidel,
-        obj_keys=obj_keys,
-        runtime_key=runtime_key,
         fidel_keys=[fidel_key],
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
@@ -84,8 +82,6 @@ def run_bohb(
     fidel_key: str,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
-    obj_keys: List[str] = ["loss"][:],
-    runtime_key: str = "runtime",
     seed: int = 42,
     run_id: str = "bohb-run",
     ns_host: str = "127.0.0.1",
@@ -104,8 +100,6 @@ def run_bohb(
         n_workers=n_workers,
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
-        obj_keys=obj_keys,
-        runtime_key=runtime_key,
         seed=seed,
     )
     bohb = BOHB(
