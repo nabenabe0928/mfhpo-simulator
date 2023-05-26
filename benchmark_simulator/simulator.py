@@ -262,6 +262,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         self._cumtime = 0.0
         self._continual_eval = self._wrapper_args.continual_max_fidel is not None
         self._terminated = False
+        self._crashed = False
         self._validate_fidel_args()
 
     def __repr__(self) -> str:
@@ -425,8 +426,24 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         timestamp = timestamp_dict[self._worker_id]
         self._cumtime = _fetch_cumtimes(self._cumtime_path)[self._worker_id]
-        self._terminated = self._cumtime >= _TimeValue.terminated.value - 1e-5  # INF means finish has been called.
+        self._terminated = self._cumtime >= _TimeValue.terminated.value - 1e-5
+        self._crashed = self._cumtime >= _TimeValue.crashed.value - 1e-5
         return timestamp
+
+    def _validate(self, fidels: dict[str, int | float] | None) -> None:
+        if self._crashed:
+            raise InterruptedError(
+                "The simulation is interrupted due to deadlock or the dead of at least one of the workers.\n"
+                "This error could be avoided by increasing `max_waiting_time` (however, np.inf is discouraged).\n"
+            )
+        if not self._use_fidel and fidels is not None:
+            raise ValueError(
+                "Objective function got keyword `fidels`, but fidel_keys was not provided in worker instantiation."
+            )
+        if self._use_fidel and fidels is None:
+            raise ValueError(
+                "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
+            )
 
     def __call__(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None = None, **data_to_scatter: Any
@@ -457,17 +474,9 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
                 Otherwise, any other metrics are optional.
         """
         timestamp = self._load_timestamps()
+        self._validate(fidels=fidels)
         if self._terminated:
-            # TODO: think about what is best here.
             return {**{k: INF for k in self._obj_keys}, self._runtime_key: INF}
-        if not self._use_fidel and fidels is not None:
-            raise ValueError(
-                "Objective function got keyword `fidels`, but fidel_keys was not provided in worker instantiation."
-            )
-        if self._use_fidel and fidels is None:
-            raise ValueError(
-                "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
-            )
 
         sampling_time = max(0.0, time.time() - timestamp.prev_timestamp - timestamp.waited_time)
         self._cumtime += sampling_time

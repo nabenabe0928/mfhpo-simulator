@@ -8,7 +8,7 @@ import time
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import DIR_NAME, INF
+from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator._secure_proc import _wait_until_next
 from benchmark_simulator.simulator import CentralWorkerManager
 
@@ -76,21 +76,22 @@ def test_timeout_error_by_wait():
         r = pool.apply_async(manager, kwds=kwargs)
         res.append(r)
     else:
-        cnt = 0
+        n_timeout = 0
+        n_interrupted = 0
         for i, r in enumerate(res):
-            if i < n_workers + 2:
-                try:
-                    r.get()
-                except TimeoutError:
-                    cnt += 1
-                except Exception as e:
-                    raise RuntimeError(
-                        f"The first {n_workers} run must be timeout, but the {i+1}-th run failed with {e}"
-                    )
-            else:
-                assert all(v == INF for v in r.get().values())
+            try:
+                r.get()
+            except TimeoutError:
+                n_timeout += 1
+            except InterruptedError:
+                n_interrupted += 1
+            except Exception as e:
+                raise RuntimeError(f"The first {n_workers} run must be timeout, but the {i+1}-th run failed with {e}")
 
-        assert n_workers == cnt + 1
+        assert n_workers == n_timeout + 1
+
+        # It should happen, but we do not know how many times it happens
+        assert n_interrupted > 5
 
     pool.close()
     pool.join()

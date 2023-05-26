@@ -69,8 +69,8 @@ class _SharedDataLocations(Enum):
 
 
 class _TimeValue(Enum):
-    terminated: float = 1 << 40
-    crashed: float = 1 << 41
+    terminated: float = float(1 << 40)
+    crashed: float = float(1 << 41)
 
 
 def _get_file_paths(dir_name: str) -> tuple[str, str, str, str, str]:

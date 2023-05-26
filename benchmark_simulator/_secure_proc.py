@@ -57,7 +57,7 @@ def _complete_proc_allocation(f: TextIOWrapper) -> dict[int, int]:
 def _record_cumtime(f: TextIOWrapper, worker_id: str, cumtime: float) -> None:
     record = json.load(f)
     prev_cumtime = record.get(worker_id, 0.0)
-    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TimeValue.terminated.value)
+    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TimeValue.crashed.value)
     f.seek(0)
     json.dump(record, f, indent=4)
 
@@ -167,10 +167,14 @@ def _finish_worker_timer(path: str, worker_id: str) -> None:
     _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.terminated.value)
 
 
-def _finish_worker_timer_with_min_cumtime(path: str) -> None:
+def _kill_worker_timer(path: str, worker_id: str) -> None:
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.crashed.value)
+
+
+def _kill_worker_timer_with_min_cumtime(path: str) -> None:
     cumtimes = _fetch_cumtimes(path=path)
     worker_id = min(cumtimes, key=cumtimes.get)
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.terminated.value)
+    _kill_worker_timer(path=path, worker_id=worker_id)
 
 
 def _get_timeout_message(cause: str, path: str) -> str:
@@ -226,11 +230,11 @@ def _raise_unexpected_timeout_error(max_waiting_time: float) -> None:
 
 
 def _terminate_with_unexpected_timeout(path: str, worker_id: str, max_waiting_time: float) -> None:
-    _finish_worker_timer(path=path, worker_id=worker_id)
+    _kill_worker_timer(path=path, worker_id=worker_id)
     # The worker with minimum cumlative time may be able to evaluate several HPs during the wait,
     # but it does not matter because the timeout happens due to too long wait.
     time.sleep(1.0)
-    _finish_worker_timer_with_min_cumtime(path=path)
+    _kill_worker_timer_with_min_cumtime(path=path)
     _raise_unexpected_timeout_error(max_waiting_time=max_waiting_time)
 
 
