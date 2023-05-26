@@ -16,7 +16,7 @@ In this package, we automatically sort out this problem by pending to pass the h
 Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
 Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
 I am not sure if I will support any additional workers after the initialization yet.
-Furthermore, our package does not guarantee expected functionality on Mac and Windows OS as our package has not been tested only on Ubuntu.
+Furthermore, our package does not guarantee expected functionality on Windows OS as our package has not been tested only on Ubuntu and MacOS.
 
 ## Setup
 
