@@ -14,8 +14,8 @@ In this package, we automatically sort out this problem by pending to pass the h
 **NOTE**
 
 Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
-Therefore, if any workers die, our current wrapper hangs and keeps warning.
-The hang problem will be addressed in the future, but I am not sure if I will support any additional workers after the initialization yet.
+Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
+I am not sure if I will support any additional workers after the initialization yet.
 Furthermore, our package does not guarantee expected functionality on Mac and Windows OS as our package has not been tested only on Ubuntu.
 
 ## Setup
@@ -81,16 +81,17 @@ However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://gi
 Basically, we need to use `ObjectiveFuncWorker` for BOHB and NePS because they share the information in each worker via some types of server or they launch multiple independent threads.
 On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, users need to use `CentralWorkerManager`.
 Here, we describe the arguments of `CentralWorkerManager`:
-1. `subdir_name` (`str`): The directory to store the information.
-2. `n_workers` (`int`): The number of parallel workers.
-3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details.
-4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimiziers (this argument will be used only for raising an error).
-5. `n_evals` (`int`): The number of evaluations to be stored in the information.
+1. `subdir_name` (`str`): The directory to store the information,
+2. `n_workers` (`int`): The number of parallel workers,
+3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details,
+4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimiziers (this argument will be used only for raising an error),
+5. `n_evals` (`int`): The number of evaluations to be stored in the information,
 6. `continual_max_fidel` (`Optional[int]`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a train result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
-7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`.
-8. `runtime_key` (`str`): The key is for runtime. The output of objective function must include runtime.
-9. `obj_keys` (`List[str]`): The list of fidelity names that will be feeded to the objective function. and
-10. `seed` (`Optional[int]`): The random seed to be used in each worker.
+7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`,
+8. `runtime_key` (`str`): The key is for runtime. The output of objective function must include runtime,
+9. `obj_keys` (`List[str]`): The list of fidelity names that will be feeded to the objective function,
+10. `seed` (`Optional[int]`): The random seed to be used in each worker, and
+11. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`.
 
 ## Citation
 

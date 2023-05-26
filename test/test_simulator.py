@@ -303,7 +303,7 @@ def remove_tree():
 
 
 def get_n_workers():
-    n_workers = 4 if os.system("hostname") == "EB-B9400CBA" else 2  # github actions has only 2 cores
+    n_workers = 4 if os.uname().nodename == "EB-B9400CBA" else 2  # github actions has only 2 cores
     return n_workers
 
 
@@ -328,6 +328,22 @@ def test_seed_error_in_central_worker_manager():
     CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
     with pytest.raises(FileExistsError):
         CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+
+    remove_tree()
+
+
+def test_init_alloc_in_central_worker_manager():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    kwargs["n_workers"] = 1
+    kwargs["n_actual_evals_in_opt"] = 15
+    manager = CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+    kwargs = dict(
+        eval_config={"x": 1},
+        fidels={"epoch": 1},
+    )
+    for _ in range(2):
+        manager(**kwargs)
 
     remove_tree()
 

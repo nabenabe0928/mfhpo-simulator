@@ -92,11 +92,14 @@ from benchmark_simulator._secure_proc import (
     _fetch_cache_states,
     _fetch_cumtimes,
     _fetch_timestamps,
+    _finish_worker_timer,
     _init_simulator,
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
     _record_timestamp,
+    _start_timestamp,
+    _start_worker_timer,
     _wait_all_workers,
     _wait_proc_allocation,
     _wait_until_next,
@@ -118,6 +121,7 @@ class _WrapperArgs:
     fidel_keys: list[str] | None
     seed: int | None
     continual_max_fidel: int | None
+    max_waiting_time: float
 
 
 class _BaseWrapperInterface(metaclass=ABCMeta):
@@ -167,6 +171,9 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
             for call with configA and training_epoch=30.
             continual_eval=True calculates the runtime considers this.
             If False, each call is considered to be processed from scratch.
+        max_waiting_time (float):
+            The maximum waiting time to judge hang.
+            If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
 
     Attributes:
         dir_name (str):
@@ -191,6 +198,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         runtime_key: str = "runtime",
         seed: int | None = None,
         continual_max_fidel: int | None = None,
+        max_waiting_time: float = np.inf,
     ):
         self._wrapper_args = _WrapperArgs(
             subdir_name=subdir_name,
@@ -203,6 +211,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
             runtime_key=runtime_key,
             seed=seed,
             continual_max_fidel=continual_max_fidel,
+            max_waiting_time=max_waiting_time,
         )
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
@@ -280,7 +289,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
     def _init_worker(self) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
         _init_simulator(dir_name=self.dir_name)
-        _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=0.0)
+        _start_worker_timer(path=self._cumtime_path, worker_id=self._worker_id)
 
     def _alloc_index(self) -> int:
         worker_id_to_index = _wait_all_workers(path=self._cumtime_path, n_workers=self._wrapper_args.n_workers)
@@ -384,7 +393,8 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         even if the worker reports its results now.
         """
         wait_start = time.time()
-        _wait_until_next(path=self._cumtime_path, worker_id=self._worker_id)
+        max_waiting_time = self._wrapper_args.max_waiting_time
+        _wait_until_next(path=self._cumtime_path, worker_id=self._worker_id, max_waiting_time=max_waiting_time)
         _record_timestamp(
             path=self._timestamp_path,
             worker_id=self._worker_id,
@@ -405,8 +415,12 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
     def _load_timestamps(self) -> _TimeStampDictType:
         timestamp_dict = _fetch_timestamps(self._timestamp_path)
-        if len(timestamp_dict) == 0:  # We do not need it right after the instantiation
-            return _TimeStampDictType(prev_timestamp=time.time(), waited_time=0.0)
+        if self._worker_id not in timestamp_dict:  # Initialize the timestamp
+            init_timestamp = _TimeStampDictType(prev_timestamp=time.time(), waited_time=0.0)
+            _start_timestamp(
+                path=self._timestamp_path, worker_id=self._worker_id, prev_timestamp=init_timestamp.prev_timestamp
+            )
+            return init_timestamp
 
         timestamp = timestamp_dict[self._worker_id]
         self._cumtime = _fetch_cumtimes(self._cumtime_path)[self._worker_id]
@@ -443,6 +457,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         """
         timestamp = self._load_timestamps()
         if self._terminated:
+            # TODO: think about what is best here.
             return {**{k: INF for k in self._obj_keys}, self._runtime_key: INF}
         if not self._use_fidel and fidels is not None:
             raise ValueError(
@@ -465,7 +480,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         This method must be called before we finish the optimization.
         If not called, optimization modules are likely to hang.
         """
-        _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=INF)
+        _finish_worker_timer(path=self._cumtime_path, worker_id=self._worker_id)
         self._terminated = True
 
 
