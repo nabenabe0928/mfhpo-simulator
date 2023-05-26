@@ -17,12 +17,13 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 class SMACCentralWorkerManager(CentralWorkerManager):
     def __call__(
         self,
-        eval_config: dict[str, Any],
+        config: CS.Configuration,
         budget: int,
         seed: int | None = None,
         data_to_scatter: dict[str, Any] | None = None,
     ) -> float:
         data_to_scatter = {} if data_to_scatter is None else data_to_scatter
+        eval_config = config.get_dictionary()
         output = super().__call__(eval_config, {self.fidel_keys[0]: int(budget)}, **data_to_scatter)
         return output[self._obj_keys[0]]
 
@@ -64,7 +65,7 @@ def run_smac(
         intensifier=Hyperband(scenario, incumbent_selection="highest_budget"),
         overwrite=True,
     )
-    data_to_scatter = {}
+    data_to_scatter = None
     if hasattr(obj_func, "get_benchdata"):
         # This data is shared in memory, and thus the optimization becomes quicker!
         data_to_scatter = {"benchdata": obj_func.get_benchdata()}
