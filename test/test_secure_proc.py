@@ -6,10 +6,7 @@ import shutil
 import unittest
 
 from benchmark_simulator._constants import (
-    WORKER_CUMTIME_FILE_NAME,
-    RESULT_FILE_NAME,
-    STATE_CACHE_FILE_NAME,
-    PROC_ALLOC_NAME,
+    _SharedDataLocations,
     _StateType,
     _get_file_paths,
 )
@@ -60,19 +57,19 @@ def test_init_simulator():
 
 def test_init_simulator_existing():
     os.makedirs(DIR_NAME, exist_ok=True)
-    with open(os.path.join(DIR_NAME, RESULT_FILE_NAME), mode="w"):
+    with open(os.path.join(DIR_NAME, _SharedDataLocations.result.value), mode="w"):
         pass
 
     _init_for_tests()
-    for fn in [WORKER_CUMTIME_FILE_NAME, RESULT_FILE_NAME, STATE_CACHE_FILE_NAME, PROC_ALLOC_NAME]:
-        assert json.load(open(os.path.join(DIR_NAME, fn))) == {}
+    for fn in _SharedDataLocations:
+        assert json.load(open(os.path.join(DIR_NAME, fn.value))) == {}
 
     shutil.rmtree(DIR_NAME)
 
 
 def test_allocate_proc_to_worker():
     _init_for_tests()
-    path = os.path.join(DIR_NAME, PROC_ALLOC_NAME)
+    path = os.path.join(DIR_NAME, _SharedDataLocations.proc_alloc.value)
     ans = {}
     for i in range(10):
         _allocate_proc_to_worker(path, pid=i * 100)
@@ -91,7 +88,7 @@ def test_allocate_proc_to_worker():
 
 def test_record_cumtime():
     _init_for_tests()
-    path = os.path.join(DIR_NAME, WORKER_CUMTIME_FILE_NAME)
+    path = os.path.join(DIR_NAME, _SharedDataLocations.worker_cumtime.value)
 
     ans = {}
     worker_ids = "abcdefghij"
@@ -131,7 +128,7 @@ def test_record_cumtime():
 def test_cache_state():
     # _StateType = Tuple[_RuntimeType, _CumtimeType, _FidelityType, _SeedType]
     _init_for_tests()
-    path = os.path.join(DIR_NAME, STATE_CACHE_FILE_NAME)
+    path = os.path.join(DIR_NAME, _SharedDataLocations.state_cache.value)
     cumtime = 0.0
     ans = []
     for update in [False, True]:
@@ -161,7 +158,7 @@ def test_cache_state():
 
 def test_record_result():
     _init_for_tests()
-    path = os.path.join(DIR_NAME, RESULT_FILE_NAME)
+    path = os.path.join(DIR_NAME, _SharedDataLocations.result.value)
     ans = {"cumtime": [], "loss": []}
     for i in range(19):
         _record_result(path, results={"loss": i, "cumtime": i})

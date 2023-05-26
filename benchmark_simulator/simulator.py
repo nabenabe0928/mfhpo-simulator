@@ -80,9 +80,10 @@ from benchmark_simulator._constants import (
     DIR_NAME,
     INF,
     ObjectiveFuncType,
-    PROC_ALLOC_NAME,
+    _SharedDataLocations,
     _StateType,
     _TimeStampDictType,
+    _TimeValue,
     _get_file_paths,
 )
 from benchmark_simulator._secure_proc import (
@@ -424,7 +425,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         timestamp = timestamp_dict[self._worker_id]
         self._cumtime = _fetch_cumtimes(self._cumtime_path)[self._worker_id]
-        self._terminated = self._cumtime >= INF - 1e-5  # INF means finish has been called.
+        self._terminated = self._cumtime >= _TimeValue.terminated.value - 1e-5  # INF means finish has been called.
         return timestamp
 
     def __call__(
@@ -512,7 +513,7 @@ class CentralWorkerManager(_BaseWrapperInterface):
         self._workers = [result.get() for result in results]
 
     def _init_alloc(self, pid: int) -> None:
-        _path = os.path.join(self._dir_name, PROC_ALLOC_NAME)
+        _path = os.path.join(self._dir_name, _SharedDataLocations.proc_alloc.value)
         _allocate_proc_to_worker(path=_path, pid=pid)
         self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._wrapper_args.n_workers)
 

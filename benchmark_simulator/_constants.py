@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Final, Protocol
 
 
@@ -56,19 +57,24 @@ class ObjectiveFuncType(Protocol):
 
 
 DIR_NAME: Final[str] = "mfhpo-simulator-info/"
-WORKER_CUMTIME_FILE_NAME: Final[str] = "simulated_cumtime.json"
-RESULT_FILE_NAME: Final[str] = "results.json"
-PROC_ALLOC_NAME: Final[str] = "proc_alloc.json"
-STATE_CACHE_FILE_NAME: Final[str] = "state_cache.json"
-TIMESTAMP_FILE_NAME: Final[str] = "timestamp.json"
-INF: Final[int] = 1 << 40
+INF: Final[float] = float(1 << 30)
+
+
+class _SharedDataLocations(Enum):
+    proc_alloc: str = "proc_alloc.json"
+    result: str = "results.json"
+    state_cache: str = "state_cache.json"
+    worker_cumtime: str = "simulated_cumtime.json"
+    timestamp: str = "timestamp.json"
+
+
+class _TimeValue(Enum):
+    terminated: float = 1 << 40
+    crashed: float = 1 << 41
 
 
 def _get_file_paths(dir_name: str) -> tuple[str, str, str, str, str]:
-    return (
-        os.path.join(dir_name, PROC_ALLOC_NAME),
-        os.path.join(dir_name, RESULT_FILE_NAME),
-        os.path.join(dir_name, STATE_CACHE_FILE_NAME),
-        os.path.join(dir_name, WORKER_CUMTIME_FILE_NAME),
-        os.path.join(dir_name, TIMESTAMP_FILE_NAME),
-    )
+    ret: tuple[str, str, str, str, str] = (
+        os.path.join(dir_name, fn.value) for fn in _SharedDataLocations
+    )  # type: ignore
+    return ret

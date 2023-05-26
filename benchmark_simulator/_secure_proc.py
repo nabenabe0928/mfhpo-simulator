@@ -8,14 +8,10 @@ import warnings
 from _io import TextIOWrapper
 
 from benchmark_simulator._constants import (
-    INF,
-    PROC_ALLOC_NAME,
-    RESULT_FILE_NAME,
-    STATE_CACHE_FILE_NAME,
-    TIMESTAMP_FILE_NAME,
-    WORKER_CUMTIME_FILE_NAME,
+    _SharedDataLocations,
     _StateType,
     _TimeStampDictType,
+    _TimeValue,
 )
 from benchmark_simulator._utils import secure_edit, secure_read
 
@@ -25,8 +21,8 @@ import ujson as json  # type: ignore
 
 
 def _init_simulator(dir_name: str) -> None:
-    for fn in [WORKER_CUMTIME_FILE_NAME, RESULT_FILE_NAME, STATE_CACHE_FILE_NAME, PROC_ALLOC_NAME, TIMESTAMP_FILE_NAME]:
-        path = os.path.join(dir_name, fn)
+    for fn in _SharedDataLocations:
+        path = os.path.join(dir_name, fn.value)
         with open(path, "a+") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             f.seek(0)
@@ -61,7 +57,7 @@ def _complete_proc_allocation(f: TextIOWrapper) -> dict[int, int]:
 def _record_cumtime(f: TextIOWrapper, worker_id: str, cumtime: float) -> None:
     record = json.load(f)
     prev_cumtime = record.get(worker_id, 0.0)
-    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=INF)
+    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TimeValue.terminated.value)
     f.seek(0)
     json.dump(record, f, indent=4)
 
@@ -168,13 +164,13 @@ def _start_worker_timer(path: str, worker_id: str) -> None:
 
 
 def _finish_worker_timer(path: str, worker_id: str) -> None:
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=INF)
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.terminated.value)
 
 
 def _finish_worker_timer_with_min_cumtime(path: str) -> None:
     cumtimes = _fetch_cumtimes(path=path)
     worker_id = min(cumtimes, key=cumtimes.get)
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=INF)
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.terminated.value)
 
 
 def _get_timeout_message(cause: str, path: str) -> str:
