@@ -7,7 +7,7 @@ import shutil
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import DIR_NAME
+from benchmark_simulator._constants import DIR_NAME, _TimeValue
 from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
 
 import numpy as np
@@ -322,6 +322,10 @@ def test_central_worker_manager():
 def test_store_config():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
+    worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
+    worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
+    shutil.rmtree(worker.dir_name)
+
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 15
@@ -344,9 +348,26 @@ def test_store_config():
     pool.join()
 
     results = json.load(open(os.path.join(manager.dir_name, "results.json")))
-    assert all(k in results for k in ["seed", "epoch", "x"])
-    assert len(results["x"]) == len(results["loss"])
+    for k in ["seed", "epoch", "x"]:
+        assert k in results
+        assert len(results[k]) == len(results["loss"])
     shutil.rmtree(manager.dir_name)
+
+
+def test_interrupted():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
+    data = json.load(open(worker._cumtime_path))
+    with open(worker._cumtime_path, mode="w") as f:
+        data[worker._worker_id] = _TimeValue.crashed.value
+        json.dump(data, f)
+
+    worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))  # Nothing happens for init
+    with pytest.raises(InterruptedError):
+        worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
+
+    shutil.rmtree(worker.dir_name)
 
 
 def test_seed_error_in_central_worker_manager():

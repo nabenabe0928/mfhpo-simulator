@@ -16,7 +16,7 @@ In this package, we automatically sort out this problem by pending to pass the h
 Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
 Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
 I am not sure if I will support any additional workers after the initialization yet.
-Furthermore, our package does not guarantee expected functionality on Windows OS as our package has not been tested only on Ubuntu and MacOS.
+Furthermore, our package cannot be run on Windows OS because the Python module `fcntl` is not supported on Windows OS.
 
 ## Setup
 
@@ -90,8 +90,9 @@ Here, we describe the arguments of `CentralWorkerManager`:
 7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`,
 8. `runtime_key` (`str`): The key is for runtime. The output of objective function must include runtime,
 9. `obj_keys` (`List[str]`): The list of fidelity names that will be feeded to the objective function,
-10. `seed` (`Optional[int]`): The random seed to be used in each worker, and
-11. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`.
+10. `seed` (`Optional[int]`): The random seed to be used in each worker,
+11. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`, and
+12. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments.
 
 ## Citation
 
