@@ -398,13 +398,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         )
         return {**{k: results[k] for k in self._obj_keys}, self._runtime_key: actual_runtime}
 
-    def _proc_output(
-        self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None, **data_to_scatter: Any
-    ) -> dict[str, float]:
-        if not self._continual_eval:
-            return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
-
-        # Otherwise, we try the continual evaluation
+    def _validate_provided_fidels(self, fidels: dict[str, int | float] | None) -> int:
         if fidels is None or len(fidels.values()) != 1:
             raise ValueError(
                 f"fidels must have only one element when continual_max_fidel is provided, but got {fidels}"
@@ -416,6 +410,16 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         if fidel < 0:
             raise ValueError(f"Fidelity for continual evaluation must be non-negative, but got {fidel}")
 
+        return fidel
+
+    def _proc_output(
+        self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None, **data_to_scatter: Any
+    ) -> dict[str, float]:
+        if not self._continual_eval:
+            return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
+
+        # Otherwise, we try the continual evaluation
+        fidel = self._validate_provided_fidels(fidels)
         return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
 
     def _wait_other_workers(self) -> None:

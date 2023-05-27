@@ -155,5 +155,87 @@ def test_timeout_error_by_duplicated_worker():
     shutil.rmtree(manager.dir_name)
 
 
+def dummy_func_with_pseudo_crash(
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
+) -> dict[str, float]:
+    if eval_config["x"] == 0:
+        time.sleep(2)
+
+    time.sleep(0.01)
+    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
+
+
+def test_timeout_error_by_pseudo_crash():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    n_workers = get_n_workers()
+    kwargs["n_workers"] = n_workers
+    manager = CentralWorkerManager(obj_func=dummy_func_with_pseudo_crash, max_waiting_time=0.5, **kwargs)
+
+    pool = multiprocessing.Pool(processes=n_workers)
+    res = {}
+    for i in range(15):
+        kwargs = dict(
+            eval_config={"x": i},
+            fidels={"epoch": i},
+        )
+        r = pool.apply_async(manager, kwds=kwargs)
+        res[i] = r
+
+    for i in range(n_workers):
+        try:
+            res[i].get()
+        except TimeoutError:
+            pass
+        except Exception as e:
+            raise RuntimeError(f"The first {n_workers} run must be timeout, but the {i+1}-th run failed with {e}")
+    for i in range(n_workers, 15):
+        with pytest.raises(InterruptedError):
+            res[i].get()
+
+    pool.close()
+    pool.join()
+    shutil.rmtree(manager.dir_name)
+
+
+def test_timeout_error_by_pseudo_crash_at_intermidiate():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    n_workers = get_n_workers()
+    kwargs["n_workers"] = n_workers
+    manager = CentralWorkerManager(obj_func=dummy_func_with_pseudo_crash, max_waiting_time=0.5, **kwargs)
+
+    pool = multiprocessing.Pool(processes=n_workers)
+    res = {}
+    # 1 (ok)      5 (timeout)
+    # 2 (ok)      6 (timeout)
+    # 3 (ok)      7 (dead, but with return as it is a pseudo crash)
+    # 4 (timeout) 8 (should be interrupted)
+    for i in range(15):
+        kwargs = dict(
+            eval_config={"x": i - n_workers - 2},
+            fidels={"epoch": i + 1},
+        )
+        r = pool.apply_async(manager, kwds=kwargs)
+        res[i] = r
+
+    for i in range(3):
+        res[i].get()
+    for i in range(3, n_workers + 2):
+        with pytest.raises(TimeoutError):
+            res[i].get()
+
+    res[n_workers + 2].get()  # no error
+    for i in range(n_workers + 3, 15):
+        with pytest.raises(InterruptedError):
+            res[i].get()
+
+    pool.close()
+    pool.join()
+    shutil.rmtree(manager.dir_name)
+
+
 if __name__ == "__main__":
     unittest.main()
