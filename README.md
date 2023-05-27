@@ -6,10 +6,10 @@
 ## Motivation
 
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
-However, since the evaluation of tabular or surrogate benchmarks, by design, do not take long.
-For this reason, the timing each configuration is taken into account must be ordered as if we evaluated each configuration.
+However, the evaluation of tabular or surrogate benchmarks, by design, does not take long.
+For this reason, the timing of each configuration taken into account must be ordered as if we evaluated each configuration.
 
-In this package, we automatically sort out this problem by pending to pass the hyperparameter configurations to be evaluated internally and in turn, we obtain the right order of each hyperparameter configurations to evaluated.
+In this package, we automatically sort out this problem by pending to pass the hyperparameter configurations to be evaluated internally, and in turn, we obtain the right order of each hyperparameter configuration to be evaluated.
 
 **NOTE**
 
@@ -86,7 +86,7 @@ In most packages, users need to use `CentralWorkerManager`.
 However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps) are exceptions where you need to instantiate `ObjectiveFuncWorker`.
 Basically, we need to use `ObjectiveFuncWorker` for BOHB and NePS because they share the information in each worker via some types of server or they launch multiple independent threads.
 On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, users need to use `CentralWorkerManager`.
-Here, we describe the arguments of `CentralWorkerManager`:
+Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interface and I describe each argument of both classes here:
 1. `subdir_name` (`str`): The directory to store the information,
 2. `n_workers` (`int`): The number of parallel workers,
 3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details,
