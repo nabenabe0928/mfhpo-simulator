@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import pytest
 import shutil
+import sys
 import time
 import unittest
 from typing import Any
@@ -96,6 +97,61 @@ def test_timeout_error_by_wait():
     pool.close()
     pool.join()
 
+    shutil.rmtree(manager.dir_name)
+
+
+def dummy_func_with_crash(
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
+) -> dict[str, float]:
+    if eval_config["x"] == 0:
+        sys.exit()
+
+    time.sleep(0.1)
+    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
+
+
+def test_timeout_error_by_duplicated_worker():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    n_workers = get_n_workers()
+    kwargs["n_workers"] = n_workers
+    manager = CentralWorkerManager(obj_func=dummy_func_with_crash, max_waiting_time=0.5, **kwargs)
+
+    pool = multiprocessing.Pool(processes=n_workers)
+    res = {}
+    for i in range(15):
+        kwargs = dict(
+            eval_config={"x": i},
+            fidels={"epoch": i},
+        )
+        r = pool.apply_async(manager, kwds=kwargs)
+        res[i] = r
+    else:
+        n_timeout = 0
+        n_no_proc = 0
+        for i in range(1, n_workers + 3):
+            if i < n_workers + 3:
+                try:
+                    res[i].get()
+                except TimeoutError:
+                    n_timeout += 1
+                except ProcessLookupError:
+                    n_no_proc += 1
+                except Exception as e:
+                    raise RuntimeError(
+                        f"The first {n_workers} run must be timeout, but the {i+1}-th run failed with {e}"
+                    )
+            else:
+                with pytest.raises(InterruptedError):
+                    res[i].get()
+
+        assert n_workers == n_timeout + 1
+        assert n_no_proc > 0
+
+    pool.close()
+    # pool.join() <== we do not call it because one of the workers is terminated and the info cannot be joined.
     shutil.rmtree(manager.dir_name)
 
 

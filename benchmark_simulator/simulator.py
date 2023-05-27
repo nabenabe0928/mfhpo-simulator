@@ -92,9 +92,11 @@ from benchmark_simulator._secure_proc import (
     _delete_state,
     _fetch_cache_states,
     _fetch_cumtimes,
+    _fetch_proc_alloc,
     _fetch_timestamps,
     _finish_worker_timer,
     _init_simulator,
+    _is_allocation_ready,
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
@@ -555,8 +557,11 @@ class CentralWorkerManager(_BaseWrapperInterface):
 
     def _init_alloc(self, pid: int) -> None:
         _path = os.path.join(self._dir_name, _SharedDataLocations.proc_alloc.value)
-        _allocate_proc_to_worker(path=_path, pid=pid)
-        self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._wrapper_args.n_workers)
+        if not _is_allocation_ready(path=_path, n_workers=self._wrapper_args.n_workers):
+            _allocate_proc_to_worker(path=_path, pid=pid)
+            self._pid_to_index = _wait_proc_allocation(path=_path, n_workers=self._wrapper_args.n_workers)
+        else:
+            self._pid_to_index = _fetch_proc_alloc(path=_path)
 
     def __call__(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None = None, **data_to_scatter: Any
@@ -590,6 +595,13 @@ class CentralWorkerManager(_BaseWrapperInterface):
         pid = threading.get_ident() if pid == self._main_pid else pid
         if len(self._pid_to_index) != self._wrapper_args.n_workers:
             self._init_alloc(pid)
+
+        if pid not in self._pid_to_index:
+            raise ProcessLookupError(
+                f"An unknown process/thread with ID {pid} was specified.\n"
+                "It is likely that one of the workers crashed and a new worker was added.\n"
+                f"However, worker additions are not allowed in {self.__class__.__name__}."
+            )
 
         worker_index = self._pid_to_index[pid]
         results = self._workers[worker_index](eval_config=eval_config, fidels=fidels, **data_to_scatter)

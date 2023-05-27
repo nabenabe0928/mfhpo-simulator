@@ -26,6 +26,12 @@ The installation is easily done by `pip-install`:
 $ pip install mfhpo-simulator
 ```
 
+The requirements are:
+- Unix system
+- Python 3.8 or later
+
+The dependencies of this package are only **numpy** and **ujson**. 
+
 ## Test
 
 The very minimal example is provided in [examples/minimal.py](examples/minimal.py) and you can run by `python -m examples.minimal` after the setup below.

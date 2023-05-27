@@ -354,6 +354,24 @@ def test_store_config():
     shutil.rmtree(manager.dir_name)
 
 
+def test_init_alloc_without_error():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    manager = CentralWorkerManager(obj_func=dummy_func, **kwargs)
+
+    for i in range(10):
+        kwargs = dict(
+            eval_config={"x": i},
+            fidels={"epoch": i + 1},
+        )
+        manager(**kwargs)
+    else:
+        manager._pid_to_index = {}
+        manager(**kwargs)
+
+    shutil.rmtree(manager.dir_name)
+
+
 def test_interrupted():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()

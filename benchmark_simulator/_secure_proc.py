@@ -116,6 +116,10 @@ def _fetch_timestamps(f: TextIOWrapper) -> dict[str, _TimeStampDictType]:
     return timestamps
 
 
+def _fetch_proc_alloc(path: str) -> dict[int, int]:
+    return _complete_proc_allocation(path=path)
+
+
 @secure_edit
 def _record_result(f: TextIOWrapper, results: dict[str, float]) -> None:
     record = json.load(f)
@@ -219,7 +223,7 @@ def _raise_unexpected_timeout_error(max_waiting_time: float) -> None:
         "The possible reasons for the termination are the following:\n"
         "\t1. Your sampler takes too long time to sample for the provided `max_waiting_time`,\n"
         "\t2. n_workers is too large for the provided `max_waiting_time`,\n"
-        "\t3. Some workers crashed and this caused hang, or\n"
+        "\t3. Some workers crashed or new workers were added, and this caused hang, or\n"
         "\t4. The RAM usage is too high due to the benchmark dataset which you use.\n"
         "When you get this error, please report it to our GitHub repository with the following infos:\n"
         "\t1. Your OS and its version,\n"
