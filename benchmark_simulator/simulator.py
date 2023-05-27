@@ -370,7 +370,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         if self._use_fidel and set(_fidels.keys()) != set(self._fidel_keys):
             raise KeyError(f"The keys in fidels must be identical to fidel_keys, but got {fidels}")
 
-        seed = self._rng.randint(1 << 30)  # type: ignore
+        seed = self._rng.randint(1 << 30)
         results = self._query_obj_func(eval_config=eval_config, seed=seed, fidels=fidels, **data_to_scatter)
         self._validate_output(results)
         self._cumtime += results[self._runtime_key]
