@@ -319,6 +319,36 @@ def test_central_worker_manager():
     shutil.rmtree(manager.dir_name)
 
 
+def test_store_config():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    n_workers = get_n_workers()
+    kwargs["n_workers"] = n_workers
+    kwargs["n_actual_evals_in_opt"] = 15
+    manager = CentralWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+
+    pool = multiprocessing.Pool(processes=n_workers)
+    res = []
+    for i in range(15):
+        kwargs = dict(
+            eval_config={"x": i},
+            fidels={"epoch": i + 1},
+        )
+        r = pool.apply_async(manager, kwds=kwargs)
+        res.append(r)
+    else:
+        for r in res:
+            r.get()
+
+    pool.close()
+    pool.join()
+
+    results = json.load(open(os.path.join(manager.dir_name, "results.json")))
+    assert all(k in results for k in ["seed", "epoch", "x"])
+    assert len(results["x"]) == len(results["loss"])
+    shutil.rmtree(manager.dir_name)
+
+
 def test_seed_error_in_central_worker_manager():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()

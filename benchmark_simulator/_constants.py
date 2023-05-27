@@ -6,6 +6,10 @@ from enum import Enum
 from typing import Any, Final, Protocol
 
 
+DIR_NAME: Final[str] = "mfhpo-simulator-info/"
+INF: Final[float] = float(1 << 30)
+
+
 @dataclass(frozen=True)
 class _TimeStampDictType:
     prev_timestamp: float
@@ -18,6 +22,19 @@ class _StateType:
     cumtime: float = 0.0
     fidel: int = 0
     seed: int | None = None
+
+
+class _SharedDataLocations(Enum):
+    proc_alloc: str = "proc_alloc.json"
+    result: str = "results.json"
+    state_cache: str = "state_cache.json"
+    worker_cumtime: str = "simulated_cumtime.json"
+    timestamp: str = "timestamp.json"
+
+
+class _TimeValue(Enum):
+    terminated: float = float(1 << 40)
+    crashed: float = float(1 << 41)
 
 
 class ObjectiveFuncType(Protocol):
@@ -54,23 +71,6 @@ class ObjectiveFuncType(Protocol):
                 Otherwise, any other metrics are optional.
         """
         raise NotImplementedError
-
-
-DIR_NAME: Final[str] = "mfhpo-simulator-info/"
-INF: Final[float] = float(1 << 30)
-
-
-class _SharedDataLocations(Enum):
-    proc_alloc: str = "proc_alloc.json"
-    result: str = "results.json"
-    state_cache: str = "state_cache.json"
-    worker_cumtime: str = "simulated_cumtime.json"
-    timestamp: str = "timestamp.json"
-
-
-class _TimeValue(Enum):
-    terminated: float = float(1 << 40)
-    crashed: float = float(1 << 41)
 
 
 def _get_file_paths(dir_name: str) -> tuple[str, str, str, str, str]:

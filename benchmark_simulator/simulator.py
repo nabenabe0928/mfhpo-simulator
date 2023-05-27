@@ -123,6 +123,7 @@ class _WrapperArgs:
     seed: int | None
     continual_max_fidel: int | None
     max_waiting_time: float
+    store_config: bool
 
 
 class _BaseWrapperInterface(metaclass=ABCMeta):
@@ -175,6 +176,10 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         max_waiting_time (float):
             The maximum waiting time to judge hang.
             If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
+        store_config (bool):
+            Whether to store all config/fidel information.
+            The information is sorted chronologically.
+            When you do large-scale experiments, this may incur too much storage consumption.
 
     Attributes:
         dir_name (str):
@@ -200,6 +205,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         seed: int | None = None,
         continual_max_fidel: int | None = None,
         max_waiting_time: float = np.inf,
+        store_config: bool = False,
     ):
         self._wrapper_args = _WrapperArgs(
             subdir_name=subdir_name,
@@ -213,6 +219,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
             seed=seed,
             continual_max_fidel=continual_max_fidel,
             max_waiting_time=max_waiting_time,
+            store_config=store_config,
         )
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
@@ -263,10 +270,24 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         self._continual_eval = self._wrapper_args.continual_max_fidel is not None
         self._terminated = False
         self._crashed = False
+        self._used_config: dict[str, Any] = {}
         self._validate_fidel_args()
 
     def __repr__(self) -> str:
         return f"Worker-{self._worker_id}"
+
+    def _query_obj_func(
+        self,
+        eval_config: dict[str, Any],
+        fidels: dict[str, int | float] | None,
+        seed: int | None,
+        **data_to_scatter: Any,
+    ) -> dict[str, float]:
+        if self._wrapper_args.store_config:
+            self._used_config = eval_config.copy()
+            self._used_config.update(**(fidels if fidels is not None else {}), seed=seed)
+
+        return self._obj_func(eval_config=eval_config, fidels=fidels, seed=seed, **data_to_scatter)
 
     def _guarantee_no_hang(self) -> None:
         n_workers, n_evals = self._wrapper_args.n_workers, self._wrapper_args.n_evals
@@ -344,7 +365,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             raise KeyError(f"The keys in fidels must be identical to fidel_keys, but got {fidels}")
 
         seed = self._rng.randint(1 << 30)  # type: ignore
-        results = self._obj_func(eval_config=eval_config, seed=seed, fidels=fidels, **data_to_scatter)
+        results = self._query_obj_func(eval_config=eval_config, seed=seed, fidels=fidels, **data_to_scatter)
         self._validate_output(results)
         self._cumtime += results[self._runtime_key]
         return {k: results[k] for k in self._stored_obj_keys}
@@ -355,7 +376,9 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         config_hash: int = hash(str(eval_config))
         cached_state, cached_state_index = self._get_cached_state_and_index(config_hash=config_hash, fidel=fidel)
         _fidels: dict[str, int | float] = {self._fidel_keys[0]: fidel}
-        results = self._obj_func(eval_config=eval_config, seed=cached_state.seed, fidels=_fidels, **data_to_scatter)
+        results = self._query_obj_func(
+            eval_config=eval_config, seed=cached_state.seed, fidels=_fidels, **data_to_scatter
+        )
         self._validate_output(results)
         total_runtime = results[self._runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_state.runtime)
@@ -372,21 +395,22 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
     def _proc_output(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None, **data_to_scatter: Any
     ) -> dict[str, float]:
-        if self._continual_eval:
-            if fidels is None or len(fidels.values()) != 1:
-                raise ValueError(
-                    f"fidels must have only one element when continual_max_fidel is provided, but got {fidels}"
-                )
-
-            fidel = next(iter(fidels.values()))
-            if not isinstance(fidel, int):
-                raise ValueError(f"Fidelity for continual evaluation must be integer, but got {fidel}")
-            if fidel < 0:
-                raise ValueError(f"Fidelity for continual evaluation must be non-negative, but got {fidel}")
-
-            return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
-        else:
+        if not self._continual_eval:
             return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
+
+        # Otherwise, we try the continual evaluation
+        if fidels is None or len(fidels.values()) != 1:
+            raise ValueError(
+                f"fidels must have only one element when continual_max_fidel is provided, but got {fidels}"
+            )
+
+        fidel = next(iter(fidels.values()))
+        if not isinstance(fidel, int):
+            raise ValueError(f"Fidelity for continual evaluation must be integer, but got {fidel}")
+        if fidel < 0:
+            raise ValueError(f"Fidelity for continual evaluation must be non-negative, but got {fidel}")
+
+        return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
 
     def _wait_other_workers(self) -> None:
         """
@@ -409,9 +433,13 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         _record_cumtime(path=self._cumtime_path, worker_id=self._worker_id, cumtime=self._cumtime)
         # Wait till the cumulative runtime becomes the smallest
         self._wait_other_workers()
-        row = dict(cumtime=self._cumtime, index=self._index, **{k: results[k] for k in self._obj_keys})
+
+        row = dict(
+            cumtime=self._cumtime, index=self._index, **{k: results[k] for k in self._obj_keys}, **self._used_config
+        )
         # Record the results to the main database when the cumulative runtime is the smallest
         _record_result(self._result_path, results=row)
+        self._used_config = {}  # Make it empty
         if _is_simulator_terminated(self._result_path, max_evals=self._wrapper_args.n_evals):
             self._finish()
 
