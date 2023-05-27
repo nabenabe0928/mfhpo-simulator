@@ -83,13 +83,13 @@ Note that `--seed` does not guarantee the reproducitility because of the paralle
 ## Arguments of ObjectiveFuncWorker/CentralWorkerManager
 
 In most packages, users need to use `CentralWorkerManager`.
-However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps) are exceptions where you need to instantiate `ObjectiveFuncWorker`.
+However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps/) are exceptions where you need to instantiate `ObjectiveFuncWorker`.
 Basically, we need to use `ObjectiveFuncWorker` for BOHB and NePS because they share the information in each worker via some types of server or they launch multiple independent threads.
 On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, users need to use `CentralWorkerManager`.
 Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interface and I describe each argument of both classes here:
 1. `subdir_name` (`str`): The directory to store the information,
 2. `n_workers` (`int`): The number of parallel workers,
-3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details,
+3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L40-L73) for more details,
 4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimiziers (this argument will be used only for raising an error),
 5. `n_evals` (`int`): The number of evaluations to be stored in the information,
 6. `continual_max_fidel` (`Optional[int]`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a train result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
@@ -106,7 +106,7 @@ Please use the following format for the citation of this repository:
 
 ```
 @inproceedings{watanabe2023mfo-simulator,
-  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on HPO Benchmarks without Any Wait},
+  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on {HPO} Benchmarks without Any Wait},
   author  = {S. Watanabe},
   year    = {2023},
   journal = {arXiv:XXXX.XXXXX}
