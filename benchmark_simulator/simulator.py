@@ -448,7 +448,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             cumtime=self._cumtime, index=self._index, **{k: results[k] for k in self._obj_keys}, **self._used_config
         )
         # Record the results to the main database when the cumulative runtime is the smallest
-        _record_result(self._result_path, results=row)
+        _record_result(self._result_path, results=row, fixed=bool(not self._wrapper_args.store_config))
         self._used_config = {}  # Make it empty
         if _is_simulator_terminated(self._result_path, max_evals=self._wrapper_args.n_evals):
             self._finish()

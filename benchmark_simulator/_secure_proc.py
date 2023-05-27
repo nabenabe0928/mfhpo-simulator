@@ -121,11 +121,16 @@ def _fetch_proc_alloc(path: str) -> dict[int, int]:
 
 
 @secure_edit
-def _record_result(f: TextIOWrapper, results: dict[str, float]) -> None:
+def _record_result(f: TextIOWrapper, results: dict[str, float], fixed: bool = True) -> None:
     record = json.load(f)
-    for key, val in results.items():
-        if key not in record:
+    n_observations = len(record.get("cumtime", []))
+    keys = list(set(list(record.keys()) + list(results.keys()))) if not fixed else results.keys()
+    for key in keys:
+        val = results.get(key, None)
+        if n_observations == 0:
             record[key] = [val]
+        elif key not in record:
+            record[key] = [None] * n_observations + [val]
         else:
             record[key].append(val)
 

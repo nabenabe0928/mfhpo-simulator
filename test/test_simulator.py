@@ -354,6 +354,42 @@ def test_store_config():
     shutil.rmtree(manager.dir_name)
 
 
+def test_store_config_with_conditional():
+    remove_tree()
+    kwargs = DEFAULT_KWARGS.copy()
+    worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
+    worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
+    worker(**dict(eval_config={"x": 1, "y": 2}, fidels={"epoch": 1}))
+    shutil.rmtree(worker.dir_name)
+
+    n_workers = get_n_workers()
+    kwargs["n_workers"] = n_workers
+    kwargs["n_actual_evals_in_opt"] = 15
+    manager = CentralWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+
+    pool = multiprocessing.Pool(processes=n_workers)
+    res = []
+    for i in range(15):
+        kwargs = dict(
+            eval_config={"x": i} if i < 6 or i % 2 == 0 else {"x": i, "y": i},
+            fidels={"epoch": i + 1},
+        )
+        r = pool.apply_async(manager, kwds=kwargs)
+        res.append(r)
+    else:
+        for r in res:
+            r.get()
+
+    pool.close()
+    pool.join()
+
+    results = json.load(open(os.path.join(manager.dir_name, "results.json")))
+    for k in ["seed", "epoch", "x", "y"]:
+        assert k in results
+        assert len(results[k]) == len(results["loss"])
+    shutil.rmtree(manager.dir_name)
+
+
 def test_init_alloc_without_error():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
