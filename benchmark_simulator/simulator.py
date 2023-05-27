@@ -130,57 +130,6 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
     """A base wrapper class for each worker or manager.
     This wrapper class serves the shared interface of worker and manager class.
 
-    Args:
-        subdir_name (str):
-            The subdirectory name to store all running information.
-        n_workers (int):
-            The number of workers to use. In other words, how many parallel workers to use.
-        obj_func (ObjectiveFuncType):
-            A callable object that serves as the objective function.
-            Args:
-                eval_config: dict[str, Any]
-                fidels: dict[str, int | float] | None
-                seed: int | None
-                **data_to_scatter: Any
-            Returns:
-                results: dict[str, float]
-                    It must return `objective metric` and `runtime` at least.
-        n_actual_evals_in_opt (int):
-            The number of evaluations that optimizers do and it is used only for raising an error in init.
-            Note that the number of evaluations means
-            how many times we call the objective function during the optimization.
-            This number is needed to automatically finish the worker class.
-            We cannot know the timing of the termination without this information, and thus optimizers hang.
-        n_evals (int):
-            How many configurations we would like to collect.
-            More specifically, how many times we call the objective function during the optimization.
-            We can guarantee that `results.json` has at least this number of evaluations.
-        fidel_keys (list[str] | None):
-            The fidelity names to be used in the objective function.
-            If None, we assume that no fidelity is used.
-        obj_keys (list[str]):
-            The keys of the objective metrics used in `results` returned by func.
-        runtime_key (str):
-            The key of the runtime metric used in `results` returned by func.
-        seed (int | None):
-            The random seed to be used to allocate random seed to each call.
-        continual_max_fidel (int | None):
-            The maximum fidelity to used in continual evaluations.
-            This is valid only if we use a single fidelity.
-            If not None, each call is a continuation from the call with the same eval_config and lower fidel.
-            For example, when we already trained the objective with configA and training_epoch=10,
-            we probably would like to continue the training from epoch 10 rather than from scratch
-            for call with configA and training_epoch=30.
-            continual_eval=True calculates the runtime considers this.
-            If False, each call is considered to be processed from scratch.
-        max_waiting_time (float):
-            The maximum waiting time to judge hang.
-            If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
-        store_config (bool):
-            Whether to store all config/fidel information.
-            The information is sorted chronologically.
-            When you do large-scale experiments, this may incur too much storage consumption.
-
     Attributes:
         dir_name (str):
             The directory name where all the information will be stored.
@@ -207,6 +156,61 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         max_waiting_time: float = np.inf,
         store_config: bool = False,
     ):
+        """The initialization of a wrapper class.
+
+        Both ObjectiveFuncWorker and CentralWorkerManager have the same interface and the same set of control params.
+
+        Args:
+            subdir_name (str):
+                The subdirectory name to store all running information.
+            n_workers (int):
+                The number of workers to use. In other words, how many parallel workers to use.
+            obj_func (ObjectiveFuncType):
+                A callable object that serves as the objective function.
+                Args:
+                    eval_config: dict[str, Any]
+                    fidels: dict[str, int | float] | None
+                    seed: int | None
+                    **data_to_scatter: Any
+                Returns:
+                    results: dict[str, float]
+                        It must return `objective metric` and `runtime` at least.
+            n_actual_evals_in_opt (int):
+                The number of evaluations that optimizers do and it is used only for raising an error in init.
+                Note that the number of evaluations means
+                how many times we call the objective function during the optimization.
+                This number is needed to automatically finish the worker class.
+                We cannot know the timing of the termination without this information, and thus optimizers hang.
+            n_evals (int):
+                How many configurations we would like to collect.
+                More specifically, how many times we call the objective function during the optimization.
+                We can guarantee that `results.json` has at least this number of evaluations.
+            fidel_keys (list[str] | None):
+                The fidelity names to be used in the objective function.
+                If None, we assume that no fidelity is used.
+            obj_keys (list[str]):
+                The keys of the objective metrics used in `results` returned by func.
+            runtime_key (str):
+                The key of the runtime metric used in `results` returned by func.
+            seed (int | None):
+                The random seed to be used to allocate random seed to each call.
+            continual_max_fidel (int | None):
+                The maximum fidelity to used in continual evaluations.
+                This is valid only if we use a single fidelity.
+                If not None, each call is a continuation from the call with the same eval_config and lower fidel.
+                For example, when we already trained the objective with configA and training_epoch=10,
+                we probably would like to continue the training from epoch 10 rather than from scratch
+                for call with configA and training_epoch=30.
+                continual_eval=True calculates the runtime considers this.
+                If False, each call is considered to be processed from scratch.
+            max_waiting_time (float):
+                The maximum waiting time to judge hang.
+                If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
+            store_config (bool):
+                Whether to store all config/fidel information.
+                The information is sorted chronologically.
+                When you do large-scale experiments, this may incur too much storage consumption.
+        """
         self._wrapper_args = _WrapperArgs(
             subdir_name=subdir_name,
             n_workers=n_workers,
