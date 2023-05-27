@@ -274,13 +274,13 @@ def test_call_considering_state():
         **kwargs,
     )
     worker(eval_config={"x": 1}, fidels={"epoch": 10})  # max-fidel and thus no need to cache
-    assert len(json.load(open(worker._state_path))) == 0
+    assert len(json.load(open(worker._paths.state_cache))) == 0
 
     for i in range(10):
         for j in range(2):
             last = (i == 9) and (j == 1)
             worker(eval_config={"x": 1}, fidels={"epoch": i + 1})
-            states = json.load(open(worker._state_path))
+            states = json.load(open(worker._paths.state_cache))
             assert len(states) == int(not last)
 
             if last:
@@ -412,9 +412,9 @@ def test_interrupted():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
-    data = json.load(open(worker._cumtime_path))
-    with open(worker._cumtime_path, mode="w") as f:
-        data[worker._worker_id] = _TimeValue.crashed.value
+    data = json.load(open(worker._paths.worker_cumtime))
+    with open(worker._paths.worker_cumtime, mode="w") as f:
+        data[worker._worker_vars.worker_id] = _TimeValue.crashed.value
         json.dump(data, f)
 
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))  # Nothing happens for init

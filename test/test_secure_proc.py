@@ -48,7 +48,7 @@ def test_get_timeout_message():
 
 def test_init_simulator():
     _init_for_tests()
-    for fn in _get_file_paths(DIR_NAME):
+    for fn in _get_file_paths(DIR_NAME).__dict__.values():
         assert json.load(open(fn)) == {}
 
     _init_for_tests()  # check what happens when we already have the files

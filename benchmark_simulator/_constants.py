@@ -24,6 +24,15 @@ class _StateType:
     seed: int | None = None
 
 
+@dataclass(frozen=True)
+class _InfoPaths:
+    proc_alloc: str
+    result: str
+    state_cache: str
+    worker_cumtime: str
+    timestamp: str
+
+
 class _SharedDataLocations(Enum):
     proc_alloc: str = "proc_alloc.json"
     result: str = "results.json"
@@ -73,8 +82,5 @@ class ObjectiveFuncType(Protocol):
         raise NotImplementedError
 
 
-def _get_file_paths(dir_name: str) -> tuple[str, str, str, str, str]:
-    ret: tuple[str, str, str, str, str] = (
-        os.path.join(dir_name, fn.value) for fn in _SharedDataLocations
-    )  # type: ignore
-    return ret
+def _get_file_paths(dir_name: str) -> _InfoPaths:
+    return _InfoPaths(**{fn.name: os.path.join(dir_name, fn.value) for fn in _SharedDataLocations})
