@@ -1,8 +1,5 @@
 # A Simulator for Multi-Fidelity or Parallel Optimization Using Tabular or Surrogate Benchmarks
 
-[![Build Status](https://github.com/nabenabe0928/mfhpo-simulator/workflows/Functionality%20test/badge.svg?branch=main)](https://github.com/nabenabe0928/mfhpo-simulator)
-[![codecov](https://codecov.io/gh/nabenabe0928/mfhpo-simulator/branch/main/graph/badge.svg?token=ZXWLF1HM2K)](https://codecov.io/gh/nabenabe0928/mfhpo-simulator)
-
 ## Motivation
 
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
@@ -89,7 +86,7 @@ On the other hand, when optimizers use typical multiprocessing/multithreading pa
 Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interface and I describe each argument of both classes here:
 1. `subdir_name` (`str`): The directory to store the information,
 2. `n_workers` (`int`): The number of parallel workers,
-3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L10-L43) for more details,
+3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See `ObjectiveFuncType` for more details,
 4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimiziers (this argument will be used only for raising an error),
 5. `n_evals` (`int`): The number of evaluations to be stored in the information,
 6. `continual_max_fidel` (`Optional[int]`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a train result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
@@ -99,16 +96,3 @@ Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interf
 10. `seed` (`Optional[int]`): The random seed to be used in each worker,
 11. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`, and
 12. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments.
-
-## Citation
-
-Please use the following format for the citation of this repository:
-
-```
-@inproceedings{watanabe2023mfo-simulator,
-  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on HPO Benchmarks without Any Wait},
-  author  = {S. Watanabe},
-  year    = {2023},
-  journal = {arXiv:XXXX.XXXXX}
-}
-```
