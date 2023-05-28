@@ -149,6 +149,7 @@ class LCBench(AbstractBench):
     def __call__(
         self,
         eval_config: dict[str, int | float],
+        *,
         fidels: dict[str, int | float] = {FIDEL_KEY: 52},
         seed: int | None = None,
         benchdata: LCBenchSurrogate | None = None,

@@ -50,6 +50,7 @@ class ObjectiveFuncType(Protocol):
     def __call__(
         self,
         eval_config: dict[str, Any],
+        *,
         fidels: dict[str, int | float] | None = None,
         seed: int | None = None,
         **data_to_scatter: Any,

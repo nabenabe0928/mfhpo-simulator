@@ -83,6 +83,7 @@ class HPOLib(AbstractBench):
     def __call__(
         self,
         eval_config: dict[str, int | str],
+        *,
         fidels: dict[str, int] = {FIDEL_KEY: 100},
         seed: int | None = None,
         benchdata: HPOLibDatabase | None = None,

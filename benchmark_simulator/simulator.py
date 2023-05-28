@@ -497,7 +497,11 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         return timestamp
 
     def __call__(
-        self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None = None, **data_to_scatter: Any
+        self,
+        eval_config: dict[str, Any],
+        *,
+        fidels: dict[str, int | float] | None = None,
+        **data_to_scatter: Any,
     ) -> dict[str, float]:
         """The method to close the worker instance.
         This method must be called before we finish the optimization.
@@ -581,7 +585,11 @@ class CentralWorkerManager(_BaseWrapperInterface):
             self._pid_to_index = _fetch_proc_alloc(path=path)
 
     def __call__(
-        self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None = None, **data_to_scatter: Any
+        self,
+        eval_config: dict[str, Any],
+        *,
+        fidels: dict[str, int | float] | None = None,
+        **data_to_scatter: Any,
     ) -> dict[str, float]:
         """The meta-wrapper method of the objective function method in WorkerFunc instances.
 

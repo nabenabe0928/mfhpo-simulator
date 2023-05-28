@@ -41,9 +41,7 @@ class JAHSBenchSurrogate:
             )
 
     def __call__(
-        self,
-        eval_config: dict[str, int | float | str | bool],
-        fidels: dict[str, int | float] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
+        self, eval_config: dict[str, int | float | str | bool], fidels: dict[str, int | float]
     ) -> dict[str, float]:
         nepochs = fidels.get(FIDEL_KEY, 200)
         eval_config.update({"Optimizer": "SGD", RESOL_KEY: fidels.get(RESOL_KEY, 1.0)})
@@ -77,6 +75,7 @@ class JAHSBench201(AbstractBench):
     def __call__(
         self,
         eval_config: dict[str, int | float | str | bool],
+        *,
         fidels: dict[str, int | float] = {FIDEL_KEY: 200, RESOL_KEY: 1.0},
         seed: int | None = None,
         benchdata: JAHSBenchSurrogate | None = None,
@@ -93,7 +92,7 @@ class JAHSBench201(AbstractBench):
         assert 1e-3 - EPS <= _eval_config["LearningRate"] <= 1.0 + EPS
         assert isinstance(_eval_config["WeightDecay"], float)
         assert 1e-5 - EPS <= _eval_config["WeightDecay"] <= 1e-2 + EPS
-        return surrogate(_eval_config, fidels)
+        return surrogate(eval_config=_eval_config, fidels=fidels)
 
     @property
     def config_space(self) -> CS.ConfigurationSpace:

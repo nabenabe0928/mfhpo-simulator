@@ -24,7 +24,7 @@ class SMACCentralWorkerManager(CentralWorkerManager):
     ) -> float:
         data_to_scatter = {} if data_to_scatter is None else data_to_scatter
         eval_config = config.get_dictionary()
-        output = super().__call__(eval_config, {self.fidel_keys[0]: int(budget)}, **data_to_scatter)
+        output = super().__call__(eval_config, fidels={self.fidel_keys[0]: int(budget)}, **data_to_scatter)
         return output[self._obj_keys[0]]
 
 

@@ -64,6 +64,7 @@ class MFAbstractFunc(metaclass=ABCMeta):
     def __call__(
         self,
         eval_config: dict[str, float],
+        *,
         fidels: dict[str, int],
         seed: int | None = None,
     ) -> dict[str, float]:
