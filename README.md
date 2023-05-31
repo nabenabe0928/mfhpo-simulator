@@ -105,10 +105,10 @@ Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interf
 Please use the following format for the citation of this repository:
 
 ```
-@inproceedings{watanabe2023mfo-simulator,
+@article{watanabe2023mfo-simulator,
   title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on {HPO} Benchmarks without Any Wait},
   author  = {S. Watanabe},
+  journal = {arXiv:2305.17595},
   year    = {2023},
-  journal = {arXiv:XXXX.XXXXX}
 }
 ```
