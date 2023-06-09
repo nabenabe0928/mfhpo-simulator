@@ -17,6 +17,7 @@ import ujson as json
 
 
 SUBDIR_NAME = "dummy"
+IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
@@ -36,7 +37,7 @@ def remove_tree():
 
 
 def get_n_workers():
-    n_workers = 4 if os.uname().nodename == "EB-B9400CBA" else 2  # github actions has only 2 cores
+    n_workers = 4 if IS_LOCAL else 2  # github actions has only 2 cores
     return n_workers
 
 
