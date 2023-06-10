@@ -11,10 +11,8 @@ dehb==0.0.5
 # NEPS
 neural-pipeline-search==0.8.3
 
-# Benchmark requirements
-h5py
-PyQt5
-jahs-bench==1.1.0
+# Benchmark
+mfhpo-benchmark-api[full]>=1.1.0
 
 # For local check
 pytest-cov

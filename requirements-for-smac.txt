@@ -5,9 +5,8 @@ numpy
 # SMAC3 <=== cannot use it with JAHS
 smac==2.0.1
 
-# Benchmark requirements
-h5py
-PyQt5
+# Benchmark (no JAHS, because it cannot run with SMAC)
+mfhpo-benchmark-api[lcbench]>=1.1.0
 
 # For local check
 pytest-cov

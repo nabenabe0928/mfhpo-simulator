@@ -2,11 +2,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from typing import Any
 
-from benchmark_apis.hpo.hpolib import HPOLib
-from benchmark_apis.hpo.jahs import JAHSBench201
-from benchmark_apis.hpo.lcbench import LCBench
-from benchmark_apis.synthetic.branin import MFBranin
-from benchmark_apis.synthetic.hartmann import MFHartmann
+from benchmark_apis import HPOLib, JAHSBench201, LCBench, MFBranin, MFHartmann
 
 
 BENCH_CHOICES = dict(lc=LCBench, hpolib=HPOLib, jahs=JAHSBench201, branin=MFBranin, hartmann=MFHartmann)
@@ -36,7 +32,7 @@ def parse_args() -> ParsedArgs:
 
 def get_subdir_name(args: ParsedArgs) -> str:
     dataset_part = ""
-    dataset_names = BENCH_CHOICES[args.bench_name]._DATASET_NAMES
+    dataset_names = BENCH_CHOICES[args.bench_name]._DATASET_NAMES_FOR_DIR
     if dataset_names is not None:
         dataset_part = f"_dataset={dataset_names[args.dataset_id]}"
 
