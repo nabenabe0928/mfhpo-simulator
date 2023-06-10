@@ -10,8 +10,8 @@ from _io import TextIOWrapper
 from benchmark_simulator._constants import (
     _SharedDataLocations,
     _StateType,
+    _TIME_VALUES,
     _TimeStampDictType,
-    _TimeValue,
 )
 from benchmark_simulator._utils import secure_edit, secure_read
 
@@ -57,7 +57,7 @@ def _complete_proc_allocation(f: TextIOWrapper) -> dict[int, int]:
 def _record_cumtime(f: TextIOWrapper, worker_id: str, cumtime: float) -> None:
     record = json.load(f)
     prev_cumtime = record.get(worker_id, 0.0)
-    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TimeValue.crashed.value)
+    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TIME_VALUES.crashed)
     f.seek(0)
     json.dump(record, f, indent=4)
 
@@ -173,11 +173,11 @@ def _start_worker_timer(path: str, worker_id: str) -> None:
 
 
 def _finish_worker_timer(path: str, worker_id: str) -> None:
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.terminated.value)
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.terminated)
 
 
 def _kill_worker_timer(path: str, worker_id: str) -> None:
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TimeValue.crashed.value)
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.crashed)
 
 
 def _kill_worker_timer_with_min_cumtime(path: str) -> None:

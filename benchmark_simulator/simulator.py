@@ -81,8 +81,8 @@ from benchmark_simulator._constants import (
     INF,
     ObjectiveFuncType,
     _StateType,
+    _TIME_VALUES,
     _TimeStampDictType,
-    _TimeValue,
     _get_file_paths,
 )
 from benchmark_simulator._secure_proc import (
@@ -492,8 +492,8 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         timestamp = timestamp_dict[worker_id]
         self._cumtime = _fetch_cumtimes(self._paths.worker_cumtime)[worker_id]
-        self._terminated = self._cumtime >= _TimeValue.terminated.value - 1e-5
-        self._crashed = self._cumtime >= _TimeValue.crashed.value - 1e-5
+        self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
+        self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
         return timestamp
 
     def __call__(

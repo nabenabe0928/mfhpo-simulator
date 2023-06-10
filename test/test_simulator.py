@@ -7,7 +7,7 @@ import shutil
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import DIR_NAME, _TimeValue
+from benchmark_simulator._constants import DIR_NAME, _TIME_VALUES
 from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
 
 import numpy as np
@@ -415,7 +415,7 @@ def test_interrupted():
     worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
     data = json.load(open(worker._paths.worker_cumtime))
     with open(worker._paths.worker_cumtime, mode="w") as f:
-        data[worker._worker_vars.worker_id] = _TimeValue.crashed.value
+        data[worker._worker_vars.worker_id] = _TIME_VALUES.crashed
         json.dump(data, f)
 
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))  # Nothing happens for init

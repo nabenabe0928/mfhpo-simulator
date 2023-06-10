@@ -41,9 +41,13 @@ class _SharedDataLocations(Enum):
     timestamp: str = "timestamp.json"
 
 
-class _TimeValue(Enum):
+@dataclass(frozen=True)
+class _TimeValue:
     terminated: float = float(1 << 40)
     crashed: float = float(1 << 41)
+
+
+_TIME_VALUES = _TimeValue()
 
 
 class ObjectiveFuncType(Protocol):
