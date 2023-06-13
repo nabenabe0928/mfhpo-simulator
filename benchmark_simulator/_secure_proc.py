@@ -4,8 +4,7 @@ import fcntl
 import os
 import time
 import warnings
-
-from _io import TextIOWrapper
+from typing import TextIO
 
 from benchmark_simulator._constants import (
     _SharedDataLocations,
@@ -36,7 +35,7 @@ def _init_simulator(dir_name: str) -> None:
 
 
 @secure_edit
-def _allocate_proc_to_worker(f: TextIOWrapper, pid: int) -> None:
+def _allocate_proc_to_worker(f: TextIO, pid: int) -> None:
     cur_alloc = json.load(f)
     cur_alloc[pid] = 0
     f.seek(0)
@@ -44,7 +43,7 @@ def _allocate_proc_to_worker(f: TextIOWrapper, pid: int) -> None:
 
 
 @secure_edit
-def _complete_proc_allocation(f: TextIOWrapper) -> dict[int, int]:
+def _complete_proc_allocation(f: TextIO) -> dict[int, int]:
     alloc = json.load(f)
     sorted_pids = np.sort([int(pid) for pid in alloc.keys()])
     alloc = {pid: idx for idx, pid in enumerate(sorted_pids)}
@@ -54,7 +53,7 @@ def _complete_proc_allocation(f: TextIOWrapper) -> dict[int, int]:
 
 
 @secure_edit
-def _record_cumtime(f: TextIOWrapper, worker_id: str, cumtime: float) -> None:
+def _record_cumtime(f: TextIO, worker_id: str, cumtime: float) -> None:
     record = json.load(f)
     prev_cumtime = record.get(worker_id, 0.0)
     record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TIME_VALUES.crashed)
@@ -63,7 +62,7 @@ def _record_cumtime(f: TextIOWrapper, worker_id: str, cumtime: float) -> None:
 
 
 @secure_edit
-def _record_timestamp(f: TextIOWrapper, worker_id: str, prev_timestamp: float, waited_time: float) -> None:
+def _record_timestamp(f: TextIO, worker_id: str, prev_timestamp: float, waited_time: float) -> None:
     record = json.load(f)
     record[worker_id] = dict(prev_timestamp=prev_timestamp, waited_time=waited_time)
     f.seek(0)
@@ -71,7 +70,7 @@ def _record_timestamp(f: TextIOWrapper, worker_id: str, prev_timestamp: float, w
 
 
 @secure_edit
-def _cache_state(f: TextIOWrapper, config_hash: int, new_state: _StateType, update_index: int | None = None) -> None:
+def _cache_state(f: TextIO, config_hash: int, new_state: _StateType, update_index: int | None = None) -> None:
     config_hash_str = str(config_hash)
     cache = json.load(f)
     _new_state = [new_state.runtime, new_state.cumtime, new_state.fidel, new_state.seed]
@@ -87,7 +86,7 @@ def _cache_state(f: TextIOWrapper, config_hash: int, new_state: _StateType, upda
 
 
 @secure_edit
-def _delete_state(f: TextIOWrapper, config_hash: int, index: int) -> None:
+def _delete_state(f: TextIO, config_hash: int, index: int) -> None:
     cache = json.load(f)
     config_hash_str = str(config_hash)
     cache[config_hash_str].pop(index)
@@ -99,19 +98,19 @@ def _delete_state(f: TextIOWrapper, config_hash: int, index: int) -> None:
 
 
 @secure_read
-def _fetch_cache_states(f: TextIOWrapper, config_hash: int) -> list[_StateType]:
+def _fetch_cache_states(f: TextIO, config_hash: int) -> list[_StateType]:
     states = json.load(f).get(str(config_hash), [])
     return [_StateType(runtime=state[0], cumtime=state[1], fidel=state[2], seed=state[3]) for state in states]
 
 
 @secure_read
-def _fetch_cumtimes(f: TextIOWrapper) -> dict[str, float]:
+def _fetch_cumtimes(f: TextIO) -> dict[str, float]:
     cumtimes = json.load(f)
     return cumtimes
 
 
 @secure_read
-def _fetch_timestamps(f: TextIOWrapper) -> dict[str, _TimeStampDictType]:
+def _fetch_timestamps(f: TextIO) -> dict[str, _TimeStampDictType]:
     timestamps = {th: _TimeStampDictType(**ts_dict) for th, ts_dict in json.load(f).items()}
     return timestamps
 
@@ -121,7 +120,7 @@ def _fetch_proc_alloc(path: str) -> dict[int, int]:
 
 
 @secure_edit
-def _record_result(f: TextIOWrapper, results: dict[str, float], fixed: bool = True) -> None:
+def _record_result(f: TextIO, results: dict[str, float], fixed: bool = True) -> None:
     record = json.load(f)
     n_observations = len(record.get("cumtime", []))
     keys = list(set(list(record.keys()) + list(results.keys()))) if not fixed else results.keys()
@@ -139,22 +138,22 @@ def _record_result(f: TextIOWrapper, results: dict[str, float], fixed: bool = Tr
 
 
 @secure_read
-def _is_simulator_terminated(f: TextIOWrapper, max_evals: int) -> bool:
+def _is_simulator_terminated(f: TextIO, max_evals: int) -> bool:
     return len(json.load(f)["cumtime"]) >= max_evals
 
 
 @secure_read
-def _is_simulator_ready(f: TextIOWrapper, n_workers: int) -> bool:
+def _is_simulator_ready(f: TextIO, n_workers: int) -> bool:
     return len(json.load(f)) == n_workers
 
 
 @secure_read
-def _is_allocation_ready(f: TextIOWrapper, n_workers: int) -> bool:
+def _is_allocation_ready(f: TextIO, n_workers: int) -> bool:
     return len(json.load(f)) == n_workers
 
 
 @secure_read
-def _get_worker_id_to_idx(f: TextIOWrapper) -> dict[str, int]:
+def _get_worker_id_to_idx(f: TextIO) -> dict[str, int]:
     return {worker_id: idx for idx, worker_id in enumerate(json.load(f).keys())}
 
 

@@ -5,9 +5,7 @@ import os
 import pytest
 import time
 import unittest
-from typing import Any
-
-from _io import TextIOWrapper
+from typing import Any, TextIO
 
 import ujson as json
 
@@ -15,12 +13,12 @@ from benchmark_simulator._utils import secure_edit, secure_read
 
 
 @secure_read
-def dummy_read(f: TextIOWrapper) -> dict[str, Any]:
+def dummy_read(f: TextIO) -> dict[str, Any]:
     return json.load(f)
 
 
 @secure_edit
-def dummy_edit(f: TextIOWrapper, key: str, num: int) -> dict[str, Any]:
+def dummy_edit(f: TextIO, key: str, num: int) -> dict[str, Any]:
     prev = json.load(f)
     f.seek(0)
     json.dump({key: num}, f, indent=4)
