@@ -32,9 +32,9 @@ def parse_args() -> ParsedArgs:
 
 def get_subdir_name(args: ParsedArgs) -> str:
     dataset_part = ""
-    dataset_names = BENCH_CHOICES[args.bench_name]._DATASET_NAMES_FOR_DIR
-    if dataset_names is not None:
-        dataset_part = f"_dataset={dataset_names[args.dataset_id]}"
+    if BENCH_CHOICES[args.bench_name]._BENCH_TYPE == "HPO":
+        dataset_name = "-".join(BENCH_CHOICES[args.bench_name]._CONSTS.dataset_names[args.dataset_id].split("_"))
+        dataset_part = f"_dataset={dataset_name}"
 
     bench_name = args.bench_name
     if args.bench_name == "hartmann":
