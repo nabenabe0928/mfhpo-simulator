@@ -3,7 +3,7 @@ import hashlib
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Iterator, TextIO
 
 import numpy as np
 
@@ -20,7 +20,7 @@ class _SecureLock:
     time_limit: float = 10.0
 
     @contextmanager
-    def read(self, path: str) -> Iterator[Any]:
+    def read(self, path: str) -> Iterator[TextIO]:
         start = time.time()
         waiting_time = self.waiting_time * (1 + np.random.random())
         fetched = False
@@ -36,7 +36,7 @@ class _SecureLock:
                         raise TimeoutError("Timeout during secure read. Try again.")
 
     @contextmanager
-    def edit(self, path: str) -> Iterator[Any]:
+    def edit(self, path: str) -> Iterator[TextIO]:
         start = time.time()
         waiting_time = self.waiting_time * (1 + np.random.random())
         fetched = False
