@@ -4,7 +4,6 @@ import fcntl
 import os
 import time
 import warnings
-from typing import TextIO
 
 from benchmark_simulator._constants import (
     _SharedDataLocations,
@@ -12,7 +11,7 @@ from benchmark_simulator._constants import (
     _TIME_VALUES,
     _TimeStampDictType,
 )
-from benchmark_simulator._utils import secure_edit, secure_read
+from benchmark_simulator._utils import _SecureLock
 
 import numpy as np
 
@@ -34,155 +33,169 @@ def _init_simulator(dir_name: str) -> None:
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
-@secure_edit
-def _allocate_proc_to_worker(f: TextIO, pid: int) -> None:
-    cur_alloc = json.load(f)
-    cur_alloc[pid] = 0
-    f.seek(0)
-    json.dump(cur_alloc, f, indent=4)
+def _allocate_proc_to_worker(path: str, pid: int, lock: _SecureLock) -> None:
+    with lock.edit(path) as f:
+        cur_alloc = json.load(f)
+        cur_alloc[pid] = 0
+        f.seek(0)
+        json.dump(cur_alloc, f, indent=4)
 
 
-@secure_edit
-def _complete_proc_allocation(f: TextIO) -> dict[int, int]:
-    alloc = json.load(f)
-    sorted_pids = np.sort([int(pid) for pid in alloc.keys()])
-    alloc = {pid: idx for idx, pid in enumerate(sorted_pids)}
-    f.seek(0)
-    json.dump(alloc, f, indent=4)
+def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
+    with lock.edit(path) as f:
+        alloc = json.load(f)
+        sorted_pids = np.sort([int(pid) for pid in alloc.keys()])
+        alloc = {pid: idx for idx, pid in enumerate(sorted_pids)}
+        f.seek(0)
+        json.dump(alloc, f, indent=4)
+
     return alloc
 
 
-@secure_edit
-def _record_cumtime(f: TextIO, worker_id: str, cumtime: float) -> None:
-    record = json.load(f)
-    prev_cumtime = record.get(worker_id, 0.0)
-    record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TIME_VALUES.crashed)
-    f.seek(0)
-    json.dump(record, f, indent=4)
+def _record_cumtime(path: str, worker_id: str, cumtime: float, lock: _SecureLock) -> None:
+    with lock.edit(path) as f:
+        record = json.load(f)
+        prev_cumtime = record.get(worker_id, 0.0)
+        record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TIME_VALUES.crashed)
+        f.seek(0)
+        json.dump(record, f, indent=4)
 
 
-@secure_edit
-def _record_timestamp(f: TextIO, worker_id: str, prev_timestamp: float, waited_time: float) -> None:
-    record = json.load(f)
-    record[worker_id] = dict(prev_timestamp=prev_timestamp, waited_time=waited_time)
-    f.seek(0)
-    json.dump(record, f, indent=4)
+def _record_timestamp(path: str, worker_id: str, prev_timestamp: float, waited_time: float, lock: _SecureLock) -> None:
+    with lock.edit(path) as f:
+        record = json.load(f)
+        record[worker_id] = dict(prev_timestamp=prev_timestamp, waited_time=waited_time)
+        f.seek(0)
+        json.dump(record, f, indent=4)
 
 
-@secure_edit
-def _cache_state(f: TextIO, config_hash: int, new_state: _StateType, update_index: int | None = None) -> None:
-    config_hash_str = str(config_hash)
-    cache = json.load(f)
-    _new_state = [new_state.runtime, new_state.cumtime, new_state.fidel, new_state.seed]
-    if config_hash_str not in cache:
-        cache[config_hash_str] = [_new_state]
-    elif update_index is not None:
-        cache[config_hash_str][update_index] = _new_state
-    else:
-        cache[config_hash_str].append(_new_state)
+def _cache_state(
+    path: str, config_hash: int, new_state: _StateType, lock: _SecureLock, update_index: int | None = None
+) -> None:
+    with lock.edit(path) as f:
+        config_hash_str = str(config_hash)
+        cache = json.load(f)
+        _new_state = [new_state.runtime, new_state.cumtime, new_state.fidel, new_state.seed]
+        if config_hash_str not in cache:
+            cache[config_hash_str] = [_new_state]
+        elif update_index is not None:
+            cache[config_hash_str][update_index] = _new_state
+        else:
+            cache[config_hash_str].append(_new_state)
 
-    f.seek(0)
-    json.dump(cache, f, indent=4)
-
-
-@secure_edit
-def _delete_state(f: TextIO, config_hash: int, index: int) -> None:
-    cache = json.load(f)
-    config_hash_str = str(config_hash)
-    cache[config_hash_str].pop(index)
-    if len(cache[config_hash_str]) == 0:
-        cache.pop(config_hash_str)
-
-    f.seek(0)
-    json.dump(cache, f, indent=4)
+        f.seek(0)
+        json.dump(cache, f, indent=4)
 
 
-@secure_read
-def _fetch_cache_states(f: TextIO, config_hash: int) -> list[_StateType]:
-    states = json.load(f).get(str(config_hash), [])
+def _delete_state(path: str, config_hash: int, index: int, lock: _SecureLock) -> None:
+    with lock.edit(path) as f:
+        cache = json.load(f)
+        config_hash_str = str(config_hash)
+        cache[config_hash_str].pop(index)
+        if len(cache[config_hash_str]) == 0:
+            cache.pop(config_hash_str)
+
+        f.seek(0)
+        json.dump(cache, f, indent=4)
+
+
+def _fetch_cache_states(path: str, config_hash: int, lock: _SecureLock) -> list[_StateType]:
+    with lock.read(path) as f:
+        states = json.load(f).get(str(config_hash), [])
+
     return [_StateType(runtime=state[0], cumtime=state[1], fidel=state[2], seed=state[3]) for state in states]
 
 
-@secure_read
-def _fetch_cumtimes(f: TextIO) -> dict[str, float]:
-    cumtimes = json.load(f)
+def _fetch_cumtimes(path: str, lock: _SecureLock) -> dict[str, float]:
+    with lock.read(path) as f:
+        cumtimes = json.load(f)
+
     return cumtimes
 
 
-@secure_read
-def _fetch_timestamps(f: TextIO) -> dict[str, _TimeStampDictType]:
-    timestamps = {th: _TimeStampDictType(**ts_dict) for th, ts_dict in json.load(f).items()}
+def _fetch_timestamps(path: str, lock: _SecureLock) -> dict[str, _TimeStampDictType]:
+    with lock.read(path) as f:
+        timestamps = {th: _TimeStampDictType(**ts_dict) for th, ts_dict in json.load(f).items()}
+
     return timestamps
 
 
-def _fetch_proc_alloc(path: str) -> dict[int, int]:
-    return _complete_proc_allocation(path=path)
+def _fetch_proc_alloc(path: str, lock: _SecureLock) -> dict[int, int]:
+    return _complete_proc_allocation(path=path, lock=lock)
 
 
-@secure_edit
-def _record_result(f: TextIO, results: dict[str, float], fixed: bool = True) -> None:
-    record = json.load(f)
-    n_observations = len(record.get("cumtime", []))
-    keys = list(set(list(record.keys()) + list(results.keys()))) if not fixed else results.keys()
-    for key in keys:
-        val = results.get(key, None)
-        if n_observations == 0:
-            record[key] = [val]
-        elif key not in record:
-            record[key] = [None] * n_observations + [val]
-        else:
-            record[key].append(val)
+def _record_result(path: str, results: dict[str, float], lock: _SecureLock, fixed: bool = True) -> None:
+    with lock.edit(path) as f:
+        record = json.load(f)
+        n_observations = len(record.get("cumtime", []))
+        keys = list(set(list(record.keys()) + list(results.keys()))) if not fixed else results.keys()
+        for key in keys:
+            val = results.get(key, None)
+            if n_observations == 0:
+                record[key] = [val]
+            elif key not in record:
+                record[key] = [None] * n_observations + [val]
+            else:
+                record[key].append(val)
 
-    f.seek(0)
-    json.dump(record, f, indent=4)
-
-
-@secure_read
-def _is_simulator_terminated(f: TextIO, max_evals: int) -> bool:
-    return len(json.load(f)["cumtime"]) >= max_evals
+        f.seek(0)
+        json.dump(record, f, indent=4)
 
 
-@secure_read
-def _is_simulator_ready(f: TextIO, n_workers: int) -> bool:
-    return len(json.load(f)) == n_workers
+def _is_simulator_terminated(path: str, max_evals: int, lock: _SecureLock) -> bool:
+    with lock.read(path) as f:
+        result = len(json.load(f)["cumtime"]) >= max_evals
+
+    return result
 
 
-@secure_read
-def _is_allocation_ready(f: TextIO, n_workers: int) -> bool:
-    return len(json.load(f)) == n_workers
+def _is_simulator_ready(path: str, n_workers: int, lock: _SecureLock) -> bool:
+    with lock.read(path) as f:
+        result = len(json.load(f)) == n_workers
+
+    return result
 
 
-@secure_read
-def _get_worker_id_to_idx(f: TextIO) -> dict[str, int]:
-    return {worker_id: idx for idx, worker_id in enumerate(json.load(f).keys())}
+def _is_allocation_ready(path: str, n_workers: int, lock: _SecureLock) -> bool:
+    with lock.read(path) as f:
+        result = len(json.load(f)) == n_workers
+
+    return result
 
 
-def _is_min_cumtime(path: str, worker_id: str) -> bool:
-    cumtimes = _fetch_cumtimes(path=path)
+def _get_worker_id_to_idx(path: str, lock: _SecureLock) -> dict[str, int]:
+    with lock.read(path) as f:
+        result = {worker_id: idx for idx, worker_id in enumerate(json.load(f).keys())}
+
+    return result
+
+
+def _is_min_cumtime(path: str, worker_id: str, lock: _SecureLock) -> bool:
+    cumtimes = _fetch_cumtimes(path=path, lock=lock)
     proc_cumtime = cumtimes[worker_id]
     return min(cumtime for cumtime in cumtimes.values()) == proc_cumtime
 
 
-def _start_timestamp(path: str, worker_id: str, prev_timestamp: float) -> None:
-    _record_timestamp(path=path, worker_id=worker_id, prev_timestamp=time.time(), waited_time=0.0)
+def _start_timestamp(path: str, worker_id: str, prev_timestamp: float, lock: _SecureLock) -> None:
+    _record_timestamp(path=path, worker_id=worker_id, prev_timestamp=time.time(), waited_time=0.0, lock=lock)
 
 
-def _start_worker_timer(path: str, worker_id: str) -> None:
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=0.0)
+def _start_worker_timer(path: str, worker_id: str, lock: _SecureLock) -> None:
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=0.0, lock=lock)
 
 
-def _finish_worker_timer(path: str, worker_id: str) -> None:
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.terminated)
+def _finish_worker_timer(path: str, worker_id: str, lock: _SecureLock) -> None:
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.terminated, lock=lock)
 
 
-def _kill_worker_timer(path: str, worker_id: str) -> None:
-    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.crashed)
+def _kill_worker_timer(path: str, worker_id: str, lock: _SecureLock) -> None:
+    _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.crashed, lock=lock)
 
 
-def _kill_worker_timer_with_min_cumtime(path: str) -> None:
-    cumtimes = _fetch_cumtimes(path=path)
-    worker_id = min(cumtimes, key=cumtimes.get)
-    _kill_worker_timer(path=path, worker_id=worker_id)
+def _kill_worker_timer_with_min_cumtime(path: str, lock: _SecureLock) -> None:
+    cumtimes = _fetch_cumtimes(path=path, lock=lock)
+    worker_id = min(cumtimes, key=cumtimes.get)  # type: ignore[arg-type]
+    _kill_worker_timer(path=path, worker_id=worker_id, lock=lock)
 
 
 def _get_timeout_message(cause: str, path: str) -> str:
@@ -194,29 +207,29 @@ def _get_timeout_message(cause: str, path: str) -> str:
 
 
 def _wait_proc_allocation(
-    path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
+    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-2, time_limit: float = 10.0
 ) -> dict[int, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
-    while not _is_allocation_ready(path, n_workers=n_workers):
+    while not _is_allocation_ready(path, n_workers=n_workers, lock=lock):
         time.sleep(waiting_time)
         if time.time() - start >= time_limit:
             raise TimeoutError(_get_timeout_message(cause="the allocation of procs", path=path))
 
-    return _complete_proc_allocation(path)
+    return _complete_proc_allocation(path, lock=lock)
 
 
 def _wait_all_workers(
-    path: str, n_workers: int, waiting_time: float = 1e-2, time_limit: float = 10.0
+    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-2, time_limit: float = 10.0
 ) -> dict[str, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
-    while not _is_simulator_ready(path, n_workers=n_workers):
+    while not _is_simulator_ready(path, n_workers=n_workers, lock=lock):
         time.sleep(waiting_time)
         if time.time() - start >= time_limit:
             raise TimeoutError(_get_timeout_message(cause="creating a simulator", path=path))
 
-    return _get_worker_id_to_idx(path)
+    return _get_worker_id_to_idx(path, lock=lock)
 
 
 def _raise_unexpected_timeout_error(max_waiting_time: float) -> None:
@@ -237,25 +250,26 @@ def _raise_unexpected_timeout_error(max_waiting_time: float) -> None:
     )
 
 
-def _terminate_with_unexpected_timeout(path: str, worker_id: str, max_waiting_time: float) -> None:
-    _kill_worker_timer(path=path, worker_id=worker_id)
+def _terminate_with_unexpected_timeout(path: str, worker_id: str, max_waiting_time: float, lock: _SecureLock) -> None:
+    _kill_worker_timer(path=path, worker_id=worker_id, lock=lock)
     # The worker with minimum cumlative time may be able to evaluate several HPs during the wait,
     # but it does not matter because the timeout happens due to too long wait.
     time.sleep(1.0)
-    _kill_worker_timer_with_min_cumtime(path=path)
+    _kill_worker_timer_with_min_cumtime(path=path, lock=lock)
     _raise_unexpected_timeout_error(max_waiting_time=max_waiting_time)
 
 
 def _wait_until_next(
     path: str,
     worker_id: str,
+    lock: _SecureLock,
     waiting_time: float = 1e-4,
     warning_interval: int = 10,
     max_waiting_time: float = np.inf,
 ) -> None:
     start = time.time()
     waiting_time *= 1 + np.random.random()
-    while not _is_min_cumtime(path, worker_id=worker_id):
+    while not _is_min_cumtime(path, worker_id=worker_id, lock=lock):
         time.sleep(waiting_time)
         curtime = time.time()
         if int(curtime - start + 1) % warning_interval == 0:
@@ -266,4 +280,6 @@ def _wait_until_next(
             )
 
         if curtime - start > max_waiting_time:
-            _terminate_with_unexpected_timeout(path=path, worker_id=worker_id, max_waiting_time=max_waiting_time)
+            _terminate_with_unexpected_timeout(
+                path=path, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=lock
+            )

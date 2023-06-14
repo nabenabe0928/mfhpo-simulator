@@ -106,7 +106,7 @@ from benchmark_simulator._secure_proc import (
     _wait_proc_allocation,
     _wait_until_next,
 )
-from benchmark_simulator._utils import _generate_time_hash
+from benchmark_simulator._utils import _SecureLock, _generate_time_hash
 
 import numpy as np
 
@@ -236,6 +236,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
             max_waiting_time=max_waiting_time,
             store_config=store_config,
         )
+        self._lock = _SecureLock()
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._paths = _get_file_paths(self.dir_name)
         self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
@@ -295,10 +296,12 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
     def _init_worker(self, worker_id: str) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
         _init_simulator(dir_name=self.dir_name)
-        _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id)
+        _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
 
     def _alloc_index(self, worker_id: str) -> int:
-        worker_id_to_index = _wait_all_workers(path=self._paths.worker_cumtime, n_workers=self._wrapper_vars.n_workers)
+        worker_id_to_index = _wait_all_workers(
+            path=self._paths.worker_cumtime, n_workers=self._wrapper_vars.n_workers, lock=self._lock
+        )
         time.sleep(1e-2)  # buffer before the optimization
         return worker_id_to_index[worker_id]
 
@@ -364,7 +367,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         return fidel
 
     def _get_cached_state_and_index(self, config_hash: int, fidel: int) -> tuple[_StateType, int | None]:
-        cached_states = _fetch_cache_states(self._paths.state_cache, config_hash=config_hash)
+        cached_states = _fetch_cache_states(path=self._paths.state_cache, config_hash=config_hash, lock=self._lock)
         intermediate_avail = [state.cumtime <= self._cumtime and state.fidel < fidel for state in cached_states]
         cached_state_index = intermediate_avail.index(True) if any(intermediate_avail) else None
         if cached_state_index is None:
@@ -382,12 +385,12 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         seed: int | None,
         cached_state_index: int | None,
     ) -> None:
-        kwargs = dict(path=self._paths.state_cache, config_hash=config_hash)
+        kwargs = dict(path=self._paths.state_cache, config_hash=config_hash, lock=self._lock)
         if fidel != self._wrapper_vars.continual_max_fidel:  # update the cache data
             new_state = _StateType(runtime=total_runtime, cumtime=self._cumtime, fidel=fidel, seed=seed)
-            _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)
+            _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)  # type: ignore[arg-type]
         elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
-            _delete_state(index=cached_state_index, **kwargs)
+            _delete_state(index=cached_state_index, **kwargs)  # type: ignore[arg-type]
 
     def _wait_other_workers(self) -> None:
         """
@@ -397,12 +400,15 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         """
         wait_start, worker_id = time.time(), self._worker_vars.worker_id
         max_waiting_time = self._wrapper_vars.max_waiting_time
-        _wait_until_next(path=self._paths.worker_cumtime, worker_id=worker_id, max_waiting_time=max_waiting_time)
+        _wait_until_next(
+            path=self._paths.worker_cumtime, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=self._lock
+        )
         _record_timestamp(
             path=self._paths.timestamp,
             worker_id=worker_id,
             prev_timestamp=time.time(),
             waited_time=time.time() - wait_start,
+            lock=self._lock,
         )
 
     def _query_obj_func(
@@ -465,7 +471,12 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
     def _post_proc(self, results: dict[str, float]) -> None:
         # First, record the simulated cumulative runtime after calling the objective
-        _record_cumtime(path=self._paths.worker_cumtime, worker_id=self._worker_vars.worker_id, cumtime=self._cumtime)
+        _record_cumtime(
+            path=self._paths.worker_cumtime,
+            worker_id=self._worker_vars.worker_id,
+            cumtime=self._cumtime,
+            lock=self._lock,
+        )
         # Wait till the cumulative runtime becomes the smallest
         self._wait_other_workers()
 
@@ -476,22 +487,28 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             **self._used_config,
         )
         # Record the results to the main database when the cumulative runtime is the smallest
-        _record_result(self._paths.result, results=row, fixed=bool(not self._wrapper_vars.store_config))
+        _record_result(
+            self._paths.result, results=row, fixed=bool(not self._wrapper_vars.store_config), lock=self._lock
+        )
         self._used_config = {}  # Make it empty
-        if _is_simulator_terminated(self._paths.result, max_evals=self._wrapper_vars.n_evals):
+        if _is_simulator_terminated(self._paths.result, max_evals=self._wrapper_vars.n_evals, lock=self._lock):
             self._finish()
 
     def _load_timestamps(self) -> _TimeStampDictType:
-        timestamp_dict, worker_id = _fetch_timestamps(self._paths.timestamp), self._worker_vars.worker_id
+        timestamp_dict = _fetch_timestamps(self._paths.timestamp, lock=self._lock)
+        worker_id = self._worker_vars.worker_id
         if worker_id not in timestamp_dict:  # Initialize the timestamp
             init_timestamp = _TimeStampDictType(prev_timestamp=time.time(), waited_time=0.0)
             _start_timestamp(
-                path=self._paths.timestamp, worker_id=worker_id, prev_timestamp=init_timestamp.prev_timestamp
+                path=self._paths.timestamp,
+                worker_id=worker_id,
+                prev_timestamp=init_timestamp.prev_timestamp,
+                lock=self._lock,
             )
             return init_timestamp
 
         timestamp = timestamp_dict[worker_id]
-        self._cumtime = _fetch_cumtimes(self._paths.worker_cumtime)[worker_id]
+        self._cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
         self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
         return timestamp
@@ -545,7 +562,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         This method must be called before we finish the optimization.
         If not called, optimization modules are likely to hang.
         """
-        _finish_worker_timer(path=self._paths.worker_cumtime, worker_id=self._worker_vars.worker_id)
+        _finish_worker_timer(path=self._paths.worker_cumtime, worker_id=self._worker_vars.worker_id, lock=self._lock)
         self._terminated = True
 
 
@@ -561,6 +578,7 @@ class CentralWorkerManager(_BaseWrapperInterface):
         self._workers: list[ObjectiveFuncWorker]
         self._main_pid = os.getpid()
         self._init_workers()
+        self._lock = self._workers[0]._lock
         self._pid_to_index: dict[int, int] = {}
 
     def _init_workers(self) -> None:
@@ -578,11 +596,13 @@ class CentralWorkerManager(_BaseWrapperInterface):
 
     def _init_alloc(self, pid: int) -> None:
         path = self._paths.proc_alloc
-        if not _is_allocation_ready(path=path, n_workers=self._wrapper_vars.n_workers):
-            _allocate_proc_to_worker(path=path, pid=pid)
-            self._pid_to_index = _wait_proc_allocation(path=path, n_workers=self._wrapper_vars.n_workers)
+        if not _is_allocation_ready(path=path, n_workers=self._wrapper_vars.n_workers, lock=self._lock):
+            _allocate_proc_to_worker(path=path, pid=pid, lock=self._lock)
+            self._pid_to_index = _wait_proc_allocation(
+                path=path, n_workers=self._wrapper_vars.n_workers, lock=self._lock
+            )
         else:
-            self._pid_to_index = _fetch_proc_alloc(path=path)
+            self._pid_to_index = _fetch_proc_alloc(path=path, lock=self._lock)
 
     def __call__(
         self,

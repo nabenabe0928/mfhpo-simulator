@@ -5,24 +5,30 @@ import os
 import pytest
 import time
 import unittest
-from typing import Any, TextIO
+from typing import Any
 
 import ujson as json
 
-from benchmark_simulator._utils import secure_edit, secure_read
+from benchmark_simulator._utils import _SecureLock
 
 
-@secure_read
-def dummy_read(f: TextIO) -> dict[str, Any]:
-    return json.load(f)
+LOCK = _SecureLock()
 
 
-@secure_edit
-def dummy_edit(f: TextIO, key: str, num: int) -> dict[str, Any]:
-    prev = json.load(f)
-    f.seek(0)
-    json.dump({key: num}, f, indent=4)
-    time.sleep(5e-3)
+def dummy_read(path: str, lock: _SecureLock) -> dict[str, Any]:
+    with lock.read(path) as f:
+        result = json.load(f)
+
+    return result
+
+
+def dummy_edit(path: str, key: str, num: int, lock: _SecureLock) -> dict[str, Any]:
+    with lock.edit(path) as f:
+        prev = json.load(f)
+        f.seek(0)
+        json.dump({key: num}, f, indent=4)
+        time.sleep(5e-3)
+
     return prev
 
 
@@ -43,9 +49,9 @@ def test_secure_read():
     start = time.time()
     pool = multiprocessing.Pool(processes=20)
     for _ in range(10):
-        r = pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0)])
+        r = pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0, lock=LOCK)])
         r.get()  # check error
-        r = pool.apply_async(dummy_reader, args=[dict(path=name)])
+        r = pool.apply_async(dummy_reader, args=[dict(path=name, lock=LOCK)])
         r.get()  # check error
 
     pool.close()
@@ -63,9 +69,9 @@ def test_secure_read_time_limit():
     pool = multiprocessing.Pool(processes=n_workers)
     results = []
     for _ in range(n_workers // 2):
-        r = pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0)])
+        r = pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0, lock=LOCK)])
         r.get()  # check error
-        r = pool.apply_async(dummy_reader, args=[dict(path=name, time_limit=4e-3)])
+        r = pool.apply_async(dummy_reader, args=[dict(path=name, lock=_SecureLock(time_limit=4e-3))])
         results.append(r)
 
     pool.close()
@@ -87,7 +93,7 @@ def test_secure_edit_time_limit():
     start = time.time()
     for _ in range(n_workers):
         # fcntl.flock automatically waits for another worker
-        r = pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0)])
+        r = pool.apply_async(dummy_editer, args=[dict(path=name, key="a", num=0, lock=LOCK)])
         r.get()  # check error
 
     pool.close()

@@ -11,6 +11,7 @@ from typing import Any
 
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator._secure_proc import _wait_until_next
+from benchmark_simulator._utils import _SecureLock
 from benchmark_simulator.simulator import CentralWorkerManager
 
 import ujson as json
@@ -55,8 +56,9 @@ def test_timeout_error_in_wait_until_next():
     with open(file_name, mode="w") as f:
         json.dump({"a": 1.5, "b": 1.0}, f, indent=4)
 
+    lock = _SecureLock()
     with pytest.raises(TimeoutError, match="The simulation was terminated due to too long waiting time*"):
-        _wait_until_next(path=file_name, worker_id="a", warning_interval=2, max_waiting_time=2.2)
+        _wait_until_next(path=file_name, worker_id="a", warning_interval=2, max_waiting_time=2.2, lock=lock)
 
     os.remove(file_name)
 
