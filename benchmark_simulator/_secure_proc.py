@@ -263,7 +263,7 @@ def _wait_until_next(
     path: str,
     worker_id: str,
     lock: _SecureLock,
-    waiting_time: float = 1e-4,
+    waiting_time: float,
     warning_interval: int = 10,
     max_waiting_time: float = np.inf,
 ) -> None:

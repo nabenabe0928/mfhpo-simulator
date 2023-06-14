@@ -116,7 +116,7 @@ def test_record_cumtime():
                 c2 = bool(min_id == idx)
                 assert not (c1 ^ c2)
                 if c1:
-                    _wait_until_next(path, worker_id=worker_id, lock=LOCK)
+                    _wait_until_next(path, worker_id=worker_id, lock=LOCK, waiting_time=1e-4)
                 else:
                     pass
 

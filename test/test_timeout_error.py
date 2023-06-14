@@ -58,7 +58,9 @@ def test_timeout_error_in_wait_until_next():
 
     lock = _SecureLock()
     with pytest.raises(TimeoutError, match="The simulation was terminated due to too long waiting time*"):
-        _wait_until_next(path=file_name, worker_id="a", warning_interval=2, max_waiting_time=2.2, lock=lock)
+        _wait_until_next(
+            path=file_name, worker_id="a", warning_interval=2, max_waiting_time=2.2, waiting_time=1e-4, lock=lock
+        )
 
     os.remove(file_name)
 

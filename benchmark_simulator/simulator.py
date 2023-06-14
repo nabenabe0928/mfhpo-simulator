@@ -124,6 +124,7 @@ class _WrapperVars:
     seed: int | None
     continual_max_fidel: int | None
     max_waiting_time: float
+    check_interval_time: float
     store_config: bool
 
 
@@ -160,11 +161,12 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         n_actual_evals_in_opt: int,
         n_evals: int,
         fidel_keys: list[str] | None = None,
-        obj_keys: list[str] = ["loss"][:],
+        obj_keys: list[str] | None = None,
         runtime_key: str = "runtime",
         seed: int | None = None,
         continual_max_fidel: int | None = None,
         max_waiting_time: float = np.inf,
+        check_interval_time: float = 1e-4,
         store_config: bool = False,
     ):
         """The initialization of a wrapper class.
@@ -199,7 +201,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
             fidel_keys (list[str] | None):
                 The fidelity names to be used in the objective function.
                 If None, we assume that no fidelity is used.
-            obj_keys (list[str]):
+            obj_keys (list[str] | None):
                 The keys of the objective metrics used in `results` returned by func.
             runtime_key (str):
                 The key of the runtime metric used in `results` returned by func.
@@ -214,6 +216,13 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
                 for call with configA and training_epoch=30.
                 continual_eval=True calculates the runtime considers this.
                 If False, each call is considered to be processed from scratch.
+            check_interval_time (float):
+                How often each worker should check whether they could be assigned a new job.
+                For example, if 1e-2 is specified, each worker check whether they can get a new job every 1e-2 seconds.
+                If there are many workers, too small check_interval_time may cause a big bottleneck.
+                On the other hand, a big check_interval_time spends more time for waiting.
+                By default, check_interval_time is set to a relatively small number, so users might rather want to
+                increase the number to avoid the bottleneck for many workers.
             max_waiting_time (float):
                 The maximum waiting time to judge hang.
                 If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
@@ -229,17 +238,18 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
             n_actual_evals_in_opt=n_actual_evals_in_opt,
             n_evals=n_evals,
             fidel_keys=fidel_keys,
-            obj_keys=obj_keys,
+            obj_keys=obj_keys if obj_keys is not None else ["loss"],
             runtime_key=runtime_key,
             seed=seed,
             continual_max_fidel=continual_max_fidel,
             max_waiting_time=max_waiting_time,
+            check_interval_time=check_interval_time,
             store_config=store_config,
         )
         self._lock = _SecureLock()
         self._dir_name = os.path.join(DIR_NAME, subdir_name)
         self._paths = _get_file_paths(self.dir_name)
-        self._obj_keys, self._runtime_key = obj_keys[:], runtime_key
+        self._obj_keys, self._runtime_key = self._wrapper_vars.obj_keys, runtime_key
         self._fidel_keys = [] if fidel_keys is None else fidel_keys[:]
         self._init_wrapper()
 
@@ -401,7 +411,11 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         wait_start, worker_id = time.time(), self._worker_vars.worker_id
         max_waiting_time = self._wrapper_vars.max_waiting_time
         _wait_until_next(
-            path=self._paths.worker_cumtime, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=self._lock
+            path=self._paths.worker_cumtime,
+            worker_id=worker_id,
+            max_waiting_time=max_waiting_time,
+            waiting_time=self._wrapper_vars.check_interval_time,
+            lock=self._lock,
         )
         _record_timestamp(
             path=self._paths.timestamp,
@@ -578,7 +592,6 @@ class CentralWorkerManager(_BaseWrapperInterface):
         self._workers: list[ObjectiveFuncWorker]
         self._main_pid = os.getpid()
         self._init_workers()
-        self._lock = self._workers[0]._lock
         self._pid_to_index: dict[int, int] = {}
 
     def _init_workers(self) -> None:
