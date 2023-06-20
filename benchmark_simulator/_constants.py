@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Final, Protocol
 
+import numpy as np
+
 
 DIR_NAME: Final[str] = "mfhpo-simulator-info/"
 INF: Final[float] = float(1 << 30)
@@ -45,6 +47,33 @@ class _SharedDataLocations(Enum):
 class _TimeValue:
     terminated: float = float(1 << 40)
     crashed: float = float(1 << 41)
+
+
+@dataclass(frozen=True)
+class _WrapperVars:
+    subdir_name: str
+    n_workers: int
+    obj_func: ObjectiveFuncType
+    n_actual_evals_in_opt: int
+    n_evals: int
+    obj_keys: list[str]
+    runtime_key: str
+    fidel_keys: list[str] | None
+    seed: int | None
+    continual_max_fidel: int | None
+    max_waiting_time: float
+    check_interval_time: float
+    store_config: bool
+
+
+@dataclass(frozen=True)
+class _WorkerVars:
+    continual_eval: bool
+    worker_id: str
+    worker_index: int
+    rng: np.random.RandomState
+    use_fidel: bool
+    stored_obj_keys: list[str]
 
 
 _TIME_VALUES = _TimeValue()
