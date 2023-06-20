@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import time
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
@@ -168,6 +170,11 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         opt.tell(eval_config=result_data.eval_config, results=result_data.results, fidels=result_data.fidels)
         self._pending_results[worker_id] = None
 
+    def _save_results(self) -> None:
+        os.makedirs(self.dir_name, exist_ok=True)
+        with open(self._paths.result, mode="w") as f:
+            json.dump(self._results, f)
+
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
             raise ValueError(
@@ -176,8 +183,10 @@ class AskTellWorkerManager(_BaseWrapperInterface):
             )
 
         worker_id = 0
-        for _ in range(self._wrapper_vars.n_actual_evals_in_opt):
+        for _ in range(self._wrapper_vars.n_evals):
             eval_config, fidels = self._ask_with_timer(opt=opt, worker_id=worker_id)
             self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
             worker_id = np.argmin(self._cumtimes)
             self._tell_pending_result(opt=opt, worker_id=worker_id)
+
+        self._save_results()
