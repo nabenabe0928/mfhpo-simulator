@@ -1,5 +1,5 @@
 from benchmark_simulator._constants import ObjectiveFuncType
-from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
+from benchmark_simulator.simulator import AskTellWorkerManager, CentralWorkerManager, ObjectiveFuncWorker
 
 
 __version__ = "1.1.0"
@@ -10,4 +10,4 @@ __author_email__ = "shuhei.watanabe.utokyo@gmail.com"
 __url__ = "https://github.com/nabenabe0928/mfhpo-simulator"
 
 
-__all__ = ["CentralWorkerManager", "ObjectiveFuncType", "ObjectiveFuncWorker"]
+__all__ = ["AskTellWorkerManager", "CentralWorkerManager", "ObjectiveFuncType", "ObjectiveFuncWorker"]
