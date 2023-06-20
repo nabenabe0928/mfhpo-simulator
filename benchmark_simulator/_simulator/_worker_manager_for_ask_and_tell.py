@@ -46,6 +46,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         self._n_workers = self._wrapper_vars.n_workers
         self._rng = np.random.RandomState(self._wrapper_vars.seed)
         self._cumtimes: np.ndarray = np.zeros(self._n_workers, dtype=np.float64)
+        self._timenow = 0.0
         self._intermediate_states: dict[int, list[_StateType]] = {}
         self._pending_results: list[_ResultData | None] = [None] * self._n_workers
         self._seen_config_keys: list[str] = []
@@ -158,7 +159,8 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         start = time.time()
         eval_config, fidels = opt.ask()
         sampling_time = time.time() - start
-        self._cumtimes[worker_id] += sampling_time
+        self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
+        self._cumtimes[worker_id] = self._timenow
         return eval_config, fidels
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:

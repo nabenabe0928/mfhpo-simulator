@@ -33,14 +33,16 @@ class _InfoPaths:
     state_cache: str
     worker_cumtime: str
     timestamp: str
+    timenow: str
 
 
-class _SharedDataLocations(Enum):
+class _SharedDataFileNames(Enum):
     proc_alloc: str = "proc_alloc.json"
     result: str = "results.json"
     state_cache: str = "state_cache.json"
     worker_cumtime: str = "simulated_cumtime.json"
     timestamp: str = "timestamp.json"
+    timenow: str = "timenow.json"
 
 
 @dataclass(frozen=True)
@@ -128,4 +130,4 @@ class ObjectiveFuncType(Protocol):
 
 
 def _get_file_paths(dir_name: str) -> _InfoPaths:
-    return _InfoPaths(**{fn.name: os.path.join(dir_name, fn.value) for fn in _SharedDataLocations})
+    return _InfoPaths(**{fn.name: os.path.join(dir_name, fn.value) for fn in _SharedDataFileNames})

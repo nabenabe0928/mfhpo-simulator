@@ -6,7 +6,7 @@ import time
 import warnings
 
 from benchmark_simulator._constants import (
-    _SharedDataLocations,
+    _SharedDataFileNames,
     _StateType,
     _TIME_VALUES,
     _TimeStampDictType,
@@ -19,7 +19,7 @@ import ujson as json  # type: ignore
 
 
 def _init_simulator(dir_name: str) -> None:
-    for fn in _SharedDataLocations:
+    for fn in _SharedDataFileNames:
         path = os.path.join(dir_name, fn.value)
         with open(path, "a+") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
@@ -50,6 +50,16 @@ def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
         json.dump(alloc, f, indent=4)
 
     return alloc
+
+
+def _record_timenow(path: str, timenow: float, lock: _SecureLock) -> None:
+    key = "timenow"
+    with lock.edit(path) as f:
+        record = json.load(f)
+        prev_time = record.get(key, 0.0)
+        record[key] = max(prev_time, timenow)
+        f.seek(0)
+        json.dump(record, f, indent=4)
 
 
 def _record_cumtime(path: str, worker_id: str, cumtime: float, lock: _SecureLock) -> None:
@@ -104,6 +114,15 @@ def _fetch_cache_states(path: str, config_hash: int, lock: _SecureLock) -> list[
         states = json.load(f).get(str(config_hash), [])
 
     return [_StateType(runtime=state[0], cumtime=state[1], fidel=state[2], seed=state[3]) for state in states]
+
+
+def _fetch_timenow(path: str, lock: _SecureLock) -> float:
+    key = "timenow"
+    with lock.read(path) as f:
+        record = json.load(f)
+        timenow = record.get(key, 0.0)
+
+    return timenow
 
 
 def _fetch_cumtimes(path: str, lock: _SecureLock) -> dict[str, float]:

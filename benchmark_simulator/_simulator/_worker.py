@@ -60,11 +60,15 @@ and we need this information to manage the order of job allocations to each work
 
 5. mfhpo-simulator-info/*/timestamp.json
     * worker1_id -- {"prev_timestamp": prev_timestamp1, "waited_time": waited_time1}
-    * worker1_id -- {"prev_timestamp": prev_timestamp2, "waited_time": waited_time2}
+    * worker2_id -- {"prev_timestamp": prev_timestamp2, "waited_time": waited_time2}
     :
     * workerN_id -- {"prev_timestamp": prev_timestampN, "waited_time": waited_timeN}
 This file tells the last checkpoint timestamp of each worker (prev_timestamp) and
 how much time each worker waited for other workers in the last call.
+
+6. mfhpo-simulator-info/*/timenow.json
+    {"timenow": timenow}
+This includes only one value, namely the latest time immediately after the last sample.
 """
 from __future__ import annotations
 
@@ -78,12 +82,14 @@ from benchmark_simulator._secure_proc import (
     _delete_state,
     _fetch_cache_states,
     _fetch_cumtimes,
+    _fetch_timenow,
     _fetch_timestamps,
     _finish_worker_timer,
     _init_simulator,
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
+    _record_timenow,
     _record_timestamp,
     _start_timestamp,
     _start_worker_timer,
@@ -141,6 +147,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         # These variables change over time and must be either loaded from file system or updated.
         self._cumtime = 0.0
+        self._timenow = 0.0
         self._terminated = False
         self._crashed = False
         self._used_config: dict[str, Any] = {}
@@ -294,7 +301,8 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             return init_timestamp
 
         timestamp = timestamp_dict[worker_id]
-        self._cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
+        self._timenow = _fetch_timenow(path=self._paths.timenow, lock=self._lock)
+        self._cumtime = max(self._timenow, _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id])
         self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
         return timestamp
@@ -344,6 +352,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         sampling_time = max(0.0, time.time() - timestamp.prev_timestamp - timestamp.waited_time)
         self._cumtime += sampling_time
+        _record_timenow(path=self._paths.timenow, timenow=self._cumtime, lock=self._lock)
 
         results = self._proc_output(eval_config, fidels, **data_to_scatter)
         self._post_proc(results)
