@@ -65,6 +65,17 @@ class _WrapperVars:
     check_interval_time: float
     store_config: bool
 
+    def validate(self) -> None:
+        if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:
+            threshold = self.n_workers + self.n_evals
+            # In fact, n_workers + n_evals - 1 is the real minimum threshold.
+            raise ValueError(
+                "Cannot guarantee that optimziers will not hang. "
+                f"Use n_actual_evals_in_opt >= {threshold} (= n_evals + n_workers) at least. "
+                "Note that our package cannot change your optimizer setting, so "
+                "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
+            )
+
 
 @dataclass(frozen=True)
 class _WorkerVars:

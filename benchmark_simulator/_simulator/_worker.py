@@ -23,6 +23,7 @@ from benchmark_simulator._secure_proc import (
     _wait_until_next,
 )
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
+from benchmark_simulator._simulator._utils import _validate_fidel_args, _validate_output, _validate_provided_fidels
 from benchmark_simulator._utils import _generate_time_hash
 
 import numpy as np
@@ -36,26 +37,6 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
     def __repr__(self) -> str:
         return f"Worker-{self._worker_vars.worker_id}"
-
-    def _guarantee_no_hang(self) -> None:
-        n_workers, n_evals = self._wrapper_vars.n_workers, self._wrapper_vars.n_evals
-        n_actual_evals_in_opt = self._wrapper_vars.n_actual_evals_in_opt
-        if n_actual_evals_in_opt < n_workers + n_evals:
-            threshold = n_workers + n_evals
-            # In fact, n_workers + n_evals - 1 is the real minimum threshold.
-            raise ValueError(
-                "Cannot guarantee that optimziers will not hang. "
-                f"Use n_actual_evals_in_opt >= {threshold} (= n_evals + n_workers) at least. "
-                "Note that our package cannot change your optimizer setting, so "
-                "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
-            )
-
-    def _validate_fidel_args(self, continual_eval: bool) -> None:
-        # Guarantee the sufficiency: continual_eval ==> len(fidel_keys) == 1
-        if continual_eval and len(self._fidel_keys) != 1:
-            raise ValueError(
-                f"continual_max_fidel is valid only if fidel_keys has only one element, but got {self._fidel_keys}"
-            )
 
     def _init_worker(self, worker_id: str) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
@@ -72,8 +53,8 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
     def _init_wrapper(self) -> None:
         continual_eval = self._wrapper_vars.continual_max_fidel is not None
         worker_id = _generate_time_hash()
-        self._guarantee_no_hang()
-        self._validate_fidel_args(continual_eval)
+        self._wrapper_vars.validate()
+        _validate_fidel_args(continual_eval, fidel_keys=self._fidel_keys)
         self._init_worker(worker_id)
         worker_index = self._alloc_index(worker_id)
         self._worker_vars = _WorkerVars(
@@ -105,30 +86,6 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             raise ValueError(
                 "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
             )
-
-    def _validate_output(self, results: dict[str, float]) -> None:
-        keys_in_output = set(results.keys())
-        keys = set(self._worker_vars.stored_obj_keys)
-        if keys_in_output.intersection(keys) != keys:
-            raise KeyError(
-                f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
-                f"but got {results}"
-            )
-
-    @staticmethod
-    def _validate_provided_fidels(fidels: dict[str, int | float] | None) -> int:
-        if fidels is None or len(fidels.values()) != 1:
-            raise ValueError(
-                f"fidels must have only one element when continual_max_fidel is provided, but got {fidels}"
-            )
-
-        fidel = next(iter(fidels.values()))
-        if not isinstance(fidel, int):
-            raise ValueError(f"Fidelity for continual evaluation must be integer, but got {fidel}")
-        if fidel < 0:
-            raise ValueError(f"Fidelity for continual evaluation must be non-negative, but got {fidel}")
-
-        return fidel
 
     def _get_cached_state_and_index(self, config_hash: int, fidel: int) -> tuple[_StateType, int | None]:
         cached_states = _fetch_cache_states(path=self._paths.state_cache, config_hash=config_hash, lock=self._lock)
@@ -201,7 +158,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         seed = self._worker_vars.rng.randint(1 << 30)
         results = self._query_obj_func(eval_config=eval_config, seed=seed, fidels=fidels, **data_to_scatter)
-        self._validate_output(results)
+        _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
         self._cumtime += results[self.runtime_key]
         return {k: results[k] for k in self._worker_vars.stored_obj_keys}
 
@@ -214,7 +171,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         results = self._query_obj_func(
             eval_config=eval_config, seed=cached_state.seed, fidels=_fidels, **data_to_scatter
         )
-        self._validate_output(results)
+        _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
         total_runtime = results[self.runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_state.runtime)
         self._cumtime += actual_runtime
@@ -234,7 +191,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
 
         # Otherwise, we try the continual evaluation
-        fidel = self._validate_provided_fidels(fidels)
+        fidel = _validate_provided_fidels(fidels)
         return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
 
     def _post_proc(self, results: dict[str, float]) -> None:
