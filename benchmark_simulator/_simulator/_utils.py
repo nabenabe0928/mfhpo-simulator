@@ -17,7 +17,30 @@ def _validate_output(results: dict[str, float], stored_obj_keys: list[str]) -> N
         )
 
 
-def _validate_provided_fidels(fidels: dict[str, int | float] | None) -> int:
+def _validate_fidels(
+    fidels: dict[str, int | float] | None,
+    fidel_keys: list[str],
+    use_fidel: bool,
+    continual_eval: bool,
+) -> None:
+    if not use_fidel and fidels is not None:
+        raise ValueError(
+            "Objective function got keyword `fidels`, but fidel_keys was not provided in worker instantiation."
+        )
+    if use_fidel and fidels is None:
+        raise ValueError(
+            "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
+        )
+
+    if continual_eval:
+        return
+
+    fidel_key_set = set(({} if fidels is None else fidels).keys())
+    if use_fidel and fidel_key_set != set(fidel_keys):
+        raise KeyError(f"The keys in fidels must be identical to fidel_keys, but got {fidels}")
+
+
+def _validate_fidels_continual(fidels: dict[str, int | float] | None) -> int:
     if fidels is None or len(fidels.values()) != 1:
         raise ValueError(f"fidels must have only one element when continual_max_fidel is provided, but got {fidels}")
 

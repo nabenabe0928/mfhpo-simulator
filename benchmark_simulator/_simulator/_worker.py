@@ -23,7 +23,12 @@ from benchmark_simulator._secure_proc import (
     _wait_until_next,
 )
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
-from benchmark_simulator._simulator._utils import _validate_fidel_args, _validate_output, _validate_provided_fidels
+from benchmark_simulator._simulator._utils import (
+    _validate_fidel_args,
+    _validate_fidels,
+    _validate_fidels_continual,
+    _validate_output,
+)
 from benchmark_simulator._utils import _generate_time_hash
 
 import numpy as np
@@ -72,19 +77,11 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         self._crashed = False
         self._used_config: dict[str, Any] = {}
 
-    def _validate(self, fidels: dict[str, int | float] | None) -> None:
+    def _validate(self) -> None:
         if self._crashed:
             raise InterruptedError(
                 "The simulation is interrupted due to deadlock or the dead of at least one of the workers.\n"
                 "This error could be avoided by increasing `max_waiting_time` (however, np.inf is discouraged).\n"
-            )
-        if not self._worker_vars.use_fidel and fidels is not None:
-            raise ValueError(
-                "Objective function got keyword `fidels`, but fidel_keys was not provided in worker instantiation."
-            )
-        if self._worker_vars.use_fidel and fidels is None:
-            raise ValueError(
-                "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
             )
 
     def _get_cached_state_and_index(self, config_hash: int, fidel: int) -> tuple[_StateType, int | None]:
@@ -152,10 +149,6 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
     def _proc_output_from_scratch(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None, **data_to_scatter: Any
     ) -> dict[str, float]:
-        _fidels: dict[str, int | float] = {} if fidels is None else fidels.copy()
-        if self._worker_vars.use_fidel and set(_fidels.keys()) != set(self._fidel_keys):
-            raise KeyError(f"The keys in fidels must be identical to fidel_keys, but got {fidels}")
-
         seed = self._worker_vars.rng.randint(1 << 30)
         results = self._query_obj_func(eval_config=eval_config, seed=seed, fidels=fidels, **data_to_scatter)
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
@@ -191,7 +184,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
 
         # Otherwise, we try the continual evaluation
-        fidel = _validate_provided_fidels(fidels)
+        fidel = _validate_fidels_continual(fidels)
         return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
 
     def _post_proc(self, results: dict[str, float]) -> None:
@@ -271,7 +264,13 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
                 Otherwise, any other metrics are optional.
         """
         timestamp = self._load_timestamps()
-        self._validate(fidels=fidels)
+        self._validate()
+        _validate_fidels(
+            fidels=fidels,
+            fidel_keys=self._fidel_keys,
+            use_fidel=self._worker_vars.use_fidel,
+            continual_eval=self._worker_vars.continual_eval,
+        )
         if self._terminated:
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 
