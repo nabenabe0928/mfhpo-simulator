@@ -19,6 +19,12 @@ class _TimeStampDictType:
 
 
 @dataclass(frozen=True)
+class _TimeNowDictType:
+    before_sample: float
+    after_sample: float
+
+
+@dataclass(frozen=True)
 class _StateType:
     runtime: float = 0.0
     cumtime: float = 0.0

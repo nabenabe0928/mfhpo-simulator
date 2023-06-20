@@ -67,8 +67,10 @@ This file tells the last checkpoint timestamp of each worker (prev_timestamp) an
 how much time each worker waited for other workers in the last call.
 
 6. mfhpo-simulator-info/*/timenow.json
-    {"timenow": timenow}
-This includes only one value, namely the latest time immediately after the last sample.
+    * before_sample -- [time1 before sample, time2 before sample, ...]
+    * after_sample -- [time1 after sample, time2 after sample, ...]
+This file is used to consider the sampling time.
+after_sample is the latest cumtime immediately after the last sample and before_sample is before the last sample.
 """
 from __future__ import annotations
 
@@ -76,7 +78,14 @@ import os
 import time
 from typing import Any
 
-from benchmark_simulator._constants import INF, _StateType, _TIME_VALUES, _TimeStampDictType, _WorkerVars
+from benchmark_simulator._constants import (
+    INF,
+    _StateType,
+    _TIME_VALUES,
+    _TimeNowDictType,
+    _TimeStampDictType,
+    _WorkerVars,
+)
 from benchmark_simulator._secure_proc import (
     _cache_state,
     _delete_state,
@@ -147,7 +156,6 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
 
         # These variables change over time and must be either loaded from file system or updated.
         self._cumtime = 0.0
-        self._timenow = 0.0
         self._terminated = False
         self._crashed = False
         self._used_config: dict[str, Any] = {}
@@ -301,8 +309,10 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             return init_timestamp
 
         timestamp = timestamp_dict[worker_id]
-        self._timenow = _fetch_timenow(path=self._paths.timenow, lock=self._lock)
-        self._cumtime = max(self._timenow, _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id])
+        timenow_data = _fetch_timenow(path=self._paths.timenow, lock=self._lock)
+        cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
+        # Consider the sampling time overlap
+        self._cumtime = max(cumtime, np.max(timenow_data["after_sample"][timenow_data["before_sample"] <= cumtime]))
         self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
         return timestamp
@@ -351,9 +361,10 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 
         sampling_time = max(0.0, time.time() - timestamp.prev_timestamp - timestamp.waited_time)
-        self._cumtime += sampling_time
-        _record_timenow(path=self._paths.timenow, timenow=self._cumtime, lock=self._lock)
+        timenow_data = _TimeNowDictType(before_sample=self._cumtime, after_sample=self._cumtime + sampling_time)
+        _record_timenow(path=self._paths.timenow, timenow_data=timenow_data, lock=self._lock)
 
+        self._cumtime += sampling_time
         results = self._proc_output(eval_config, fidels, **data_to_scatter)
         self._post_proc(results)
         return results

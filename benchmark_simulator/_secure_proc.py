@@ -9,6 +9,7 @@ from benchmark_simulator._constants import (
     _SharedDataFileNames,
     _StateType,
     _TIME_VALUES,
+    _TimeNowDictType,
     _TimeStampDictType,
 )
 from benchmark_simulator._utils import _SecureLock
@@ -52,12 +53,15 @@ def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
     return alloc
 
 
-def _record_timenow(path: str, timenow: float, lock: _SecureLock) -> None:
-    key = "timenow"
+def _record_timenow(path: str, timenow_data: _TimeNowDictType, lock: _SecureLock) -> None:
     with lock.edit(path) as f:
         record = json.load(f)
-        prev_time = record.get(key, 0.0)
-        record[key] = max(prev_time, timenow)
+        for k, v in timenow_data.__dict__.items():
+            if k not in record:
+                record[k] = [v]
+            else:
+                record[k].append(v)
+
         f.seek(0)
         json.dump(record, f, indent=4)
 
@@ -116,13 +120,11 @@ def _fetch_cache_states(path: str, config_hash: int, lock: _SecureLock) -> list[
     return [_StateType(runtime=state[0], cumtime=state[1], fidel=state[2], seed=state[3]) for state in states]
 
 
-def _fetch_timenow(path: str, lock: _SecureLock) -> float:
-    key = "timenow"
+def _fetch_timenow(path: str, lock: _SecureLock) -> dict[str, np.ndarray]:
     with lock.read(path) as f:
-        record = json.load(f)
-        timenow = record.get(key, 0.0)
+        data = {k: np.asarray(v) for k, v in json.load(f).items()}
 
-    return timenow
+    return data
 
 
 def _fetch_cumtimes(path: str, lock: _SecureLock) -> dict[str, float]:
