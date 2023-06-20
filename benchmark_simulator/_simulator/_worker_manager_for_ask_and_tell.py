@@ -173,7 +173,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
     def _save_results(self) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
         with open(self._paths.result, mode="w") as f:
-            json.dump(self._results, f)
+            json.dump({k: np.asarray(v).tolist() for k, v in self._results.items()}, f, indent=4)
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         """
