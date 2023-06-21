@@ -7,9 +7,14 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from benchmark_simulator._constants import _StateType
+from benchmark_simulator._constants import _StateType, _WorkerVars
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
-from benchmark_simulator._simulator._utils import _validate_fidels_continual
+from benchmark_simulator._simulator._utils import (
+    _validate_fidel_args,
+    _validate_fidels,
+    _validate_fidels_continual,
+    _validate_output,
+)
 
 import numpy as np
 
@@ -42,15 +47,23 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
 
 class AskTellWorkerManager(_BaseWrapperInterface):
     def _init_wrapper(self) -> None:
-        self._wrapper_vars.validate()
-        self._n_workers = self._wrapper_vars.n_workers
-        self._rng = np.random.RandomState(self._wrapper_vars.seed)
-        self._cumtimes: np.ndarray = np.zeros(self._n_workers, dtype=np.float64)
-        self._timenow = 0.0
-        self._intermediate_states: dict[int, list[_StateType]] = {}
-        self._pending_results: list[_ResultData | None] = [None] * self._n_workers
-        self._seen_config_keys: list[str] = []
+        self._worker_vars = _WorkerVars(
+            continual_eval=self._wrapper_vars.continual_max_fidel is not None,
+            use_fidel=self._wrapper_vars.fidel_keys is not None,
+            rng=np.random.RandomState(self._wrapper_vars.seed),
+            stored_obj_keys=list(set(self.obj_keys + [self.runtime_key])),
+            worker_id="",
+            worker_index=-1,
+        )
 
+        self._wrapper_vars.validate()
+        _validate_fidel_args(continual_eval=self._worker_vars.continual_eval, fidel_keys=self._fidel_keys)
+
+        self._timenow = 0.0
+        self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
+        self._intermediate_states: dict[int, list[_StateType]] = {}
+        self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
+        self._seen_config_keys: list[str] = []
         self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
         self._results.update({k: [] for k in self._obj_keys})
         if self._wrapper_vars.store_config:
@@ -64,7 +77,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
     def _fetch_prev_seed(self, config_hash: int, fidel: int, worker_id: int) -> int | None:
         prev_state_index = self._fetch_prev_state_index(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
         if prev_state_index is None:
-            return self._rng.randint(1 << 30)
+            return self._worker_vars.rng.randint(1 << 30)
         else:
             return self._intermediate_states[config_hash][prev_state_index].seed
 
@@ -85,9 +98,10 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         fidels: dict[str, int | float] | None,
     ) -> tuple[dict[str, float], int | None]:
         continual_max_fidel = self._wrapper_vars.continual_max_fidel
-        if continual_max_fidel is None:  # not continual learning
-            seed = self._rng.randint(1 << 30)
+        if not self._worker_vars.continual_eval:  # not continual learning
+            seed = self._worker_vars.rng.randint(1 << 30)
             results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
+            _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
             return results, seed
 
         fidel = _validate_fidels_continual(fidels)
@@ -95,10 +109,12 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         config_hash: int = hash(str(eval_config))
         seed = self._fetch_prev_seed(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
         results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
+        _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
         old_state = self._pop_old_state(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
         old_state = _StateType(seed=seed) if old_state is None else old_state
 
         results[runtime_key] = max(0.0, results[runtime_key] - old_state.runtime)
+        assert continual_max_fidel is not None  # mypy redefinition
         if fidel < continual_max_fidel:
             new_state = _StateType(
                 runtime=results[runtime_key],
@@ -116,6 +132,12 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         worker_id: int,
         fidels: dict[str, int | float] | None,
     ) -> None:
+        _validate_fidels(
+            fidels=fidels,
+            fidel_keys=self._fidel_keys,
+            use_fidel=self._worker_vars.use_fidel,
+            continual_eval=self._worker_vars.continual_eval,
+        )
         results, seed = self._proc(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]

@@ -48,5 +48,6 @@ if __name__ == "__main__":
         n_actual_evals_in_opt=105,
         n_evals=100,
         seed=args.seed,
+        fidel_keys=bench.fidel_keys,
     )
     worker.simulate(opt)
