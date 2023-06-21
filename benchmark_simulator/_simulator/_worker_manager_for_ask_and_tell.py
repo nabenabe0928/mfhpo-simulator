@@ -3,11 +3,9 @@ from __future__ import annotations
 import json
 import os
 import time
-from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass
 from typing import Any
 
-from benchmark_simulator._constants import _StateType, _WorkerVars
+from benchmark_simulator._constants import AbstractAskTellOptimizer, _ResultData, _StateType, _WorkerVars
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
     _validate_fidel_args,
@@ -17,32 +15,6 @@ from benchmark_simulator._simulator._utils import (
 )
 
 import numpy as np
-
-
-@dataclass(frozen=True)
-class _ResultData:
-    cumtime: float
-    eval_config: dict[str, Any]
-    results: dict[str, float]
-    fidels: dict[str, int | float]
-    seed: int | None
-
-
-class AbstractAskTellOptimizer(metaclass=ABCMeta):
-    @abstractmethod
-    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None]:
-        # Return: tuple[eval_config, fidels]
-        raise NotImplementedError
-
-    @abstractmethod
-    def tell(
-        self,
-        eval_config: dict[str, Any],
-        results: dict[str, float],
-        *,
-        fidels: dict[str, int | float] | None,
-    ) -> None:
-        raise NotImplementedError
 
 
 class AskTellWorkerManager(_BaseWrapperInterface):
@@ -222,9 +194,16 @@ class AskTellWorkerManager(_BaseWrapperInterface):
                         opt.tell(eval_config, results, fidels)
         """
         if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
+            example_url = "https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/"
             raise ValueError(
                 "opt must have `ask` and `tell` methods.\n"
-                "Inherit `AbstractAskTellOptimizer` and encapsulate your optimizer instance in the child class."
+                f"Inherit `{AbstractAskTellOptimizer.__name__}` and \n"
+                "encapsulate your optimizer instance in the child class.\n"
+                "The description of `ask` method is as follows:\n"
+                f"\033[32m{AbstractAskTellOptimizer.ask.__doc__}\033[0m\n"
+                "The description of `tell` method is as follows:\n"
+                f"\033[32m{AbstractAskTellOptimizer.tell.__doc__}\033[0m\n"
+                f"See {example_url} for more details."
             )
 
         worker_id = 0

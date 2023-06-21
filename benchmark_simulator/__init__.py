@@ -1,10 +1,5 @@
-from benchmark_simulator._constants import ObjectiveFuncType
-from benchmark_simulator.simulator import (
-    AbstractAskTellOptimizer,
-    AskTellWorkerManager,
-    CentralWorkerManager,
-    ObjectiveFuncWorker,
-)
+from benchmark_simulator._constants import AbstractAskTellOptimizer, ObjectiveFuncType
+from benchmark_simulator.simulator import AskTellWorkerManager, CentralWorkerManager, ObjectiveFuncWorker
 
 
 __version__ = "1.1.0"

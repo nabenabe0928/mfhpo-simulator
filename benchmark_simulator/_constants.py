@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Final, Protocol
@@ -40,6 +41,15 @@ class _InfoPaths:
     worker_cumtime: str
     timestamp: str
     timenow: str
+
+
+@dataclass(frozen=True)
+class _ResultData:
+    cumtime: float
+    eval_config: dict[str, Any]
+    results: dict[str, float]
+    fidels: dict[str, int | float]
+    seed: int | None
 
 
 class _SharedDataFileNames(Enum):
@@ -96,6 +106,53 @@ class _WorkerVars:
 
 
 _TIME_VALUES = _TimeValue()
+
+
+class AbstractAskTellOptimizer(metaclass=ABCMeta):
+    @abstractmethod
+    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None]:
+        """
+        The ask method to sample a configuration using an optimizer.
+
+        Args:
+            None
+
+        Returns:
+            (eval_config, fidels) (tuple[dict[str, Any], dict[str, int | float] | None]):
+                * eval_config (dict[str, Any]):
+                    The configuration to evaluate.
+                    The key is the hyperparameter name and its value is the corresponding hyperparameter value.
+                    For example, when returning {"alpha": 0.1, "beta": 0.3}, the objective function evaluates
+                    the hyperparameter configuration with alpha=0.1 and beta=0.3.
+                * fidels (dict[str, int | float] | None):
+                    The fidelity parameters to be used for the evaluation of the objective function.
+                    If not multi-fidelity optimization, simply return None.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def tell(
+        self,
+        eval_config: dict[str, Any],
+        results: dict[str, float],
+        *,
+        fidels: dict[str, int | float] | None,
+    ) -> None:
+        """
+        The tell method to register for a tuple of configuration, fidelity, and the results to an optimizer.
+
+        Args:
+            eval_config (dict[str, Any]):
+                The evaluated configuration.
+            results (dict[str, float]):
+                The dict of the return values from the objective function.
+            fidels (dict[str, int | float] | None):
+                The fidelity parameters used in the evaluation.
+
+        Returns:
+            None
+        """
+        raise NotImplementedError
 
 
 class ObjectiveFuncType(Protocol):
