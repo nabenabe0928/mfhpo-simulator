@@ -11,8 +11,11 @@ dehb==0.0.5
 # NEPS
 neural-pipeline-search==0.8.3
 
+# Optuna
+optuna==3.1.0
+
 # Benchmark
-mfhpo-benchmark-api>=2.0.0
+mfhpo-benchmark-api[full]>=2.0.0
 
 # For local check
 pytest-cov

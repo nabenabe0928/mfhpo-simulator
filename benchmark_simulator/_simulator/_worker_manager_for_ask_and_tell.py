@@ -199,7 +199,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
                         opt.tell(eval_config, results, fidels)
         """
         if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
-            example_url = "https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/"
+            example_url = "https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/ask_and_tell"
             raise ValueError(
                 "opt must have `ask` and `tell` methods.\n"
                 f"Inherit `{AbstractAskTellOptimizer.__name__}` and \n"
