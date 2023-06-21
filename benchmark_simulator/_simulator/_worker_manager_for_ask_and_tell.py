@@ -36,6 +36,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
         self._intermediate_states: dict[int, list[_StateType]] = {}
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
+        self._pending_trial_ids: list[int | None] = [None] * self._wrapper_vars.n_workers
         self._seen_config_keys: list[str] = []
         self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
         self._results.update({k: [] for k in self._obj_keys})
@@ -109,6 +110,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         eval_config: dict[str, Any],
         worker_id: int,
         fidels: dict[str, int | float] | None,
+        trial_id: int,
     ) -> None:
         _validate_fidels(
             fidels=fidels,
@@ -119,6 +121,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         results, seed = self._proc(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]
+        self._pending_trial_ids[worker_id] = trial_id
         self._pending_results[worker_id] = _ResultData(
             cumtime=self._cumtimes[worker_id],
             eval_config=eval_config,
@@ -164,13 +167,19 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         return eval_config, fidels
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
-        result_data = self._pending_results[worker_id]
+        result_data, trial_id = self._pending_results[worker_id], self._pending_trial_ids[worker_id]
         if result_data is None:
             return
 
         self._record_result_data(result_data=result_data, worker_id=worker_id)
-        opt.tell(eval_config=result_data.eval_config, results=result_data.results, fidels=result_data.fidels)
-        self._pending_results[worker_id] = None
+        assert trial_id is not None  # mypy redefinition
+        opt.tell(
+            eval_config=result_data.eval_config,
+            results=result_data.results,
+            fidels=result_data.fidels,
+            trial_id=trial_id,
+        )
+        self._pending_results[worker_id], self._pending_trial_ids[worker_id] = None, None
 
     def _save_results(self) -> None:
         with open(self._paths.result, mode="w") as f:
@@ -212,9 +221,9 @@ class AskTellWorkerManager(_BaseWrapperInterface):
             )
 
         worker_id = 0
-        for _ in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
+        for trial_id in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
             eval_config, fidels = self._ask_with_timer(opt=opt, worker_id=worker_id)
-            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
+            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels, trial_id=trial_id)
             worker_id = np.argmin(self._cumtimes)
             self._tell_pending_result(opt=opt, worker_id=worker_id)
 

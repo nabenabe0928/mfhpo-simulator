@@ -65,7 +65,7 @@ def test_error_fidel_in_call():
         **kwargs,
     )
     with pytest.raises(ValueError, match="Objective function did not get keyword `fidels`*"):
-        worker._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)
+        worker._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None, trial_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -75,10 +75,10 @@ def test_error_fidel_in_call():
         obj_func=dummy_no_fidel_func,
         **kwargs,
     )
-    worker._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)  # no error without fidel!
+    worker._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None, trial_id=0)  # no error without fidel!
     # Objective function got keyword `fidels`
     with pytest.raises(ValueError, match="Objective function got keyword `fidels`*"):
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 0}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 0}, worker_id=0, trial_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -116,7 +116,7 @@ def test_errors_in_proc_output():
             obj_func=dummy_func,
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0, trial_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -127,7 +127,7 @@ def test_errors_in_proc_output():
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1.0}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1.0}, worker_id=0, trial_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -137,7 +137,7 @@ def test_errors_in_proc_output():
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": -1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": -1}, worker_id=0, trial_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -149,7 +149,7 @@ def test_errors_in_proc_output():
             obj_func=dummy_func,
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0, trial_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -161,7 +161,7 @@ def test_errors_in_proc_output():
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0, trial_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -177,7 +177,7 @@ def test_error_in_keys():
             obj_keys=["dummy_loss"],
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0, trial_id=0)
 
     shutil.rmtree(worker.dir_name)
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
@@ -186,7 +186,7 @@ def test_error_in_keys():
             runtime_key="dummy_runtime",
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0, trial_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -196,7 +196,7 @@ def test_error_in_keys():
             obj_keys=["dummy_loss", "loss"],
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0, trial_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -213,7 +213,7 @@ def test_call_with_many_fidelities():
     )
 
     for i in range(15):
-        worker._proc_obj_func(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i}, worker_id=0)
+        worker._proc_obj_func(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i}, worker_id=0, trial_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -276,6 +276,10 @@ class _DummyWithoutTell:
         pass
 
 
+class _DummyWithoutAnything:
+    pass
+
+
 def test_call_considering_state():  # from here
     n_evals = 21
     kwargs = DEFAULT_KWARGS.copy()
@@ -289,7 +293,7 @@ def test_call_considering_state():  # from here
         if k == -1:
             # max-fidel and thus no need to cache
             eval_config, fidels = worker._ask_with_timer(opt=opt, worker_id=0)
-            worker._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
+            worker._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels, trial_id=k + 1)
             worker._tell_pending_result(opt=opt, worker_id=0)
             assert len(worker._intermediate_states) == 0
             continue
@@ -297,7 +301,7 @@ def test_call_considering_state():  # from here
         i, j = k // 2, k % 2
         last = (i == 9) and (j == 1)
         eval_config, fidels = worker._ask_with_timer(opt=opt, worker_id=0)
-        worker._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
+        worker._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels, trial_id=k + 1)
         worker._tell_pending_result(opt=opt, worker_id=0)
 
         states = worker._intermediate_states
@@ -352,6 +356,8 @@ def test_error_in_opt():
         worker.simulate(_DummyWithoutAsk())
     with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):
         worker.simulate(_DummyWithoutTell())
+    with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):
+        worker.simulate(_DummyWithoutAnything())
 
 
 if __name__ == "__main__":

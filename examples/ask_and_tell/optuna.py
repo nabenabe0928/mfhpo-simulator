@@ -10,6 +10,7 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 
 class RandomOptimizer:
+    # https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html
     def __init__(self, config_space: CS.ConfigurationSpace, max_fidels: dict[str, int | float]):
         self._config_space = config_space
         self._max_fidels = max_fidels

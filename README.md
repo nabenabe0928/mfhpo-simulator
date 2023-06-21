@@ -132,7 +132,7 @@ The benefits of this option are:
 
 You can run the example via:
 ```shell
-$ python -m examples.random_with_ask_and_tell --bench_name branin --seed 0 --n_workers 4
+$ python -m examples.ask_and_tell.random --bench_name branin --seed 0 --n_workers 4
 ```
 
 ## Citation
