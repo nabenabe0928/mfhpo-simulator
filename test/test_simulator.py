@@ -221,7 +221,7 @@ def test_call_with_many_fidelities():
 
     for i in range(15):
         results = worker(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i})
-        if i >= n_evals:
+        if i >= n_evals:  # finish --> should be inf!
             assert all(v > 1000 for v in results.values())
 
     shutil.rmtree(worker.dir_name)
@@ -239,7 +239,7 @@ def test_call_with_data():
     data = np.ones(100)
     for i in range(15):
         results = worker(eval_config={"x": i}, fidels={"epoch": i}, data=data)
-        if i >= n_evals:
+        if i >= n_evals:  # finish --> should be inf!
             assert all(v > 1000 for v in results.values())
 
     shutil.rmtree(worker.dir_name)
@@ -260,7 +260,7 @@ def test_call():
 
     for i in range(15):
         results = worker(eval_config={"x": i}, fidels={"epoch": i})
-        if i >= n_evals:
+        if i >= n_evals:  # finish --> should be inf!
             assert all(v > 1000 for v in results.values())
 
     shutil.rmtree(worker.dir_name)

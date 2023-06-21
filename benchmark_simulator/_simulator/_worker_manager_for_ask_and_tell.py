@@ -19,6 +19,7 @@ import numpy as np
 
 class AskTellWorkerManager(_BaseWrapperInterface):
     def _init_wrapper(self) -> None:
+        os.makedirs(self.dir_name, exist_ok=True)
         self._worker_vars = _WorkerVars(
             continual_eval=self._wrapper_vars.continual_max_fidel is not None,
             use_fidel=self._wrapper_vars.fidel_keys is not None,
@@ -56,12 +57,14 @@ class AskTellWorkerManager(_BaseWrapperInterface):
     def _pop_old_state(self, config_hash: int, fidel: int, worker_id: int) -> _StateType | None:
         prev_state_index = self._fetch_prev_state_index(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
         if prev_state_index is None:
-            if config_hash not in self._intermediate_states:
-                self._intermediate_states[config_hash] = []
-
             return None
 
-        return self._intermediate_states[config_hash].pop(prev_state_index)
+        old_state = self._intermediate_states[config_hash].pop(prev_state_index)
+        if len(self._intermediate_states[config_hash]) == 0:
+            # Remove the empty set
+            self._intermediate_states.pop(config_hash)
+
+        return old_state
 
     def _proc(
         self,
@@ -78,7 +81,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
 
         fidel = _validate_fidels_continual(fidels)
         runtime_key = self._wrapper_vars.runtime_key
-        config_hash: int = hash(str(eval_config))
+        config_hash = int(hash(str(eval_config)))
         seed = self._fetch_prev_seed(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
         results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
@@ -94,7 +97,10 @@ class AskTellWorkerManager(_BaseWrapperInterface):
                 fidel=fidel,
                 seed=old_state.seed,
             )
-            self._intermediate_states[config_hash].append(new_state)
+            if config_hash in self._intermediate_states:
+                self._intermediate_states[config_hash].append(new_state)
+            else:
+                self._intermediate_states[config_hash] = [new_state]
 
         return results, seed
 
@@ -167,7 +173,6 @@ class AskTellWorkerManager(_BaseWrapperInterface):
         self._pending_results[worker_id] = None
 
     def _save_results(self) -> None:
-        os.makedirs(self.dir_name, exist_ok=True)
         with open(self._paths.result, mode="w") as f:
             json.dump({k: np.asarray(v).tolist() for k, v in self._results.items()}, f, indent=4)
 
@@ -207,7 +212,7 @@ class AskTellWorkerManager(_BaseWrapperInterface):
             )
 
         worker_id = 0
-        for _ in range(self._wrapper_vars.n_evals):
+        for _ in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
             eval_config, fidels = self._ask_with_timer(opt=opt, worker_id=worker_id)
             self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
             worker_id = np.argmin(self._cumtimes)
