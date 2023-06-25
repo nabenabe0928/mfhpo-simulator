@@ -21,6 +21,9 @@ class CentralWorkerManager(_BaseWrapperInterface):
     For example, Dask, multiprocessing, and joblib would need this class.
     This class recognizes each worker by process ID.
     Therefore, process ID for each worker must be always unique and identical.
+
+    Note:
+        See benchmark_simulator/simulator.py to know variables shared across workers.
     """
 
     def _init_wrapper(self) -> None:

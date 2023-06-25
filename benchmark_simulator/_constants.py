@@ -137,7 +137,6 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
         results: dict[str, float],
         *,
         fidels: dict[str, int | float] | None,
-        trial_id: int,
     ) -> None:
         """
         The tell method to register for a tuple of configuration, fidelity, and the results to an optimizer.
@@ -149,9 +148,6 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
                 The dict of the return values from the objective function.
             fidels (dict[str, int | float] | None):
                 The fidelity parameters used in the evaluation.
-            trial_id (int):
-                The ID of the config.
-                Users can optionally use this ID to associate any user-side objects.
 
         Returns:
             None

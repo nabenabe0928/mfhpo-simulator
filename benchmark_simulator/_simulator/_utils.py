@@ -1,5 +1,23 @@
 from __future__ import annotations
 
+from benchmark_simulator._constants import AbstractAskTellOptimizer
+
+
+def _validate_opt_class(opt: AbstractAskTellOptimizer) -> None:
+    if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
+        example_url = "https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/ask_and_tell/"
+        opt_cls = AbstractAskTellOptimizer
+        error_lines = [
+            "opt must have `ask` and `tell` methods.",
+            f"Inherit `{opt_cls.__name__}` and encapsulate your optimizer instance in the child class.",
+            "The description of `ask` method is as follows:",
+            f"\033[32m{opt_cls.ask.__doc__}\033[0m",
+            "The description of `tell` method is as follows:",
+            f"\033[32m{opt_cls.tell.__doc__}\033[0m",
+            f"See {example_url} for more details.",
+        ]
+        raise ValueError("\n".join(error_lines))
+
 
 def _validate_fidel_args(continual_eval: bool, fidel_keys: list[str]) -> None:
     # Guarantee the sufficiency: continual_eval ==> len(fidel_keys) == 1

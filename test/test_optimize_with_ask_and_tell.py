@@ -62,7 +62,6 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
         results: dict[str, float],
         *,
         fidels: dict[str, int | float] | None,
-        trial_id: int,
     ) -> None:
         pass
 
