@@ -12,7 +12,7 @@ dehb==0.0.5
 neural-pipeline-search==0.8.3
 
 # Optuna
-optuna==3.1.0
+optuna>=3.1.0
 
 # Benchmark
 mfhpo-benchmark-api[full]>=2.0.0
