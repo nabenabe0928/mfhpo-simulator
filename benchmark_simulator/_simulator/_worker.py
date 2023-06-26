@@ -140,7 +140,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         _record_timestamp(
             path=self._paths.timestamp,
             worker_id=worker_id,
-            prev_timestamp=time.time(),
+            prev_timestamp=wait_start,
             waited_time=time.time() - wait_start,
             lock=self._lock,
         )
