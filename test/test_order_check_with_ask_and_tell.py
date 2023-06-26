@@ -16,6 +16,7 @@ SUBDIR_NAME = "dummy"
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 N_EVALS = 20
+UNIT_TIME = 5e-3
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
     n_workers=2,
@@ -38,9 +39,9 @@ class OrderCheckConfigsWithSampleLatency:
 
     def __init__(self):
         loss_vals = [i for i in range(6)]
-        runtimes = [300, 200, 600, 200, 200, 400]
-        self._results = [dict(loss=loss, runtime=runtime / 1000) for loss, runtime in zip(loss_vals, runtimes)]
-        self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) / 1000
+        runtimes = np.array([300, 200, 600, 200, 200, 400]) * UNIT_TIME
+        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
         results = self._results[eval_config["index"]]
@@ -163,9 +164,9 @@ def optimize_parallel(n_workers: int):
     path = manager.dir_name
     out = json.load(open(os.path.join(path, "results.json")))["cumtime"][:N_EVALS]
     shutil.rmtree(path)
-    diffs = out - np.maximum.accumulate(out)
+    diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-    diffs = out - target._ans
+    diffs = np.abs(out - target._ans)
     assert np.all(diffs < 1)  # 1 is just a buffer.
 
 
@@ -184,16 +185,15 @@ def test_optimize_with_latency():
     kwargs["n_workers"] = n_workers
     target = OrderCheckConfigsWithSampleLatency()
     manager = AskTellWorkerManager(obj_func=target, **kwargs)
-    manager.simulate(MyOptimizer(0.2, max_count=n_evals))
+    manager.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals))
 
     path = manager.dir_name
     out = json.load(open(os.path.join(path, "results.json")))["cumtime"][:n_evals]
     shutil.rmtree(path)
-    diffs = out - np.maximum.accumulate(out)
+    diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-    diffs = out - target._ans
-    print(out)
-    assert np.all(diffs < 0.1)  # 100 ms is just a buffer.
+    diffs = np.abs(out - target._ans)
+    assert np.all(diffs < UNIT_TIME * 100)  # Right hand side is not zero, because need some buffer.
 
 
 if __name__ == "__main__":

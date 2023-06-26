@@ -88,7 +88,7 @@ def test_random_with_ask_and_tell():
     )
     worker.simulate(opt)
     out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     shutil.rmtree(worker.dir_name)
 
@@ -116,7 +116,7 @@ def test_random_with_ask_and_tell_store_config():
     )
     worker.simulate(opt)
     out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     assert all(k in list(out.keys()) for k in bench.config_space)
     for k in out.keys():
@@ -150,7 +150,7 @@ def test_random_with_ask_and_tell_continual_eval():
     )
     worker.simulate(opt)
     out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     for k in out.keys():
         assert diffs.size == len(out[k])
@@ -180,7 +180,7 @@ def test_random_with_ask_and_tell_many_parallel():
     )
     worker.simulate(opt)
     out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     shutil.rmtree(worker.dir_name)
 

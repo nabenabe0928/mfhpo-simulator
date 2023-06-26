@@ -494,7 +494,7 @@ def test_optimize_parallel():
     path = manager.dir_name
     out = json.load(open(os.path.join(path, "results.json")))
     shutil.rmtree(path)
-    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
 
 

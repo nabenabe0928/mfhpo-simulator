@@ -95,7 +95,7 @@ def test_dehb():
     dehb.run(fevals=n_actual_evals_in_opt)
     out = json.load(open(os.path.join(path, "results.json")))
     shutil.rmtree(path)
-    diffs = out["cumtime"] - np.maximum.accumulate(out["cumtime"])
+    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     shutil.rmtree("dehb-log")
 

@@ -17,6 +17,7 @@ SUBDIR_NAME = "dummy"
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 N_EVALS = 20
+UNIT_TIME = 5e-3
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
     n_workers=2,
@@ -39,9 +40,9 @@ class OrderCheckConfigsWithSampleLatency:
 
     def __init__(self):
         loss_vals = [i for i in range(9)]
-        runtimes = [500, 600, 600, 200, 200, 400, 200, 200, 200]
-        self._results = [dict(loss=loss, runtime=runtime / 1000) for loss, runtime in zip(loss_vals, runtimes)]
-        self._ans = np.array([500, 600, 1100, 1300, 1500, 1900, 1900, 2300, 2500]) / 1000
+        runtimes = np.array([500, 600, 600, 200, 200, 400, 200, 200, 200]) * UNIT_TIME
+        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._ans = np.array([500, 600, 1100, 1300, 1500, 1900, 1900, 2300, 2500]) * UNIT_TIME
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
         results = self._results[eval_config["index"]]
@@ -174,7 +175,7 @@ def test_optimize_parallel():
 
 class CentralWorkerManagerWithSampleLatency(CentralWorkerManager):
     def __call__(self, eval_config, **kwargs):
-        time.sleep(0.2)
+        time.sleep(UNIT_TIME * 200)
         super().__call__(eval_config, **kwargs)
 
 
@@ -205,8 +206,8 @@ def test_optimize_with_latency():
     shutil.rmtree(path)
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
-    diffs = out - target._ans
-    assert np.all(diffs < 0.1)  # 100 ms is just a buffer.
+    diffs = np.abs(out - target._ans)
+    assert np.all(diffs < UNIT_TIME * 100)  # Right hand side is not zero, because need some buffer.
 
 
 if __name__ == "__main__":
