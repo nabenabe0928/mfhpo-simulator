@@ -14,12 +14,6 @@ INF: Final[float] = float(1 << 30)
 
 
 @dataclass(frozen=True)
-class _TimeStampDictType:
-    prev_timestamp: float
-    waited_time: float
-
-
-@dataclass(frozen=True)
 class _TimeNowDictType:
     before_sample: float
     after_sample: float

@@ -10,7 +10,6 @@ from benchmark_simulator._constants import (
     _StateType,
     _TIME_VALUES,
     _TimeNowDictType,
-    _TimeStampDictType,
 )
 from benchmark_simulator._utils import _SecureLock
 
@@ -75,10 +74,10 @@ def _record_cumtime(path: str, worker_id: str, cumtime: float, lock: _SecureLock
         json.dump(record, f, indent=4)
 
 
-def _record_timestamp(path: str, worker_id: str, prev_timestamp: float, waited_time: float, lock: _SecureLock) -> None:
+def _record_timestamp(path: str, worker_id: str, prev_timestamp: float, lock: _SecureLock) -> None:
     with lock.edit(path) as f:
         record = json.load(f)
-        record[worker_id] = dict(prev_timestamp=prev_timestamp, waited_time=waited_time)
+        record[worker_id] = prev_timestamp
         f.seek(0)
         json.dump(record, f, indent=4)
 
@@ -134,9 +133,9 @@ def _fetch_cumtimes(path: str, lock: _SecureLock) -> dict[str, float]:
     return cumtimes
 
 
-def _fetch_timestamps(path: str, lock: _SecureLock) -> dict[str, _TimeStampDictType]:
+def _fetch_timestamps(path: str, lock: _SecureLock) -> dict[str, float]:
     with lock.read(path) as f:
-        timestamps = {th: _TimeStampDictType(**ts_dict) for th, ts_dict in json.load(f).items()}
+        timestamps = json.load(f)
 
     return timestamps
 
@@ -198,7 +197,7 @@ def _is_min_cumtime(path: str, worker_id: str, lock: _SecureLock) -> bool:
 
 
 def _start_timestamp(path: str, worker_id: str, prev_timestamp: float, lock: _SecureLock) -> None:
-    _record_timestamp(path=path, worker_id=worker_id, prev_timestamp=time.time(), waited_time=0.0, lock=lock)
+    _record_timestamp(path=path, worker_id=worker_id, prev_timestamp=time.time(), lock=lock)
 
 
 def _start_worker_timer(path: str, worker_id: str, lock: _SecureLock) -> None:

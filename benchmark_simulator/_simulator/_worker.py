@@ -9,7 +9,6 @@ from benchmark_simulator._constants import (
     _StateType,
     _TIME_VALUES,
     _TimeNowDictType,
-    _TimeStampDictType,
     _WorkerVars,
 )
 from benchmark_simulator._secure_proc import (
@@ -128,20 +127,17 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         The smallest cumulative runtime implies that the order in the record will not disturbed
         even if the worker reports its results now.
         """
-        wait_start, worker_id = time.time(), self._worker_vars.worker_id
-        max_waiting_time = self._wrapper_vars.max_waiting_time
         _wait_until_next(
             path=self._paths.worker_cumtime,
-            worker_id=worker_id,
-            max_waiting_time=max_waiting_time,
+            worker_id=self._worker_vars.worker_id,
+            max_waiting_time=self._wrapper_vars.max_waiting_time,
             waiting_time=self._wrapper_vars.check_interval_time,
             lock=self._lock,
         )
         _record_timestamp(
             path=self._paths.timestamp,
-            worker_id=worker_id,
-            prev_timestamp=wait_start,
-            waited_time=time.time() - wait_start,
+            worker_id=self._worker_vars.worker_id,
+            prev_timestamp=time.time(),
             lock=self._lock,
         )
 
@@ -224,27 +220,26 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         if _is_simulator_terminated(self._paths.result, max_evals=self._wrapper_vars.n_evals, lock=self._lock):
             self._finish()
 
-    def _load_timestamps(self) -> _TimeStampDictType:
+    def _load_timestamps(self) -> float:
         timestamp_dict = _fetch_timestamps(self._paths.timestamp, lock=self._lock)
         worker_id = self._worker_vars.worker_id
         if worker_id not in timestamp_dict:  # Initialize the timestamp
-            init_timestamp = _TimeStampDictType(prev_timestamp=time.time(), waited_time=0.0)
+            timestamp = time.time()
             _start_timestamp(
                 path=self._paths.timestamp,
                 worker_id=worker_id,
-                prev_timestamp=init_timestamp.prev_timestamp,
+                prev_timestamp=timestamp,
                 lock=self._lock,
             )
-            return init_timestamp
+            return timestamp
 
-        timestamp = timestamp_dict[worker_id]
         timenow_data = _fetch_timenow(path=self._paths.timenow, lock=self._lock)
         cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
         # Consider the sampling time overlap
         self._cumtime = max(cumtime, np.max(timenow_data["after_sample"][timenow_data["before_sample"] <= cumtime]))
         self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
-        return timestamp
+        return timestamp_dict[worker_id]
 
     def __call__(
         self,
@@ -278,7 +273,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
         """
-        timestamp = self._load_timestamps()
+        prev_timestamp = self._load_timestamps()
         self._validate()
         _validate_fidels(
             fidels=fidels,
@@ -289,7 +284,7 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         if self._terminated:
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 
-        sampling_time = max(0.0, time.time() - timestamp.prev_timestamp - timestamp.waited_time)
+        sampling_time = max(0.0, time.time() - prev_timestamp)
         timenow_data = _TimeNowDictType(before_sample=self._cumtime, after_sample=self._cumtime + sampling_time)
         _record_timenow(path=self._paths.timenow, timenow_data=timenow_data, lock=self._lock)
 

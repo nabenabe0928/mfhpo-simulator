@@ -59,12 +59,11 @@ This file tells you how much time each worker virtually spends in the simulation
 and we need this information to manage the order of job allocations to each worker.
 
 5. mfhpo-simulator-info/*/timestamp.json
-    * worker1_id -- {"prev_timestamp": prev_timestamp1, "waited_time": waited_time1}
-    * worker2_id -- {"prev_timestamp": prev_timestamp2, "waited_time": waited_time2}
+    * worker1_id -- prev_timestamp1
+    * worker2_id -- prev_timestamp2
     :
-    * workerN_id -- {"prev_timestamp": prev_timestampN, "waited_time": waited_timeN}
-This file tells the last checkpoint timestamp of each worker (prev_timestamp) and
-how much time each worker waited for other workers in the last call.
+    * workerN_id -- prev_timestampN
+This file tells the last checkpoint timestamp of each worker (prev_timestamp).
 
 6. mfhpo-simulator-info/*/timenow.json
     * before_sample -- [time1 before sample, time2 before sample, ...]
