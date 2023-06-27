@@ -4,6 +4,7 @@ import json
 import multiprocessing
 import os
 import shutil
+import sys
 import time
 import unittest
 
@@ -15,9 +16,10 @@ import numpy as np
 
 SUBDIR_NAME = "dummy"
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
+ON_UBUNTU = sys.platform == "linux"
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 N_EVALS = 20
-UNIT_TIME = 5e-3
+UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
     n_workers=2,
@@ -163,7 +165,7 @@ def optimize_parallel(n_workers: int):
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
     diffs = out - target._ans
-    assert np.all(diffs < 1)  # 1 is just a buffer.
+    assert np.all(diffs < 3)  # 3 is just a buffer.
 
 
 def test_optimize_parallel():

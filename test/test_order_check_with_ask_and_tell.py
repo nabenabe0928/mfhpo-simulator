@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import time
 import unittest
 
@@ -14,9 +15,10 @@ import numpy as np
 
 SUBDIR_NAME = "dummy"
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
+ON_UBUNTU = sys.platform == "linux"
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 N_EVALS = 20
-UNIT_TIME = 5e-3
+UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
     n_workers=2,
