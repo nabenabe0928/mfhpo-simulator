@@ -12,7 +12,7 @@ from typing import Any
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator._secure_proc import _wait_until_next
 from benchmark_simulator._utils import _SecureLock
-from benchmark_simulator.simulator import CentralWorkerManager
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
@@ -70,7 +70,7 @@ def test_timeout_error_by_wait():
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
-    manager = CentralWorkerManager(obj_func=dummy_func_with_wait, max_waiting_time=0.5, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func_with_wait, max_waiting_time=0.5, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []
@@ -122,7 +122,7 @@ def test_timeout_error_by_duplicated_worker():
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
-    manager = CentralWorkerManager(obj_func=dummy_func_with_crash, max_waiting_time=0.5, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func_with_crash, max_waiting_time=0.5, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = {}
@@ -177,7 +177,7 @@ def test_timeout_error_by_pseudo_crash():
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
-    manager = CentralWorkerManager(obj_func=dummy_func_with_pseudo_crash, max_waiting_time=0.5, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func_with_pseudo_crash, max_waiting_time=0.5, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = {}
@@ -210,7 +210,7 @@ def test_timeout_error_by_pseudo_crash_at_intermidiate():
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
-    manager = CentralWorkerManager(obj_func=dummy_func_with_pseudo_crash, max_waiting_time=0.5, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func_with_pseudo_crash, max_waiting_time=0.5, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = {}

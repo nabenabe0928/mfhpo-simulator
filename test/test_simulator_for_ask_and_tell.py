@@ -7,7 +7,7 @@ import unittest
 from typing import Any
 
 from benchmark_simulator._constants import AbstractAskTellOptimizer, DIR_NAME
-from benchmark_simulator.simulator import AskTellWorkerManager
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
@@ -17,6 +17,7 @@ IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
+    ask_and_tell=True,
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
@@ -60,25 +61,25 @@ def dummy_func_with_many_fidelities(
 
 def test_error_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
         **kwargs,
     )
     with pytest.raises(ValueError, match="Objective function did not get keyword `fidels`*"):
-        worker._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)
 
     shutil.rmtree(worker.dir_name)
 
     kwargs.pop("continual_max_fidel")
     kwargs.pop("fidel_keys")
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
         **kwargs,
     )
-    worker._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)  # no error without fidel!
+    worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)  # no error without fidel!
     # Objective function got keyword `fidels`
     with pytest.raises(ValueError, match="Objective function got keyword `fidels`*"):
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 0}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 0}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -87,7 +88,7 @@ def test_guarantee_no_hang():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_actual_evals_in_opt"] = 10
     with pytest.raises(ValueError, match="Cannot guarantee that optimziers will not hang"):
-        AskTellWorkerManager(
+        ObjectiveFuncWrapper(
             obj_func=dummy_no_fidel_func,
             **kwargs,
         )
@@ -100,7 +101,7 @@ def test_validate_fidel_args():
     for fidel_keys in [None, ["a", "b"], []]:
         kwargs["fidel_keys"] = fidel_keys
         with pytest.raises(ValueError, match="continual_max_fidel is valid only if fidel_keys has only one element*"):
-            AskTellWorkerManager(
+            ObjectiveFuncWrapper(
                 obj_func=dummy_no_fidel_func,
                 **kwargs,
             )
@@ -112,32 +113,32 @@ def test_errors_in_proc_output():
     kwargs = DEFAULT_KWARGS.copy()
     # fidels is None or len(fidels.values()) != 1
     with pytest.raises(ValueError, match="fidels must have only one element*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
 
     # Fidelity for continual evaluation must be integer
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1.0}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1.0}, worker_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
 
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": -1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": -1}, worker_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -145,11 +146,11 @@ def test_errors_in_proc_output():
     kwargs.pop("continual_max_fidel")
     # The keys in fidels must be identical to fidel_keys
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -157,11 +158,11 @@ def test_errors_in_proc_output():
     kwargs["fidel_keys"] = ["dummy-fidel"]
     # The keys in fidels must be identical to fidel_keys
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
 
     if os.path.exists(PATH):
         shutil.rmtree(PATH)
@@ -172,31 +173,31 @@ def test_error_in_keys():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals)
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
             obj_keys=["dummy_loss"],
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
             runtime_key="dummy_runtime",
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
-        worker = AskTellWorkerManager(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
             obj_keys=["dummy_loss", "loss"],
             **kwargs,
         )
-        worker._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -207,13 +208,13 @@ def test_call_with_many_fidelities():
     kwargs.update(n_evals=n_evals)
     kwargs["fidel_keys"] = ["z1", "z2", "z3"]
     kwargs.pop("continual_max_fidel")
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_func_with_many_fidelities,
         **kwargs,
     )
 
     for i in range(15):
-        worker._proc_obj_func(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -284,7 +285,7 @@ def test_call_considering_state():  # from here
     n_evals = 21
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals, n_actual_evals_in_opt=22)
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_func,
         **kwargs,
     )
@@ -292,19 +293,19 @@ def test_call_considering_state():  # from here
     for k in range(-1, 20):
         if k == -1:
             # max-fidel and thus no need to cache
-            eval_config, fidels = worker._ask_with_timer(opt=opt, worker_id=0)
-            worker._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
-            worker._tell_pending_result(opt=opt, worker_id=0)
-            assert len(worker._intermediate_states) == 0
+            eval_config, fidels = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
+            worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
+            worker._main_wrapper._tell_pending_result(opt=opt, worker_id=0)
+            assert len(worker._main_wrapper._intermediate_states) == 0
             continue
 
         i, j = k // 2, k % 2
         last = (i == 9) and (j == 1)
-        eval_config, fidels = worker._ask_with_timer(opt=opt, worker_id=0)
-        worker._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
-        worker._tell_pending_result(opt=opt, worker_id=0)
+        eval_config, fidels = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
+        worker._main_wrapper._tell_pending_result(opt=opt, worker_id=0)
 
-        states = worker._intermediate_states
+        states = worker._main_wrapper._intermediate_states
         assert len(states) == int(not last)
 
         if last:
@@ -324,7 +325,7 @@ def test_store_config():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = 4
     kwargs["n_actual_evals_in_opt"] = 15
-    worker = AskTellWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+    worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
     worker.simulate(_DummyOpt())
 
     results = json.load(open(os.path.join(worker.dir_name, "results.json")))
@@ -339,7 +340,7 @@ def test_store_config_with_conditional():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = 4
     kwargs["n_actual_evals_in_opt"] = 15
-    worker = AskTellWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+    worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
     worker.simulate(_DummyOptCond())
     results = json.load(open(os.path.join(worker.dir_name, "results.json")))
     for k in ["seed", "epoch", "x", "y"]:
@@ -351,7 +352,7 @@ def test_store_config_with_conditional():
 def test_error_in_opt():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    worker = AskTellWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+    worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
     with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):
         worker.simulate(_DummyWithoutAsk())
     with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):

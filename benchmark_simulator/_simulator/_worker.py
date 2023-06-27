@@ -248,31 +248,6 @@ class ObjectiveFuncWorker(_BaseWrapperInterface):
         fidels: dict[str, int | float] | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
-        """The method to close the worker instance.
-        This method must be called before we finish the optimization.
-        If not called, optimization modules are likely to hang at the end.
-
-        Args:
-            eval_config (dict[str, Any]):
-                The configuration to be used in the objective function.
-            fidels (dict[str, int | float] | None):
-                The fidelities to be used in the objective function. Typically training epoch in deep learning.
-                If None, no-fidelity opt.
-            **data_to_scatter (Any):
-                Data to scatter across workers.
-                For example, when the objective function instance has a large file,
-                Dask, which is a typical module for parallel optimization, must serialize/deserialize
-                the objective function instances. It causes a significant bottleneck.
-                By using dask.scatter, we can avoid this problem and this kwargs serves for this purpose.
-                Note that since the handling of parallel workers vary depending on packages,
-                users must adapt by themselves.
-
-        Returns:
-            results (dict[str, float]):
-                The results of the objective function given the inputs.
-                It must have `objective metric` and `runtime` at least.
-                Otherwise, any other metrics are optional.
-        """
         prev_timestamp = self._load_timestamps()
         self._validate()
         _validate_fidels(

@@ -7,7 +7,7 @@ import sys
 import time
 import unittest
 
-from benchmark_simulator import AbstractAskTellOptimizer, AskTellWorkerManager
+from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 from benchmark_simulator._constants import DIR_NAME
 
 import numpy as np
@@ -21,6 +21,7 @@ N_EVALS = 20
 UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     subdir_name=SUBDIR_NAME,
+    ask_and_tell=True,
     n_workers=2,
     n_actual_evals_in_opt=N_EVALS + 5,
     n_evals=N_EVALS,
@@ -160,7 +161,7 @@ def optimize_parallel(n_workers: int):
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = n_workers
     target = OrderCheckConfigs(n_workers)
-    manager = AskTellWorkerManager(obj_func=target, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=target, **kwargs)
     manager.simulate(MyOptimizer())
 
     path = manager.dir_name
@@ -186,7 +187,7 @@ def test_optimize_with_latency():
     kwargs["n_evals"] = n_evals
     kwargs["n_workers"] = n_workers
     target = OrderCheckConfigsWithSampleLatency()
-    manager = AskTellWorkerManager(obj_func=target, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=target, **kwargs)
     manager.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals))
 
     path = manager.dir_name

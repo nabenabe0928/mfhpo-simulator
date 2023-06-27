@@ -117,7 +117,7 @@ Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interf
 
 ## Simulation Using Only the Main Process
 We first note that this class also takes the same arguments as the aforementioned two classes.
-However, this class is not a function wrapper anymore but is an optimizer wrapper so that we can control the right timing of the addition of data to the optimizer and of job allocation.
+However, this class wraps not only a function but also an optimizer so that we can control the right timing of the addition of data to the optimizer and of job allocation.
 
 While `CentralWorkerManager` and `ObjectiveFuncWorker` wrap objective function and users simply need to pass the wrapped function to the optimizer prepared by users, `AskTellWorkerManager` runs the simulation on the application side.
 Unlike the other worker wrappers, each objective function will not run in parallel.

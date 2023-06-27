@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from benchmark_simulator._constants import DIR_NAME
-from benchmark_simulator.simulator import CentralWorkerManager
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ConfigSpace as CS
 
@@ -54,7 +54,7 @@ class Wrapper:
         return ret_vals
 
 
-class DEHBCentralWorkerManager(CentralWorkerManager):
+class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):
     def __call__(self, config: dict[str, Any], budget: int, **data_to_scatter: Any) -> dict[str, float]:
         return super().__call__(eval_config=config, fidels={"epoch": int(budget)})
 
@@ -69,7 +69,7 @@ def test_dehb():
     if os.path.exists(path):
         shutil.rmtree(path)
 
-    worker = DEHBCentralWorkerManager(
+    worker = DEHBObjectiveFuncWrapper(
         obj_func=Wrapper(obj_func),
         n_workers=n_workers,
         continual_max_fidel=obj_func.max_fidel,

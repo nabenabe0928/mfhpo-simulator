@@ -8,7 +8,7 @@ from typing import Any
 
 from benchmark_apis import MFBranin
 
-from benchmark_simulator import AbstractAskTellOptimizer, AskTellWorkerManager
+from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 
 import ConfigSpace as CS
 
@@ -77,8 +77,9 @@ def test_random_with_ask_and_tell():
             max_fidels=bench.max_fidels,
         ),
     )
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         subdir_name=subdir_name,
+        ask_and_tell=True,
         n_workers=10,
         obj_func=bench,
         n_actual_evals_in_opt=411,
@@ -104,8 +105,9 @@ def test_random_with_ask_and_tell_store_config():
             max_fidels=bench.max_fidels,
         ),
     )
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         subdir_name=subdir_name,
+        ask_and_tell=True,
         n_workers=10,
         obj_func=bench,
         n_actual_evals_in_opt=411,
@@ -138,8 +140,9 @@ def test_random_with_ask_and_tell_continual_eval():
         ),
         very_random=True,
     )
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         subdir_name=subdir_name,
+        ask_and_tell=True,
         n_workers=10,
         obj_func=bench,
         n_actual_evals_in_opt=411,
@@ -169,8 +172,9 @@ def test_random_with_ask_and_tell_many_parallel():
             max_fidels=bench.max_fidels,
         ),
     )
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         subdir_name=subdir_name,
+        ask_and_tell=True,
         n_workers=1000,
         obj_func=bench,
         n_actual_evals_in_opt=11001,

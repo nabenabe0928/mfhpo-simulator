@@ -8,7 +8,7 @@ import sys
 import time
 import unittest
 
-from benchmark_simulator import CentralWorkerManager
+from benchmark_simulator import ObjectiveFuncWrapper
 from benchmark_simulator._constants import DIR_NAME
 
 import numpy as np
@@ -145,7 +145,7 @@ def optimize_parallel(n_workers: int):
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = n_workers
     target = OrderCheckConfigs(n_workers)
-    manager = CentralWorkerManager(obj_func=target, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=target, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []
@@ -175,7 +175,7 @@ def test_optimize_parallel():
     optimize_parallel(n_workers=2)
 
 
-class CentralWorkerManagerWithSampleLatency(CentralWorkerManager):
+class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
     def __call__(self, eval_config, **kwargs):
         time.sleep(UNIT_TIME * 200)
         super().__call__(eval_config, **kwargs)
@@ -188,7 +188,7 @@ def test_optimize_with_latency():
     kwargs["n_evals"] = n_evals
     kwargs["n_workers"] = n_workers
     target = OrderCheckConfigsWithSampleLatency()
-    manager = CentralWorkerManagerWithSampleLatency(obj_func=target, **kwargs)
+    manager = ObjectiveFuncWrapperWithSampleLatency(obj_func=target, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []

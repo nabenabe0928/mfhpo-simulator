@@ -178,27 +178,6 @@ class AskTellWorkerManager(_BaseWrapperInterface):
             json.dump({k: np.asarray(v).tolist() for k, v in self._results.items()}, f, indent=4)
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
-        """
-        Start the simulation using only the main process.
-        Unlike the other worker wrappers, each objective function will not run in parallel.
-        Instead, we internally simulate the cumulative runtime for each worker.
-        For this sake, the optimizer must take so-called ask-and-tell interface.
-        It means that optimizer can communicate with this class via `ask` and `tell` methods.
-        As long as the optimizer takes this interface, arbitrary optimizers can be used for this class.
-
-        Although this class may not be able to guarantee the exact behavior using parallel optimization,
-        this class is safer than the other wrappers because it is thread-safe.
-        Furthermore, if users want to try a large n_workers, this class is much safer and executable.
-
-        Args:
-            opt (AbstractAskTellOptimizer):
-                An optimizer that has `ask` and `tell` methods.
-                For example, if we run a sequential optimization, the expected loop looks like:
-                    for i in range(100):
-                        eval_config, fidels = opt.ask()
-                        results = obj_func(eval_config, fidels)
-                        opt.tell(eval_config, results, fidels)
-        """
         _validate_opt_class(opt)
         worker_id = 0
         for _ in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):

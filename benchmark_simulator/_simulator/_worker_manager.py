@@ -39,7 +39,7 @@ class CentralWorkerManager(_BaseWrapperInterface):
         pool = Pool()
         results = []
         for _ in range(self._wrapper_vars.n_workers):
-            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=self._wrapper_vars.__dict__))
+            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=dict(wrapper_vars=self._wrapper_vars)))
 
         pool.close()
         pool.join()
@@ -62,31 +62,6 @@ class CentralWorkerManager(_BaseWrapperInterface):
         fidels: dict[str, int | float] | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
-        """The meta-wrapper method of the objective function method in WorkerFunc instances.
-
-        This method recognizes each WorkerFunc by process ID and call the corresponding worker based on the ID.
-
-        Args:
-            eval_config (dict[str, Any]):
-                The configuration to be used in the objective function.
-            fidels (dict[str, int | float] | None):
-                The fidelities to be used in the objective function. Typically training epoch in deep learning.
-                If None, no-fidelity opt.
-            **data_to_scatter (Any):
-                Data to scatter across workers.
-                For example, when the objective function instance has a large file,
-                Dask, which is a typical module for parallel optimization, must serialize/deserialize
-                the objective function instances. It causes a significant bottleneck.
-                By using dask.scatter, we can avoid this problem and this kwargs serves for this purpose.
-                Note that since the handling of parallel workers vary depending on packages,
-                users must adapt by themselves.
-
-        Returns:
-            results (dict[str, float]):
-                The results of the objective function given the inputs.
-                It must have `objective metric` and `runtime` at least.
-                Otherwise, any other metrics are optional.
-        """
         pid = os.getpid()
         pid = threading.get_ident() if pid == self._main_pid else pid
         if len(self._pid_to_index) != self._wrapper_vars.n_workers:

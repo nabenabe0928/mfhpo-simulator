@@ -1,5 +1,5 @@
 from benchmark_simulator._constants import AbstractAskTellOptimizer, ObjectiveFuncType
-from benchmark_simulator.simulator import AskTellWorkerManager, CentralWorkerManager, ObjectiveFuncWorker
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 
 __version__ = "1.2.0"
@@ -12,8 +12,6 @@ __url__ = "https://github.com/nabenabe0928/mfhpo-simulator"
 
 __all__ = [
     "AbstractAskTellOptimizer",
-    "AskTellWorkerManager",
-    "CentralWorkerManager",
+    "ObjectiveFuncWrapper",
     "ObjectiveFuncType",
-    "ObjectiveFuncWorker",
 ]

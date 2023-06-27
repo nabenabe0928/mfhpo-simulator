@@ -8,7 +8,7 @@ import unittest
 from typing import Any
 
 from benchmark_simulator._constants import DIR_NAME, _TIME_VALUES
-from benchmark_simulator.simulator import CentralWorkerManager, ObjectiveFuncWorker
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import numpy as np
 
@@ -66,8 +66,9 @@ def dummy_func_with_many_fidelities(
 
 def test_error_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWorker(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
+        launch_multiple_workers_from_user_side=True,
         **kwargs,
     )
     # Objective function did not get keyword `fidels`
@@ -78,8 +79,9 @@ def test_error_fidel_in_call():
 
     kwargs.pop("continual_max_fidel")
     kwargs.pop("fidel_keys")
-    worker = ObjectiveFuncWorker(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
+        launch_multiple_workers_from_user_side=True,
         **kwargs,
     )
     worker(eval_config={"x": 0})  # no error without fidel!
@@ -94,8 +96,9 @@ def test_guarantee_no_hang():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_actual_evals_in_opt"] = 10
     with pytest.raises(ValueError, match="Cannot guarantee that optimziers will not hang"):
-        ObjectiveFuncWorker(
+        ObjectiveFuncWrapper(
             obj_func=dummy_no_fidel_func,
+            launch_multiple_workers_from_user_side=True,
             **kwargs,
         )
     if os.path.exists(PATH):
@@ -107,8 +110,9 @@ def test_validate_fidel_args():
     for fidel_keys in [None, ["a", "b"], []]:
         kwargs["fidel_keys"] = fidel_keys
         with pytest.raises(ValueError, match="continual_max_fidel is valid only if fidel_keys has only one element*"):
-            ObjectiveFuncWorker(
+            ObjectiveFuncWrapper(
                 obj_func=dummy_no_fidel_func,
+                launch_multiple_workers_from_user_side=True,
                 **kwargs,
             )
         if os.path.exists(PATH):
@@ -119,8 +123,9 @@ def test_errors_in_proc_output():
     kwargs = DEFAULT_KWARGS.copy()
     # fidels is None or len(fidels.values()) != 1
     with pytest.raises(ValueError, match="fidels must have only one element*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
+            launch_multiple_workers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
@@ -130,8 +135,9 @@ def test_errors_in_proc_output():
 
     # Fidelity for continual evaluation must be integer
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
+            launch_multiple_workers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1.0})
@@ -140,8 +146,9 @@ def test_errors_in_proc_output():
         shutil.rmtree(PATH)
 
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
+            launch_multiple_workers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": -1})
@@ -152,8 +159,9 @@ def test_errors_in_proc_output():
     kwargs.pop("continual_max_fidel")
     # The keys in fidels must be identical to fidel_keys
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
+            launch_multiple_workers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
@@ -164,8 +172,9 @@ def test_errors_in_proc_output():
     kwargs["fidel_keys"] = ["dummy-fidel"]
     # The keys in fidels must be identical to fidel_keys
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
+            launch_multiple_workers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1})
@@ -179,8 +188,9 @@ def test_error_in_keys():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals)
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
+            launch_multiple_workers_from_user_side=True,
             obj_keys=["dummy_loss"],
             **kwargs,
         )
@@ -188,8 +198,9 @@ def test_error_in_keys():
 
     shutil.rmtree(worker.dir_name)
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
+            launch_multiple_workers_from_user_side=True,
             runtime_key="dummy_runtime",
             **kwargs,
         )
@@ -198,8 +209,9 @@ def test_error_in_keys():
     shutil.rmtree(worker.dir_name)
 
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
-        worker = ObjectiveFuncWorker(
+        worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
+            launch_multiple_workers_from_user_side=True,
             obj_keys=["dummy_loss", "loss"],
             **kwargs,
         )
@@ -214,8 +226,9 @@ def test_call_with_many_fidelities():
     kwargs.update(n_evals=n_evals)
     kwargs["fidel_keys"] = ["z1", "z2", "z3"]
     kwargs.pop("continual_max_fidel")
-    worker = ObjectiveFuncWorker(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_func_with_many_fidelities,
+        launch_multiple_workers_from_user_side=True,
         **kwargs,
     )
 
@@ -231,8 +244,9 @@ def test_call_with_data():
     n_evals = 10
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals)
-    worker = ObjectiveFuncWorker(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_func_with_data,
+        launch_multiple_workers_from_user_side=True,
         **kwargs,
     )
 
@@ -249,8 +263,9 @@ def test_call():
     n_evals = 10
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals)
-    worker = ObjectiveFuncWorker(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_func,
+        launch_multiple_workers_from_user_side=True,
         **kwargs,
     )
 
@@ -270,18 +285,19 @@ def test_call_considering_state():
     n_evals = 21
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals, n_actual_evals_in_opt=22)
-    worker = ObjectiveFuncWorker(
+    worker = ObjectiveFuncWrapper(
         obj_func=dummy_func,
+        launch_multiple_workers_from_user_side=True,
         **kwargs,
     )
     worker(eval_config={"x": 1}, fidels={"epoch": 10})  # max-fidel and thus no need to cache
-    assert len(json.load(open(worker._paths.state_cache))) == 0
+    assert len(json.load(open(worker._main_wrapper._paths.state_cache))) == 0
 
     for i in range(10):
         for j in range(2):
             last = (i == 9) and (j == 1)
             worker(eval_config={"x": 1}, fidels={"epoch": i + 1})
-            states = json.load(open(worker._paths.state_cache))
+            states = json.load(open(worker._main_wrapper._paths.state_cache))
             assert len(states) == int(not last)
 
             if last:
@@ -313,7 +329,7 @@ def test_central_worker_manager():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = get_n_workers()
     kwargs["n_actual_evals_in_opt"] = 15
-    manager = CentralWorkerManager(obj_func=dummy_func, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
     assert manager.fidel_keys == ["epoch"]
     assert manager.runtime_key == "runtime"
     assert manager.obj_keys == ["loss"]
@@ -323,14 +339,16 @@ def test_central_worker_manager():
 def test_store_config():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
+    worker = ObjectiveFuncWrapper(
+        obj_func=dummy_func, launch_multiple_workers_from_user_side=True, store_config=True, **kwargs
+    )
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
     shutil.rmtree(worker.dir_name)
 
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 15
-    manager = CentralWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []
@@ -358,7 +376,9 @@ def test_store_config():
 def test_store_config_with_conditional():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
+    worker = ObjectiveFuncWrapper(
+        obj_func=dummy_func, launch_multiple_workers_from_user_side=True, store_config=True, **kwargs
+    )
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
     worker(**dict(eval_config={"x": 1, "y": 2}, fidels={"epoch": 1}))
     shutil.rmtree(worker.dir_name)
@@ -366,7 +386,7 @@ def test_store_config_with_conditional():
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 15
-    manager = CentralWorkerManager(obj_func=dummy_func, store_config=True, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []
@@ -394,7 +414,7 @@ def test_store_config_with_conditional():
 def test_init_alloc_without_error():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    manager = CentralWorkerManager(obj_func=dummy_func, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
 
     for i in range(10):
         kwargs = dict(
@@ -412,10 +432,12 @@ def test_init_alloc_without_error():
 def test_interrupted():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWorker(obj_func=dummy_func, store_config=True, **kwargs)
-    data = json.load(open(worker._paths.worker_cumtime))
-    with open(worker._paths.worker_cumtime, mode="w") as f:
-        data[worker._worker_vars.worker_id] = _TIME_VALUES.crashed
+    worker = ObjectiveFuncWrapper(
+        obj_func=dummy_func, launch_multiple_workers_from_user_side=True, store_config=True, **kwargs
+    )
+    data = json.load(open(worker._main_wrapper._paths.worker_cumtime))
+    with open(worker._main_wrapper._paths.worker_cumtime, mode="w") as f:
+        data[worker._main_wrapper._worker_vars.worker_id] = _TIME_VALUES.crashed
         json.dump(data, f)
 
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))  # Nothing happens for init
@@ -431,9 +453,9 @@ def test_seed_error_in_central_worker_manager():
     n_workers = get_n_workers()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 15
-    CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+    ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
     with pytest.raises(FileExistsError):
-        CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+        ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
     remove_tree()
 
@@ -443,7 +465,7 @@ def test_init_alloc_in_central_worker_manager():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = 1
     kwargs["n_actual_evals_in_opt"] = 15
-    manager = CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
     kwargs = dict(
         eval_config={"x": 1},
         fidels={"epoch": 1},
@@ -457,7 +479,7 @@ def test_init_alloc_in_central_worker_manager():
 def test_optimize_seq():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    manager = CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
     kwargs = dict(
         eval_config={"x": 1},
@@ -473,7 +495,7 @@ def test_optimize_parallel():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_workers"] = n_workers
     kwargs["n_actual_evals_in_opt"] = 16
-    manager = CentralWorkerManager(obj_func=dummy_func, seed=0, **kwargs)
+    manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
     pool = multiprocessing.Pool(processes=n_workers)
     res = []

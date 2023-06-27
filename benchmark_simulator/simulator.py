@@ -71,9 +71,221 @@ This file tells the last checkpoint timestamp of each worker (prev_timestamp).
 This file is used to consider the sampling time.
 after_sample is the latest cumtime immediately after the last sample and before_sample is before the last sample.
 """
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from benchmark_simulator._constants import AbstractAskTellOptimizer, ObjectiveFuncType, _WrapperVars
 from benchmark_simulator._simulator._worker import ObjectiveFuncWorker
 from benchmark_simulator._simulator._worker_manager import CentralWorkerManager
 from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import AskTellWorkerManager
 
+import numpy as np
 
-__all__ = ["AskTellWorkerManager", "ObjectiveFuncWorker", "CentralWorkerManager"]
+
+class ObjectiveFuncWrapper:
+    def __init__(
+        self,
+        obj_func: ObjectiveFuncType,
+        launch_multiple_workers_from_user_side: bool = False,
+        ask_and_tell: bool = False,
+        subdir_name: str | None = None,
+        n_workers: int = 4,
+        n_actual_evals_in_opt: int = 105,
+        n_evals: int = 100,
+        fidel_keys: list[str] | None = None,
+        obj_keys: list[str] | None = None,
+        runtime_key: str = "runtime",
+        seed: int | None = None,
+        continual_max_fidel: int | None = None,
+        max_waiting_time: float = np.inf,
+        check_interval_time: float = 1e-4,
+        store_config: bool = False,
+    ):
+        """The initialization of a wrapper class.
+
+        Both ObjectiveFuncWorker and CentralWorkerManager have the same interface and the same set of control params.
+
+        Args:
+            obj_func (ObjectiveFuncType):
+                A callable object that serves as the objective function.
+                Args:
+                    eval_config: dict[str, Any]
+                    fidels: dict[str, int | float] | None
+                    seed: int | None
+                    **data_to_scatter: Any
+                Returns:
+                    results: dict[str, float]
+                        It must return `objective metric` and `runtime` at least.
+            launch_multiple_workers_from_user_side (bool):
+                Whether users need to launch multiple objective function workers from user side.
+                Examples of such cases are available at:
+                    - https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/bohb.py
+                    - https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/neps.py
+                The first case is so obvious that users need to instantiate multiple worker objects.
+                The second case is a bit tricky because multiple workers are instantiated in different main processes.
+                In this case as well, it is obviously not one worker launch.
+            ask_and_tell (bool):
+                Whether to use an ask-and-tell interface optimizer.
+                If True, the optimization loop will be run in the API side and hence users need to call simulate()
+                to start simulation and the wrapper will be an optimizer wrapper rather than a function wrapper.
+            subdir_name (str | None):
+                The subdirectory name to store all running information.
+            n_workers (int):
+                The number of workers to use. In other words, how many parallel workers to use.
+            n_actual_evals_in_opt (int):
+                The number of evaluations that optimizers do and it is used only for raising an error in init.
+                Note that the number of evaluations means
+                how many times we call the objective function during the optimization.
+                This number is needed to automatically finish the worker class.
+                We cannot know the timing of the termination without this information, and thus optimizers hang.
+            n_evals (int):
+                How many configurations we would like to collect.
+                More specifically, how many times we call the objective function during the optimization.
+                We can guarantee that `results.json` has at least this number of evaluations.
+            fidel_keys (list[str] | None):
+                The fidelity names to be used in the objective function.
+                If None, we assume that no fidelity is used.
+            obj_keys (list[str] | None):
+                The keys of the objective metrics used in `results` returned by func.
+            runtime_key (str):
+                The key of the runtime metric used in `results` returned by func.
+            seed (int | None):
+                The random seed to be used to allocate random seed to each call.
+            continual_max_fidel (int | None):
+                The maximum fidelity to used in continual evaluations.
+                This is valid only if we use a single fidelity.
+                If not None, each call is a continuation from the call with the same eval_config and lower fidel.
+                For example, when we already trained the objective with configA and training_epoch=10,
+                we probably would like to continue the training from epoch 10 rather than from scratch
+                for call with configA and training_epoch=30.
+                continual_eval=True calculates the runtime considers this.
+                If False, each call is considered to be processed from scratch.
+            check_interval_time (float):
+                How often each worker should check whether they could be assigned a new job.
+                For example, if 1e-2 is specified, each worker check whether they can get a new job every 1e-2 seconds.
+                If there are many workers, too small check_interval_time may cause a big bottleneck.
+                On the other hand, a big check_interval_time spends more time for waiting.
+                By default, check_interval_time is set to a relatively small number, so users might rather want to
+                increase the number to avoid the bottleneck for many workers.
+            max_waiting_time (float):
+                The maximum waiting time to judge hang.
+                If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
+            store_config (bool):
+                Whether to store all config/fidel information.
+                The information is sorted chronologically.
+                When you do large-scale experiments, this may incur too much storage consumption.
+        """
+        curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        wrapper_vars = _WrapperVars(
+            obj_func=obj_func,
+            subdir_name=subdir_name if subdir_name is not None else f"data-{curtime}",
+            n_workers=n_workers,
+            n_actual_evals_in_opt=n_actual_evals_in_opt,
+            n_evals=n_evals,
+            fidel_keys=fidel_keys,
+            obj_keys=obj_keys if obj_keys is not None else ["loss"],
+            runtime_key=runtime_key,
+            seed=seed,
+            continual_max_fidel=continual_max_fidel,
+            max_waiting_time=max_waiting_time,
+            check_interval_time=check_interval_time,
+            store_config=store_config,
+        )
+
+        self._main_wrapper: AskTellWorkerManager | CentralWorkerManager | ObjectiveFuncWorker
+        if ask_and_tell:
+            self._main_wrapper = AskTellWorkerManager(wrapper_vars)
+        elif launch_multiple_workers_from_user_side:
+            self._main_wrapper = ObjectiveFuncWorker(wrapper_vars)
+        else:
+            self._main_wrapper = CentralWorkerManager(wrapper_vars)
+
+    @property
+    def dir_name(self) -> str:
+        return self._main_wrapper.dir_name
+
+    @property
+    def obj_keys(self) -> list[str]:
+        return self._main_wrapper.obj_keys
+
+    @property
+    def runtime_key(self) -> str:
+        return self._main_wrapper.runtime_key
+
+    @property
+    def fidel_keys(self) -> list[str]:
+        return self._main_wrapper.fidel_keys
+
+    def _validate(
+        self,
+        subdir_name: str | None,
+        ask_and_tell: bool,
+        launch_multiple_workers_from_user_side: bool,
+    ) -> None:
+        if ask_and_tell and launch_multiple_workers_from_user_side:
+            raise ValueError("ask_and_tell and launch_multiple_workers_from_user_side cannot be True at the same time.")
+        if launch_multiple_workers_from_user_side and subdir_name is None:
+            raise ValueError(
+                "When launch_multiple_workers_from_user_side is False, subdir_name must be specified so that \n"
+                "each worker recognizes with which processes it shares the optimization results."
+            )
+
+    def __call__(
+        self,
+        eval_config: dict[str, Any],
+        *,
+        fidels: dict[str, int | float] | None = None,
+        **data_to_scatter: Any,
+    ) -> dict[str, float]:
+        """The meta-wrapper method of the objective function method in WorkerFunc instances.
+
+        This method recognizes each WorkerFunc by process ID and call the corresponding worker based on the ID.
+
+        Args:
+            eval_config (dict[str, Any]):
+                The configuration to be used in the objective function.
+            fidels (dict[str, int | float] | None):
+                The fidelities to be used in the objective function. Typically training epoch in deep learning.
+                If None, no-fidelity opt.
+            **data_to_scatter (Any):
+                Data to scatter across workers.
+                For example, when the objective function instance has a large file,
+                Dask, which is a typical module for parallel optimization, must serialize/deserialize
+                the objective function instances. It causes a significant bottleneck.
+                By using dask.scatter, we can avoid this problem and this kwargs serves for this purpose.
+                Note that since the handling of parallel workers vary depending on packages,
+                users must adapt by themselves.
+
+        Returns:
+            results (dict[str, float]):
+                The results of the objective function given the inputs.
+                It must have `objective metric` and `runtime` at least.
+                Otherwise, any other metrics are optional.
+        """
+        return self._main_wrapper(eval_config=eval_config, fidels=fidels, **data_to_scatter)
+
+    def simulate(self, opt: AbstractAskTellOptimizer) -> None:
+        """
+        Start the simulation using only the main process.
+        Unlike the other worker wrappers, each objective function will not run in parallel.
+        Instead, we internally simulate the cumulative runtime for each worker.
+        For this sake, the optimizer must take so-called ask-and-tell interface.
+        It means that optimizer can communicate with this class via `ask` and `tell` methods.
+        As long as the optimizer takes this interface, arbitrary optimizers can be used for this class.
+
+        Although this class may not be able to guarantee the exact behavior using parallel optimization,
+        this class is safer than the other wrappers because it is thread-safe.
+        Furthermore, if users want to try a large n_workers, this class is much safer and executable.
+
+        Args:
+            opt (AbstractAskTellOptimizer):
+                An optimizer that has `ask` and `tell` methods.
+                For example, if we run a sequential optimization, the expected loop looks like:
+                    for i in range(100):
+                        eval_config, fidels = opt.ask()
+                        results = obj_func(eval_config, fidels)
+                        opt.tell(eval_config, results, fidels)
+        """
+        self._main_wrapper.simulate(opt)
