@@ -223,6 +223,14 @@ class ObjectiveFuncWrapper:
     def fidel_keys(self) -> list[str]:
         return self._main_wrapper.fidel_keys
 
+    @property
+    def n_actual_evals_in_opt(self) -> int:
+        return self._main_wrapper._wrapper_vars.n_actual_evals_in_opt
+
+    @property
+    def n_workers(self) -> int:
+        return self._main_wrapper._wrapper_vars.n_workers
+
     def _validate(
         self,
         subdir_name: str | None,

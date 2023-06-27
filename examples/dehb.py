@@ -5,7 +5,7 @@ from typing import Any
 
 import ConfigSpace as CS
 
-from benchmark_simulator import CentralWorkerManager
+from benchmark_simulator import ObjectiveFuncWrapper
 
 from dehb import DEHB
 
@@ -14,7 +14,7 @@ import numpy as np
 from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 
-class DEHBCentralWorkerManager(CentralWorkerManager):
+class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):
     # Adapt to the DEHB interface at https://github.com/automl/DEHB/
     def __call__(self, config: CS.Configuration, budget: int, **data_to_scatter: Any) -> dict[str, float]:
         eval_config = config.get_dictionary()
@@ -36,7 +36,7 @@ def run_dehb(
     n_evals: int = 450,  # eta=3,S=2,100 full evals
 ) -> None:
     np.random.seed(seed)
-    manager = DEHBCentralWorkerManager(
+    manager = DEHBObjectiveFuncWrapper(
         subdir_name=subdir_name,
         n_workers=n_workers,
         obj_func=obj_func,

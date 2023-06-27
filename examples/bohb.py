@@ -6,7 +6,7 @@ from typing import Any
 
 import ConfigSpace as CS
 
-from benchmark_simulator import ObjectiveFuncWorker
+from benchmark_simulator import ObjectiveFuncWrapper
 
 from hpbandster.core import nameserver as hpns
 from hpbandster.core.worker import Worker
@@ -19,7 +19,7 @@ from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 class BOHBWorker(Worker):
     # https://github.com/automl/HpBandSter
-    def __init__(self, worker: ObjectiveFuncWorker, sleep_interval: int = 0, **kwargs: Any):
+    def __init__(self, worker: ObjectiveFuncWrapper, sleep_interval: int = 0, **kwargs: Any):
         super().__init__(**kwargs)
         self.sleep_interval = sleep_interval
         self._worker = worker
@@ -45,6 +45,7 @@ def get_bohb_workers(
 ) -> list[BOHBWorker]:
     kwargs = dict(
         obj_func=obj_func,
+        launch_multiple_workers_from_user_side=True,
         n_workers=n_workers,
         subdir_name=subdir_name,
         continual_max_fidel=max_fidel,
@@ -57,7 +58,7 @@ def get_bohb_workers(
     pool = Pool()
     results = []
     for _ in range(n_workers):
-        results.append(pool.apply_async(ObjectiveFuncWorker, kwds=kwargs))
+        results.append(pool.apply_async(ObjectiveFuncWrapper, kwds=kwargs))
 
     pool.close()
     pool.join()

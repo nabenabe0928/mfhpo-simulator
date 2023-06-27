@@ -9,12 +9,12 @@ from smac import MultiFidelityFacade as MFFacade
 from smac import Scenario
 from smac.intensifier.hyperband import Hyperband
 
-from benchmark_simulator import CentralWorkerManager
+from benchmark_simulator import ObjectiveFuncWrapper
 
 from examples.utils import get_bench_instance, get_subdir_name, parse_args
 
 
-class SMACCentralWorkerManager(CentralWorkerManager):
+class SMACObjectiveFuncWrapper(ObjectiveFuncWrapper):
     def __call__(
         self,
         config: CS.Configuration,
@@ -25,7 +25,7 @@ class SMACCentralWorkerManager(CentralWorkerManager):
         data_to_scatter = {} if data_to_scatter is None else data_to_scatter
         eval_config = config.get_dictionary()
         output = super().__call__(eval_config, fidels={self.fidel_keys[0]: int(budget)}, **data_to_scatter)
-        return output[self._obj_keys[0]]
+        return output[self.obj_keys[0]]
 
 
 def run_smac(
@@ -48,7 +48,7 @@ def run_smac(
         max_budget=max_fidel,
         n_workers=n_workers,
     )
-    worker = SMACCentralWorkerManager(
+    worker = SMACObjectiveFuncWrapper(
         obj_func=obj_func,
         n_workers=n_workers,
         subdir_name=subdir_name,

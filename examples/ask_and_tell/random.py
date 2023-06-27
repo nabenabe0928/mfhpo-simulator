@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from benchmark_simulator import AbstractAskTellOptimizer, AskTellWorkerManager
+from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 
 import ConfigSpace as CS
 
@@ -32,7 +32,6 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
         results: dict[str, float],
         *,
         fidels: dict[str, int | float] | None,
-        trial_id: int,
     ) -> None:
         pass
 
@@ -42,8 +41,9 @@ if __name__ == "__main__":
     subdir_name = get_subdir_name(args)
     bench = get_bench_instance(args, keep_benchdata=True)
     opt = RandomOptimizerWrapper(RandomOptimizer(bench.config_space, bench.max_fidels))
-    worker = AskTellWorkerManager(
+    worker = ObjectiveFuncWrapper(
         subdir_name=subdir_name,
+        ask_and_tell=True,
         n_workers=args.n_workers,
         obj_func=bench,
         n_actual_evals_in_opt=105,
