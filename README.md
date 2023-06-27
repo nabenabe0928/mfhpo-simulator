@@ -5,6 +5,12 @@
 
 ## Motivation
 
+<table>
+    <tr>
+        <td><img src="figs/compress-conceptual.png" alt=""></td>
+    </tr>
+</table>
+
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
 However, the evaluation of tabular or surrogate benchmarks, by design, does not take long.
 For this reason, the timing of each configuration taken into account must be ordered as if we evaluated each configuration.
