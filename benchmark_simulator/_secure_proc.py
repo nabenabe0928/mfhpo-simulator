@@ -223,11 +223,13 @@ def _kill_worker_timer_with_min_cumtime(path: str, lock: _SecureLock) -> None:
 
 def _get_timeout_message(cause: str, path: str) -> str:
     dir_name = os.path.join(*path.split("/")[:-1])
-    msg = f"Timeout in {cause}. There could be three possible reasons:\n"
-    msg += f"(1) The path {dir_name} already existed before the execution of the program.\n"
-    msg += "(2) n_workers specified in your optimizer and that in the simulator might be different."
-    msg += "(3) launch_multiple_workers_from_user_side is incorrectly set."
-    return msg
+    msg = [
+        f"Timeout in {cause}. There could be three possible reasons:",
+        f"(1) The path {dir_name} already existed before the execution of the program.",
+        "(2) n_workers specified in your optimizer and that in the simulator might be different.",
+        "(3) launch_multiple_workers_from_user_side is incorrectly set.",
+    ]
+    return "\n".join(msg)
 
 
 def _wait_proc_allocation(

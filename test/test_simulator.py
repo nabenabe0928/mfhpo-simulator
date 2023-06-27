@@ -4,10 +4,11 @@ import multiprocessing
 import os
 import pytest
 import shutil
+import time
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import DIR_NAME, _TIME_VALUES
+from benchmark_simulator._constants import DIR_NAME, _SharedDataFileNames, _TIME_VALUES
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import numpy as np
@@ -480,16 +481,23 @@ def test_optimize_seq():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
+    n_evals = kwargs["n_evals"]
+    n_actual_evals = 15
 
     kwargs = dict(
         eval_config={"x": 1},
         fidels={"epoch": 1},
     )
-    manager(**kwargs)
+    for _ in range(n_actual_evals):
+        manager(**kwargs)
+
+    path = manager.dir_name
+    out = json.load(open(os.path.join(path, "results.json")))
+    assert len(out["cumtime"]) >= n_evals
     shutil.rmtree(manager.dir_name)
 
 
-def test_optimize_parallel():
+def run_optimize_parallel(wrong_n_workers: bool, remained_file: bool = False):
     remove_tree()
     n_workers = get_n_workers()
     kwargs = DEFAULT_KWARGS.copy()
@@ -497,27 +505,48 @@ def test_optimize_parallel():
     kwargs["n_actual_evals_in_opt"] = 16
     manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
-    pool = multiprocessing.Pool(processes=n_workers)
-    res = []
-    for _ in range(16):
-        kwargs = dict(
-            eval_config={"x": 1},
-            fidels={"epoch": 1},
-        )
-        r = pool.apply_async(manager, kwds=kwargs)
-        res.append(r)
-    else:
-        for r in res:
-            r.get()
+    if remained_file:
+        with open(os.path.join(PATH, _SharedDataFileNames.proc_alloc.value), mode="w") as f:
+            json.dump({"0": 0, "1": 1, "2": 2}, f)
 
-    pool.close()
-    pool.join()
+    pool = multiprocessing.Pool(processes=n_workers + wrong_n_workers)
+    try:
+        res = []
+        for _ in range(16):
+            time.sleep(0.01)
+            kwargs = dict(
+                eval_config={"x": 1},
+                fidels={"epoch": 1},
+            )
+            r = pool.apply_async(manager, kwds=kwargs)
+            res.append(r)
+        else:
+            for r in res:
+                r.get()
+    except Exception as e:
+        pool.close()
+        raise e
+    else:
+        pool.close()
+        pool.join()
 
     path = manager.dir_name
     out = json.load(open(os.path.join(path, "results.json")))
     shutil.rmtree(path)
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
+
+
+@pytest.mark.parametrize("wrong_n_workers", (True, False))
+def test_optimize_parallel(wrong_n_workers: bool):
+    if wrong_n_workers:
+        with pytest.raises(ProcessLookupError):
+            run_optimize_parallel(wrong_n_workers)
+        # Somehow the following lines hang when using covtest
+        # with pytest.raises(ValueError, match=r"Timeout in the allocation of procs*"):
+        #     run_optimize_parallel(wrong_n_workers, remained_file=True)
+    else:
+        run_optimize_parallel(wrong_n_workers)
 
 
 if __name__ == "__main__":

@@ -59,8 +59,7 @@ class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):
         return super().__call__(eval_config=config, fidels={"epoch": int(budget)})
 
 
-def test_dehb():
-    n_workers = 4 if os.system("hostname") == "EB-B9400CBA" else 2  # github actions has only 2 cores
+def run_dehb(n_workers: int):
     n_actual_evals_in_opt = 100 + n_workers
     subdir_name = "dummy"
     path = os.path.join(DIR_NAME, subdir_name)
@@ -93,11 +92,17 @@ def test_dehb():
         output_path="dehb-log/",
     )
     dehb.run(fevals=n_actual_evals_in_opt)
-    out = json.load(open(os.path.join(path, "results.json")))
+    out = json.load(open(os.path.join(path, "results.json")))["cumtime"]
     shutil.rmtree(path)
-    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
+    assert len(out) >= 100
+    diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     shutil.rmtree("dehb-log")
+
+
+def test_dehb():
+    n_workers = 4 if os.system("hostname") == "EB-B9400CBA" else 2  # github actions has only 2 cores
+    run_dehb(n_workers)
 
 
 if __name__ == "__main__":

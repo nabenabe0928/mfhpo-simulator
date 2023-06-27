@@ -195,6 +195,11 @@ class ObjectiveFuncWrapper:
         )
 
         self._main_wrapper: AskTellWorkerManager | CentralWorkerManager | ObjectiveFuncWorker
+        self._validate(
+            subdir_name=subdir_name,
+            ask_and_tell=ask_and_tell,
+            launch_multiple_workers_from_user_side=launch_multiple_workers_from_user_side,
+        )
         if ask_and_tell:
             self._main_wrapper = AskTellWorkerManager(wrapper_vars)
         elif launch_multiple_workers_from_user_side:

@@ -70,8 +70,9 @@ class CentralWorkerManager(_BaseWrapperInterface):
         if pid not in self._pid_to_index:
             raise ProcessLookupError(
                 f"An unknown process/thread with ID {pid} was specified.\n"
-                "It is likely that one of the workers crashed and a new worker was added.\n"
-                f"However, worker additions are not allowed in {self.__class__.__name__}."
+                "It is likely that one of the workers crashed and a new worker was added or \n"
+                f"n_workers in ObjectiveFuncWrapper and your optimizer were incompatible.\n"
+                f"However, worker additions are not allowed in ObjectiveFuncWrapper."
             )
 
         worker_index = self._pid_to_index[pid]

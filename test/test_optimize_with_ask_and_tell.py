@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import pytest
 import shutil
 import unittest
 from typing import Any
@@ -66,6 +67,20 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
         pass
 
 
+def test_validate_in_obj_func_wrapper():
+    with pytest.raises(ValueError, match=r"ask_and_tell and launch_multiple_workers_from_user_side cannot be True*"):
+        ObjectiveFuncWrapper(
+            ask_and_tell=True,
+            launch_multiple_workers_from_user_side=True,
+            obj_func=MFBranin(),
+        )
+    with pytest.raises(ValueError, match=r"When launch_multiple_workers_from_user_side is False*"):
+        ObjectiveFuncWrapper(
+            launch_multiple_workers_from_user_side=True,
+            obj_func=MFBranin(),
+        )
+
+
 def test_random_with_ask_and_tell():
     subdir_name = "test-mfbranin-ask-and-tell"
     bench = MFBranin()
@@ -88,8 +103,9 @@ def test_random_with_ask_and_tell():
         fidel_keys=bench.fidel_keys,
     )
     worker.simulate(opt)
-    out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
+    out = json.load(open(os.path.join(worker.dir_name, "results.json")))["cumtime"]
+    assert len(out) >= 400
+    diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     shutil.rmtree(worker.dir_name)
 
@@ -118,6 +134,7 @@ def test_random_with_ask_and_tell_store_config():
     )
     worker.simulate(opt)
     out = json.load(open(os.path.join(worker.dir_name, "results.json")))
+    assert len(out["cumtime"]) >= 400
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     assert all(k in list(out.keys()) for k in bench.config_space)
@@ -153,6 +170,7 @@ def test_random_with_ask_and_tell_continual_eval():
     )
     worker.simulate(opt)
     out = json.load(open(os.path.join(worker.dir_name, "results.json")))
+    assert len(out["cumtime"]) >= 400
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     for k in out.keys():
@@ -183,8 +201,9 @@ def test_random_with_ask_and_tell_many_parallel():
         seed=0,
     )
     worker.simulate(opt)
-    out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
+    out = json.load(open(os.path.join(worker.dir_name, "results.json")))["cumtime"]
+    assert len(out) >= 400
+    diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     shutil.rmtree(worker.dir_name)
 
