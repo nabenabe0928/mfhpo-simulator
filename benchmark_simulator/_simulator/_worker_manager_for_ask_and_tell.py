@@ -18,7 +18,7 @@ from benchmark_simulator._simulator._utils import (
 import numpy as np
 
 
-class AskTellWorkerManager(_BaseWrapperInterface):
+class _AskTellWorkerManager(_BaseWrapperInterface):
     def _init_wrapper(self) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
         self._worker_vars = _WorkerVars(

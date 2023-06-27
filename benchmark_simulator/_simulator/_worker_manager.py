@@ -12,10 +12,10 @@ from benchmark_simulator._secure_proc import (
     _wait_proc_allocation,
 )
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
-from benchmark_simulator._simulator._worker import ObjectiveFuncWorker
+from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
 
 
-class CentralWorkerManager(_BaseWrapperInterface):
+class _CentralWorkerManager(_BaseWrapperInterface):
     """A central worker manager class.
     This class is supposed to be instantiated if the optimizer module uses multiprocessing.
     For example, Dask, multiprocessing, and joblib would need this class.
@@ -27,7 +27,7 @@ class CentralWorkerManager(_BaseWrapperInterface):
     """
 
     def _init_wrapper(self) -> None:
-        self._workers: list[ObjectiveFuncWorker]
+        self._workers: list[_ObjectiveFuncWorker]
         self._main_pid = os.getpid()
         self._init_workers()
         self._pid_to_index: dict[int, int] = {}
@@ -39,7 +39,7 @@ class CentralWorkerManager(_BaseWrapperInterface):
         pool = Pool()
         results = []
         for _ in range(self._wrapper_vars.n_workers):
-            results.append(pool.apply_async(ObjectiveFuncWorker, kwds=dict(wrapper_vars=self._wrapper_vars)))
+            results.append(pool.apply_async(_ObjectiveFuncWorker, kwds=dict(wrapper_vars=self._wrapper_vars)))
 
         pool.close()
         pool.join()

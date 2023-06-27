@@ -42,7 +42,7 @@ from benchmark_simulator._utils import _generate_time_hash
 import numpy as np
 
 
-class ObjectiveFuncWorker(_BaseWrapperInterface):
+class _ObjectiveFuncWorker(_BaseWrapperInterface):
     """A worker class for each worker.
     This worker class is supposed to be instantiated for each worker.
     For example, if we use 4 workers for an optimization, then four instances should be created.

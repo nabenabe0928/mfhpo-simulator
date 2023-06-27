@@ -77,9 +77,9 @@ from datetime import datetime
 from typing import Any
 
 from benchmark_simulator._constants import AbstractAskTellOptimizer, ObjectiveFuncType, _WrapperVars
-from benchmark_simulator._simulator._worker import ObjectiveFuncWorker
-from benchmark_simulator._simulator._worker_manager import CentralWorkerManager
-from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import AskTellWorkerManager
+from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
+from benchmark_simulator._simulator._worker_manager import _CentralWorkerManager
+from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import _AskTellWorkerManager
 
 import numpy as np
 
@@ -194,18 +194,18 @@ class ObjectiveFuncWrapper:
             store_config=store_config,
         )
 
-        self._main_wrapper: AskTellWorkerManager | CentralWorkerManager | ObjectiveFuncWorker
+        self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker
         self._validate(
             subdir_name=subdir_name,
             ask_and_tell=ask_and_tell,
             launch_multiple_workers_from_user_side=launch_multiple_workers_from_user_side,
         )
         if ask_and_tell:
-            self._main_wrapper = AskTellWorkerManager(wrapper_vars)
+            self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
         elif launch_multiple_workers_from_user_side:
-            self._main_wrapper = ObjectiveFuncWorker(wrapper_vars)
+            self._main_wrapper = _ObjectiveFuncWorker(wrapper_vars)
         else:
-            self._main_wrapper = CentralWorkerManager(wrapper_vars)
+            self._main_wrapper = _CentralWorkerManager(wrapper_vars)
 
     @property
     def dir_name(self) -> str:

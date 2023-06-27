@@ -12,17 +12,17 @@ For this reason, the timing of each configuration taken into account must be ord
 In this package, we automatically sort out this problem by pending to pass the hyperparameter configurations to be evaluated internally, and in turn, we obtain the right order of each hyperparameter configuration to be evaluated.
 If the optimizer interface is the [ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html) interface, users can pass the optimizer to a simulator directly and the simulator automatically performs the optimization loop as if function calls are run in parallel.
 
-| Component | What Wrapper | Function Call | Requirements | Benefits | Downsides |
+| Arguments | What Wrapper | Function Call | Requirements | Benefits | Downsides |
 |--|:--:|:--:|--|--|--|
-|`CentralWorkerManager` | Function  | Parallel | Optimizer does intra-process synchronization (e.g. [DEHB](examples/dehb.py) and [SMAC3](examples/smac.py)) | No need to change the optimizer interface and reproduce exactly how optimizers run | Could be very slow, unstable, and memory-intensive with a large `n_workers` |
-|`ObjectiveFuncWorker`  | Function  | Parallel | Optimizer does inter-process synchronization (e.g. [NePS](examples/neps.py) and [BOHB](examples/bohb.py)) | Same above | Same above |
-|`AskTellWorkerManager` | Optimizer | *Sequential | Optimizer must take the [ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html) interface (see [example](examples/ask_and_tell/)) | Fast, stable, and memory-efficient even with a large `n_workers` | Force the ask-and-tell interface and may unexpectedly ignore the memory bottleneck that could be caused by parallel runs |
+| Default | Function  | Parallel | Optimizer does intra-process synchronization (e.g. [DEHB](examples/dehb.py) and [SMAC3](examples/smac.py)) | No need to change the optimizer interface and reproduce exactly how optimizers run | Could be very slow, unstable, and memory-intensive with a large `n_workers` |
+|`launch_multiple_workers_from_user_side=True`  | Function  | Parallel | Optimizer does inter-process synchronization (e.g. [NePS](examples/neps.py) and [BOHB](examples/bohb.py)) | Same above | Same above |
+|`ask_and_tell=True` | Function and Optimizer | *Sequential | Optimizer must take the [ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html) interface (see [example](examples/ask_and_tell/)) | Fast, stable, and memory-efficient even with a large `n_workers` | Force the ask-and-tell interface and may unexpectedly ignore the memory bottleneck that could be caused by parallel runs |
 
 \* It runs function call sequentially, but function calls are internally processed as if they are run in parallel.
 
-While users do not have to change the interface of optimizers for `CentralWorkerManager` and `ObjectiveFuncWorker` and only need to change the interface of objective function, users may need to change the interface of both for `AskTellWorkerManager`.
-In principle, `AskTellWorkerManager` requires optimizers to be the ask-and-tell interface.
-In exchange for the strict constraint, `AskTellWorkerManager` 
+While users do not have to change the interface of optimizers for `ask_and_tell=False` and only need to change the interface of objective function, users may need to change the interface of both for `ask_and_tell=True`.
+In principle, `ask_and_tell=True` requires optimizers to be the ask-and-tell interface.
+In exchange for the strict constraint, it stabilizes the simulation.
 
 **NOTE**
 
@@ -95,31 +95,31 @@ Note that `--seed` does not guarantee the reproducitility because of the paralle
 
 ## Arguments for Function Wrapper
 
-We first note that the arguments for `CentralWorkerManager` and `ObjectiveFuncWorker` are shared.
-
-In most packages, users need to use `CentralWorkerManager`.
-However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps/) are exceptions where you need to instantiate `ObjectiveFuncWorker`.
-Basically, we need to use `ObjectiveFuncWorker` for BOHB and NePS because they share the information in each worker via some type of server or they launch multiple independent threads.
-On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, users need to use `CentralWorkerManager`.
-Both `ObjectiveFuncWorker` and `CentralWorkerManager` share the same user interface and we describe each argument of both classes here:
-1. `subdir_name` (`str`): The directory to store the information,
-2. `n_workers` (`int`): The number of parallel workers,
-3. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L40-L73) for more details,
-4. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimizers (this argument will be used only for raising an error),
-5. `n_evals` (`int`): The number of evaluations to be stored in the information,
-6. `continual_max_fidel` (`Optional[int]`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a training result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
-7. `obj_keys` (`List[str]`): The list of objective names in the output from `obj_func`,
-8. `runtime_key` (`str`): The key is for runtime. The output of the objective function must include runtime,
-9. `obj_keys` (`List[str]`): The list of fidelity names that will be fed to the objective function,
-10. `seed` (`Optional[int]`): The random seed to be used in each worker,
-11. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`, and
-12. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments.
+In most packages, users need to use the default setting (`launch_multiple_workers_from_user_side=False` and `ask_and_tell=True`).
+However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps/) are exceptions where you need to use `launch_multiple_workers_from_user_side=True`.
+Basically, we need to use `launch_multiple_workers_from_user_side=True` for BOHB and NePS because they explicitly instantiate multiple objective function objects from the user side and each of them has its own main process.
+On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, the main process can easily communicate with each child process, and hence users can stick to the default setting.
+Each argument of `ObjectiveFuncWrapper` is the following:
+1. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L40-L73) for more details,
+2. `launch_multiple_workers_from_user_side` (`bool`): Whether users need to launch multiple objective function workers from user side,
+3. `ask_and_tell` (`bool`): Whether to use an ask-and-tell interface optimizer and simulate the optimization in `ObjectiveFuncWrapper`,
+4. `subdir_name` (`str | None`): The directory to store the information and it must be specified when using `launch_multiple_workers_from_user_side=True`, otherwise the directory name will be automatically generated,
+5. `n_workers` (`int`): The number of parallel workers,
+6. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimizers (this argument will be used only for raising an error),
+7. `n_evals` (`int`): The number of evaluations to be stored in the information,
+8. `continual_max_fidel` (`int | None`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a training result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
+9. `obj_keys` (`list[str]`): The list of objective names in the output from `obj_func`,
+10. `runtime_key` (`str`): The key is for runtime. The output of the objective function must include runtime,
+11. `obj_keys` (`list[str]`): The list of fidelity names that will be fed to the objective function,
+12. `seed` (`int | None`): The random seed to be used in each worker,
+13. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`, and
+14. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments.
 
 ## Simulation Using Only the Main Process
-We first note that this class also takes the same arguments as the aforementioned two classes.
-However, this class wraps not only a function but also an optimizer so that we can control the right timing of the addition of data to the optimizer and of job allocation.
+This is the description for `ask_and_tell=True`.
+This class wraps not only a function but also an optimizer so that we can control the right timing of the addition of data to the optimizer and of job allocation.
 
-While `CentralWorkerManager` and `ObjectiveFuncWorker` wrap objective function and users simply need to pass the wrapped function to the optimizer prepared by users, `AskTellWorkerManager` runs the simulation on the application side.
+While `ask_and_tell=False` requires users to wrap objective function and users simply need to pass the wrapped function to the optimizer prepared by users, `ask_and_tell=True` runs the simulation on the application side.
 Unlike the other worker wrappers, each objective function will not run in parallel.
 Instead, we internally simulate the cumulative runtime for each worker.
 For this sake, the provided optimizer must take the so-called **[ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html)** interface.
