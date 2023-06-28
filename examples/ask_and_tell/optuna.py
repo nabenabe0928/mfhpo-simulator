@@ -6,7 +6,7 @@ from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 
 import ConfigSpace as CS
 
-from examples.utils import get_bench_instance, get_subdir_name, parse_args
+from examples.utils import get_bench_instance, get_save_dir_name, parse_args
 
 import optuna
 
@@ -90,11 +90,11 @@ class OptunaWrapper(AbstractAskTellOptimizer):
 
 if __name__ == "__main__":
     args = parse_args()
-    subdir_name = get_subdir_name(args)
+    save_dir_name = get_save_dir_name(args)
     bench = get_bench_instance(args, keep_benchdata=True)
     opt = OptunaWrapper(distributions=get_distributions(bench.config_space), obj_key="loss")
     worker = ObjectiveFuncWrapper(
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         ask_and_tell=True,
         n_workers=args.n_workers,
         obj_func=bench,

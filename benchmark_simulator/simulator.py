@@ -73,15 +73,130 @@ after_sample is the latest cumtime immediately after the last sample and before_
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime
+from multiprocessing import Pool
 from typing import Any
 
-from benchmark_simulator._constants import AbstractAskTellOptimizer, ObjectiveFuncType, _WrapperVars
+from benchmark_simulator._constants import AbstractAskTellOptimizer, DIR_NAME, ObjectiveFuncType, _WrapperVars
 from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
 from benchmark_simulator._simulator._worker_manager import _CentralWorkerManager
 from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import _AskTellWorkerManager
 
 import numpy as np
+
+
+def get_multiple_wrappers(
+    obj_func: ObjectiveFuncType,
+    save_dir_name: str | None = None,
+    n_workers: int = 4,
+    n_actual_evals_in_opt: int = 105,
+    n_evals: int = 100,
+    fidel_keys: list[str] | None = None,
+    obj_keys: list[str] | None = None,
+    runtime_key: str = "runtime",
+    seed: int | None = None,
+    continual_max_fidel: int | None = None,
+    max_waiting_time: float = np.inf,
+    check_interval_time: float = 1e-4,
+    store_config: bool = False,
+) -> list[ObjectiveFuncWrapper]:
+    """Return multiple wrapper instances.
+
+    Args:
+        obj_func (ObjectiveFuncType):
+            A callable object that serves as the objective function.
+            Args:
+                eval_config: dict[str, Any]
+                fidels: dict[str, int | float] | None
+                seed: int | None
+                **data_to_scatter: Any
+            Returns:
+                results: dict[str, float]
+                    It must return `objective metric` and `runtime` at least.
+        save_dir_name (str | None):
+            The subdirectory name to store all running information.
+        n_workers (int):
+            The number of workers to use. In other words, how many parallel workers to use.
+        n_actual_evals_in_opt (int):
+            The number of evaluations that optimizers do and it is used only for raising an error in init.
+            Note that the number of evaluations means
+            how many times we call the objective function during the optimization.
+            This number is needed to automatically finish the worker class.
+            We cannot know the timing of the termination without this information, and thus optimizers hang.
+        n_evals (int):
+            How many configurations we would like to collect.
+            More specifically, how many times we call the objective function during the optimization.
+            We can guarantee that `results.json` has at least this number of evaluations.
+        fidel_keys (list[str] | None):
+            The fidelity names to be used in the objective function.
+            If None, we assume that no fidelity is used.
+        obj_keys (list[str] | None):
+            The keys of the objective metrics used in `results` returned by func.
+        runtime_key (str):
+            The key of the runtime metric used in `results` returned by func.
+        seed (int | None):
+            The random seed to be used to allocate random seed to each call.
+        continual_max_fidel (int | None):
+            The maximum fidelity to used in continual evaluations.
+            This is valid only if we use a single fidelity.
+            If not None, each call is a continuation from the call with the same eval_config and lower fidel.
+            For example, when we already trained the objective with configA and training_epoch=10,
+            we probably would like to continue the training from epoch 10 rather than from scratch
+            for call with configA and training_epoch=30.
+            continual_eval=True calculates the runtime considers this.
+            If False, each call is considered to be processed from scratch.
+        check_interval_time (float):
+            How often each worker should check whether they could be assigned a new job.
+            For example, if 1e-2 is specified, each worker check whether they can get a new job every 1e-2 seconds.
+            If there are many workers, too small check_interval_time may cause a big bottleneck.
+            On the other hand, a big check_interval_time spends more time for waiting.
+            By default, check_interval_time is set to a relatively small number, so users might rather want to
+            increase the number to avoid the bottleneck for many workers.
+        max_waiting_time (float):
+            The maximum waiting time to judge hang.
+            If any one of the workers does not do any updates for this amount of time, we raise TimeoutError.
+        store_config (bool):
+            Whether to store all config/fidel information.
+            The information is sorted chronologically.
+            When you do large-scale experiments, this may incur too much storage consumption.
+
+    Returns:
+        wrappers (list[ObjectiveFuncWrapper]):
+            A list of wrappers.
+            It contains n_workers of worker wrappers.
+    """
+    curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    save_dir_name = save_dir_name if save_dir_name is not None else f"data-{curtime}"
+
+    dir_name = os.path.join(DIR_NAME, save_dir_name)
+    if os.path.exists(dir_name):
+        raise FileExistsError(f"The directory `{dir_name}` already exists. Remove it first.")
+
+    wrapper_kwargs = dict(
+        obj_func=obj_func,
+        save_dir_name=save_dir_name,
+        launch_multiple_wrappers_from_user_side=True,
+        n_workers=n_workers,
+        n_actual_evals_in_opt=n_actual_evals_in_opt,
+        n_evals=n_evals,
+        fidel_keys=fidel_keys,
+        obj_keys=obj_keys,
+        runtime_key=runtime_key,
+        seed=seed,
+        continual_max_fidel=continual_max_fidel,
+        max_waiting_time=max_waiting_time,
+        check_interval_time=check_interval_time,
+        store_config=store_config,
+    )
+    pool = Pool()
+    results = []
+    for _ in range(n_workers):
+        results.append(pool.apply_async(ObjectiveFuncWrapper, kwds=wrapper_kwargs))
+
+    pool.close()
+    pool.join()
+    return [result.get() for result in results]
 
 
 class ObjectiveFuncWrapper:
@@ -90,7 +205,7 @@ class ObjectiveFuncWrapper:
         obj_func: ObjectiveFuncType,
         launch_multiple_wrappers_from_user_side: bool = False,
         ask_and_tell: bool = False,
-        subdir_name: str | None = None,
+        save_dir_name: str | None = None,
         n_workers: int = 4,
         n_actual_evals_in_opt: int = 105,
         n_evals: int = 100,
@@ -130,7 +245,7 @@ class ObjectiveFuncWrapper:
                 Whether to use an ask-and-tell interface optimizer.
                 If True, the optimization loop will be run in the API side and hence users need to call simulate()
                 to start simulation and the wrapper will be an optimizer wrapper rather than a function wrapper.
-            subdir_name (str | None):
+            save_dir_name (str | None):
                 The subdirectory name to store all running information.
             n_workers (int):
                 The number of workers to use. In other words, how many parallel workers to use.
@@ -180,7 +295,7 @@ class ObjectiveFuncWrapper:
         curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
         wrapper_vars = _WrapperVars(
             obj_func=obj_func,
-            subdir_name=subdir_name if subdir_name is not None else f"data-{curtime}",
+            save_dir_name=save_dir_name if save_dir_name is not None else f"data-{curtime}",
             n_workers=n_workers,
             n_actual_evals_in_opt=n_actual_evals_in_opt,
             n_evals=n_evals,
@@ -196,7 +311,7 @@ class ObjectiveFuncWrapper:
 
         self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker
         self._validate(
-            subdir_name=subdir_name,
+            save_dir_name=save_dir_name,
             ask_and_tell=ask_and_tell,
             launch_multiple_wrappers_from_user_side=launch_multiple_wrappers_from_user_side,
         )
@@ -233,7 +348,7 @@ class ObjectiveFuncWrapper:
 
     def _validate(
         self,
-        subdir_name: str | None,
+        save_dir_name: str | None,
         ask_and_tell: bool,
         launch_multiple_wrappers_from_user_side: bool,
     ) -> None:
@@ -241,9 +356,9 @@ class ObjectiveFuncWrapper:
             raise ValueError(
                 "ask_and_tell and launch_multiple_wrappers_from_user_side cannot be True at the same time."
             )
-        if launch_multiple_wrappers_from_user_side and subdir_name is None:
+        if launch_multiple_wrappers_from_user_side and save_dir_name is None:
             raise ValueError(
-                "When launch_multiple_wrappers_from_user_side is False, subdir_name must be specified so that \n"
+                "When launch_multiple_wrappers_from_user_side is False, save_dir_name must be specified so that \n"
                 "each worker recognizes with which processes it shares the optimization results."
             )
 

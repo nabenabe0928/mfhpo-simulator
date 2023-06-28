@@ -9,7 +9,7 @@ import unittest
 from typing import Any
 
 from benchmark_simulator._constants import DIR_NAME, _SharedDataFileNames, _TIME_VALUES
-from benchmark_simulator.simulator import ObjectiveFuncWrapper
+from benchmark_simulator.simulator import ObjectiveFuncWrapper, get_multiple_wrappers
 
 import numpy as np
 
@@ -20,7 +20,7 @@ SUBDIR_NAME = "dummy"
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 DEFAULT_KWARGS = dict(
-    subdir_name=SUBDIR_NAME,
+    save_dir_name=SUBDIR_NAME,
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
@@ -91,6 +91,18 @@ def test_error_fidel_in_call():
         worker(eval_config={"x": 0}, fidels={"epoch": 0})
 
     shutil.rmtree(worker.dir_name)
+
+
+def test_get_multiple_wrappers():
+    wrappers = get_multiple_wrappers(obj_func=dummy_func, n_workers=2, save_dir_name=SUBDIR_NAME)
+    assert all(isinstance(w, ObjectiveFuncWrapper) for w in wrappers)
+    assert len(wrappers) == 2
+
+    dir_name = wrappers[0].dir_name
+    with pytest.raises(FileExistsError):
+        wrappers = get_multiple_wrappers(obj_func=dummy_func, n_workers=2, save_dir_name=SUBDIR_NAME)
+
+    shutil.rmtree(dir_name)
 
 
 def test_guarantee_no_hang():

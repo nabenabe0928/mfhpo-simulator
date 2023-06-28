@@ -82,7 +82,7 @@ def test_validate_in_obj_func_wrapper():
 
 
 def test_random_with_ask_and_tell():
-    subdir_name = "test-mfbranin-ask-and-tell"
+    save_dir_name = "test-mfbranin-ask-and-tell"
     bench = MFBranin()
     opt = RandomOptimizerWrapper(
         RandomOptimizer(
@@ -93,7 +93,7 @@ def test_random_with_ask_and_tell():
         ),
     )
     worker = ObjectiveFuncWrapper(
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         ask_and_tell=True,
         n_workers=10,
         obj_func=bench,
@@ -111,7 +111,7 @@ def test_random_with_ask_and_tell():
 
 
 def test_random_with_ask_and_tell_store_config():
-    subdir_name = "test-mfbranin-ask-and-tell"
+    save_dir_name = "test-mfbranin-ask-and-tell"
     bench = MFBranin()
     opt = RandomOptimizerWrapper(
         RandomOptimizer(
@@ -122,7 +122,7 @@ def test_random_with_ask_and_tell_store_config():
         ),
     )
     worker = ObjectiveFuncWrapper(
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         ask_and_tell=True,
         n_workers=10,
         obj_func=bench,
@@ -145,7 +145,7 @@ def test_random_with_ask_and_tell_store_config():
 
 
 def test_random_with_ask_and_tell_continual_eval():
-    subdir_name = "test-mfbranin-ask-and-tell"
+    save_dir_name = "test-mfbranin-ask-and-tell"
     bench = MFBranin()
     opt = RandomOptimizerWrapper(
         RandomOptimizer(
@@ -158,7 +158,7 @@ def test_random_with_ask_and_tell_continual_eval():
         very_random=True,
     )
     worker = ObjectiveFuncWrapper(
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         ask_and_tell=True,
         n_workers=10,
         obj_func=bench,
@@ -180,7 +180,7 @@ def test_random_with_ask_and_tell_continual_eval():
 
 
 def test_random_with_ask_and_tell_many_parallel():
-    subdir_name = "test-mfbranin-ask-and-tell"
+    save_dir_name = "test-mfbranin-ask-and-tell"
     bench = MFBranin()
     opt = RandomOptimizerWrapper(
         RandomOptimizer(
@@ -191,7 +191,7 @@ def test_random_with_ask_and_tell_many_parallel():
         ),
     )
     worker = ObjectiveFuncWrapper(
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         ask_and_tell=True,
         n_workers=1000,
         obj_func=bench,

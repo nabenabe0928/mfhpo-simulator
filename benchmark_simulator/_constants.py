@@ -63,7 +63,7 @@ class _TimeValue:
 
 @dataclass(frozen=True)
 class _WrapperVars:
-    subdir_name: str
+    save_dir_name: str
     n_workers: int
     obj_func: ObjectiveFuncType
     n_actual_evals_in_opt: int

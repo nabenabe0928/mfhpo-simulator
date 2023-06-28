@@ -14,7 +14,7 @@ from hpbandster.optimizers import BOHB
 
 import numpy as np
 
-from examples.utils import get_bench_instance, get_subdir_name, parse_args
+from examples.utils import get_bench_instance, get_save_dir_name, parse_args
 
 
 class BOHBWorker(Worker):
@@ -35,7 +35,7 @@ def get_bohb_workers(
     run_id: str,
     ns_host: str,
     obj_func: Any,
-    subdir_name: str,
+    save_dir_name: str,
     max_fidel: int,
     fidel_key: str,
     n_workers: int,
@@ -47,7 +47,7 @@ def get_bohb_workers(
         obj_func=obj_func,
         launch_multiple_wrappers_from_user_side=True,
         n_workers=n_workers,
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         continual_max_fidel=max_fidel,
         fidel_keys=[fidel_key],
         n_actual_evals_in_opt=n_actual_evals_in_opt,
@@ -77,7 +77,7 @@ def get_bohb_workers(
 def run_bohb(
     obj_func: Any,
     config_space: CS.ConfigurationSpace,
-    subdir_name: str,
+    save_dir_name: str,
     min_fidel: int,
     max_fidel: int,
     fidel_key: str,
@@ -95,7 +95,7 @@ def run_bohb(
         run_id=run_id,
         ns_host=ns_host,
         obj_func=obj_func,
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         max_fidel=max_fidel,
         fidel_key=fidel_key,
         n_workers=n_workers,
@@ -116,7 +116,7 @@ def run_bohb(
 
 if __name__ == "__main__":
     args = parse_args()
-    subdir_name = get_subdir_name(args)
+    save_dir_name = get_save_dir_name(args)
     np.random.seed(args.seed)
     obj_func = get_bench_instance(args)
 
@@ -129,5 +129,5 @@ if __name__ == "__main__":
         max_fidel=obj_func.max_fidels[fidel_key],
         fidel_key=fidel_key,
         n_workers=args.n_workers,
-        subdir_name=os.path.join("bohb", subdir_name),
+        save_dir_name=os.path.join("bohb", save_dir_name),
     )

@@ -30,7 +30,7 @@ def parse_args() -> ParsedArgs:
     return ParsedArgs(**kwargs)
 
 
-def get_subdir_name(args: ParsedArgs) -> str:
+def get_save_dir_name(args: ParsedArgs) -> str:
     dataset_part = ""
     if BENCH_CHOICES[args.bench_name]._BENCH_TYPE == "HPO":
         dataset_name = "-".join(BENCH_CHOICES[args.bench_name]._CONSTS.dataset_names[args.dataset_id].split("_"))

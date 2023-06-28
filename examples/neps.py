@@ -12,7 +12,7 @@ import neps
 
 import numpy as np
 
-from examples.utils import get_bench_instance, get_subdir_name, parse_args
+from examples.utils import get_bench_instance, get_save_dir_name, parse_args
 
 
 class NEPSWorker(ObjectiveFuncWrapper):
@@ -42,7 +42,7 @@ def get_pipeline_space(config_space: CS.ConfigurationSpace) -> dict[str, neps.se
 def run_neps(
     obj_func: Any,
     config_space: CS.ConfigurationSpace,
-    subdir_name: str,
+    save_dir_name: str,
     min_fidel: int,
     max_fidel: int,
     fidel_key: str,
@@ -53,7 +53,7 @@ def run_neps(
 ):
     np.random.seed(seed)
     worker = NEPSWorker(
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         launch_multiple_wrappers_from_user_side=True,
         n_workers=n_workers,
         obj_func=obj_func,
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         )
 
     args = parse_args()
-    subdir_name = get_subdir_name(args)
+    save_dir_name = get_save_dir_name(args)
     bench = get_bench_instance(args)
     fidel_key = "epoch" if "epoch" in bench.fidel_keys else "z0"
 
@@ -93,6 +93,6 @@ if __name__ == "__main__":
         max_fidel=bench.max_fidels[fidel_key],
         fidel_key=fidel_key,
         n_workers=args.n_workers,
-        subdir_name=os.path.join("neps", subdir_name),
+        save_dir_name=os.path.join("neps", save_dir_name),
         seed=args.seed,
     )

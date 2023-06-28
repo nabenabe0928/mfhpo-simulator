@@ -53,7 +53,20 @@ The dependencies of this package are only **numpy** and **ujson**.
 
 ## Test
 
-The very minimal example is provided in [examples/minimal.py](examples/minimal.py) and you can run by `python -m examples.minimal` after the setup below.
+The very minimal examples are provided in [examples/minimal/](examples/minimal/) and you can run these examples by:
+```shell
+# DEHB
+$ python -m examples.minimal.dehb
+
+# BOHB
+$ python -m examples.minimal.bohb
+
+# SMAC
+$ python -m examples.minimal.smac
+
+# NePS
+$ ./examples/minimal/neps.sh --n_workers 4
+```
 
 If you would like to know the examples of the usage, please clone the whole repository:
 
@@ -109,7 +122,7 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 1. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L40-L73) for more details,
 2. `launch_multiple_wrappers_from_user_side` (`bool`): Whether users need to launch multiple objective function wrappers from user side,
 3. `ask_and_tell` (`bool`): Whether to use an ask-and-tell interface optimizer and simulate the optimization in `ObjectiveFuncWrapper`,
-4. `subdir_name` (`str | None`): The directory to store the information and it must be specified when using `launch_multiple_wrappers_from_user_side=True`, otherwise the directory name will be automatically generated,
+4. `save_dir_name` (`str | None`): The directory to store the information and it must be specified when using `launch_multiple_wrappers_from_user_side=True`, otherwise the directory name will be automatically generated,
 5. `n_workers` (`int`): The number of parallel workers,
 6. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimizers (this argument will be used only for raising an error),
 7. `n_evals` (`int`): The number of evaluations to be stored in the information,

@@ -61,8 +61,8 @@ class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):
 
 def run_dehb(n_workers: int):
     n_actual_evals_in_opt = 100 + n_workers
-    subdir_name = "dummy"
-    path = os.path.join(DIR_NAME, subdir_name)
+    save_dir_name = "dummy"
+    path = os.path.join(DIR_NAME, save_dir_name)
     obj_func = ToyFunc()
 
     if os.path.exists(path):
@@ -74,7 +74,7 @@ def run_dehb(n_workers: int):
         continual_max_fidel=obj_func.max_fidel,
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=100,
-        subdir_name=subdir_name,
+        save_dir_name=save_dir_name,
         obj_keys=["fitness"],
         runtime_key="cost",
         fidel_keys=["epoch"],
