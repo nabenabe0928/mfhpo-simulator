@@ -88,7 +88,7 @@ class ObjectiveFuncWrapper:
     def __init__(
         self,
         obj_func: ObjectiveFuncType,
-        launch_multiple_workers_from_user_side: bool = False,
+        launch_multiple_wrappers_from_user_side: bool = False,
         ask_and_tell: bool = False,
         subdir_name: str | None = None,
         n_workers: int = 4,
@@ -118,8 +118,8 @@ class ObjectiveFuncWrapper:
                 Returns:
                     results: dict[str, float]
                         It must return `objective metric` and `runtime` at least.
-            launch_multiple_workers_from_user_side (bool):
-                Whether users need to launch multiple objective function workers from user side.
+            launch_multiple_wrappers_from_user_side (bool):
+                Whether users need to launch multiple objective function wrappers from user side.
                 Examples of such cases are available at:
                     - https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/bohb.py
                     - https://github.com/nabenabe0928/mfhpo-simulator/blob/main/examples/neps.py
@@ -198,11 +198,11 @@ class ObjectiveFuncWrapper:
         self._validate(
             subdir_name=subdir_name,
             ask_and_tell=ask_and_tell,
-            launch_multiple_workers_from_user_side=launch_multiple_workers_from_user_side,
+            launch_multiple_wrappers_from_user_side=launch_multiple_wrappers_from_user_side,
         )
         if ask_and_tell:
             self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
-        elif launch_multiple_workers_from_user_side:
+        elif launch_multiple_wrappers_from_user_side:
             self._main_wrapper = _ObjectiveFuncWorker(wrapper_vars)
         else:
             self._main_wrapper = _CentralWorkerManager(wrapper_vars)
@@ -235,13 +235,15 @@ class ObjectiveFuncWrapper:
         self,
         subdir_name: str | None,
         ask_and_tell: bool,
-        launch_multiple_workers_from_user_side: bool,
+        launch_multiple_wrappers_from_user_side: bool,
     ) -> None:
-        if ask_and_tell and launch_multiple_workers_from_user_side:
-            raise ValueError("ask_and_tell and launch_multiple_workers_from_user_side cannot be True at the same time.")
-        if launch_multiple_workers_from_user_side and subdir_name is None:
+        if ask_and_tell and launch_multiple_wrappers_from_user_side:
             raise ValueError(
-                "When launch_multiple_workers_from_user_side is False, subdir_name must be specified so that \n"
+                "ask_and_tell and launch_multiple_wrappers_from_user_side cannot be True at the same time."
+            )
+        if launch_multiple_wrappers_from_user_side and subdir_name is None:
+            raise ValueError(
+                "When launch_multiple_wrappers_from_user_side is False, subdir_name must be specified so that \n"
                 "each worker recognizes with which processes it shares the optimization results."
             )
 

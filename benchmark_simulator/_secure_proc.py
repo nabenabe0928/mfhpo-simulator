@@ -227,7 +227,7 @@ def _get_timeout_message(cause: str, path: str) -> str:
         f"Timeout in {cause}. There could be three possible reasons:",
         f"(1) The path {dir_name} already existed before the execution of the program.",
         "(2) n_workers specified in your optimizer and that in the simulator might be different.",
-        "(3) launch_multiple_workers_from_user_side is incorrectly set.",
+        "(3) launch_multiple_wrappers_from_user_side is incorrectly set.",
     ]
     return "\n".join(msg)
 

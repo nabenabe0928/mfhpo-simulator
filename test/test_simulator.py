@@ -69,7 +69,7 @@ def test_error_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         **kwargs,
     )
     # Objective function did not get keyword `fidels`
@@ -82,7 +82,7 @@ def test_error_fidel_in_call():
     kwargs.pop("fidel_keys")
     worker = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         **kwargs,
     )
     worker(eval_config={"x": 0})  # no error without fidel!
@@ -99,7 +99,7 @@ def test_guarantee_no_hang():
     with pytest.raises(ValueError, match="Cannot guarantee that optimziers will not hang"):
         ObjectiveFuncWrapper(
             obj_func=dummy_no_fidel_func,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
     if os.path.exists(PATH):
@@ -113,7 +113,7 @@ def test_validate_fidel_args():
         with pytest.raises(ValueError, match="continual_max_fidel is valid only if fidel_keys has only one element*"):
             ObjectiveFuncWrapper(
                 obj_func=dummy_no_fidel_func,
-                launch_multiple_workers_from_user_side=True,
+                launch_multiple_wrappers_from_user_side=True,
                 **kwargs,
             )
         if os.path.exists(PATH):
@@ -126,7 +126,7 @@ def test_errors_in_proc_output():
     with pytest.raises(ValueError, match="fidels must have only one element*"):
         worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
@@ -138,7 +138,7 @@ def test_errors_in_proc_output():
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
         worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1.0})
@@ -149,7 +149,7 @@ def test_errors_in_proc_output():
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
         worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": -1})
@@ -162,7 +162,7 @@ def test_errors_in_proc_output():
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
@@ -175,7 +175,7 @@ def test_errors_in_proc_output():
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWrapper(
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1})
@@ -191,7 +191,7 @@ def test_error_in_keys():
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             obj_keys=["dummy_loss"],
             **kwargs,
         )
@@ -201,7 +201,7 @@ def test_error_in_keys():
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             runtime_key="dummy_runtime",
             **kwargs,
         )
@@ -212,7 +212,7 @@ def test_error_in_keys():
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(
             obj_func=dummy_func,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             obj_keys=["dummy_loss", "loss"],
             **kwargs,
         )
@@ -229,7 +229,7 @@ def test_call_with_many_fidelities():
     kwargs.pop("continual_max_fidel")
     worker = ObjectiveFuncWrapper(
         obj_func=dummy_func_with_many_fidelities,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         **kwargs,
     )
 
@@ -247,7 +247,7 @@ def test_call_with_data():
     kwargs.update(n_evals=n_evals)
     worker = ObjectiveFuncWrapper(
         obj_func=dummy_func_with_data,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         **kwargs,
     )
 
@@ -266,7 +266,7 @@ def test_call():
     kwargs.update(n_evals=n_evals)
     worker = ObjectiveFuncWrapper(
         obj_func=dummy_func,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         **kwargs,
     )
 
@@ -288,7 +288,7 @@ def test_call_considering_state():
     kwargs.update(n_evals=n_evals, n_actual_evals_in_opt=22)
     worker = ObjectiveFuncWrapper(
         obj_func=dummy_func,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         **kwargs,
     )
     worker(eval_config={"x": 1}, fidels={"epoch": 10})  # max-fidel and thus no need to cache
@@ -341,7 +341,7 @@ def test_store_config():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func, launch_multiple_workers_from_user_side=True, store_config=True, **kwargs
+        obj_func=dummy_func, launch_multiple_wrappers_from_user_side=True, store_config=True, **kwargs
     )
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
     shutil.rmtree(worker.dir_name)
@@ -378,7 +378,7 @@ def test_store_config_with_conditional():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func, launch_multiple_workers_from_user_side=True, store_config=True, **kwargs
+        obj_func=dummy_func, launch_multiple_wrappers_from_user_side=True, store_config=True, **kwargs
     )
     worker(**dict(eval_config={"x": 1}, fidels={"epoch": 1}))
     worker(**dict(eval_config={"x": 1, "y": 2}, fidels={"epoch": 1}))
@@ -434,7 +434,7 @@ def test_interrupted():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func, launch_multiple_workers_from_user_side=True, store_config=True, **kwargs
+        obj_func=dummy_func, launch_multiple_wrappers_from_user_side=True, store_config=True, **kwargs
     )
     data = json.load(open(worker._main_wrapper._paths.worker_cumtime))
     with open(worker._main_wrapper._paths.worker_cumtime, mode="w") as f:

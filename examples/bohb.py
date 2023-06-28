@@ -45,7 +45,7 @@ def get_bohb_workers(
 ) -> list[BOHBWorker]:
     kwargs = dict(
         obj_func=obj_func,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         n_workers=n_workers,
         subdir_name=subdir_name,
         continual_max_fidel=max_fidel,

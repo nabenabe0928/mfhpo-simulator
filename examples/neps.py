@@ -54,7 +54,7 @@ def run_neps(
     np.random.seed(seed)
     worker = NEPSWorker(
         subdir_name=subdir_name,
-        launch_multiple_workers_from_user_side=True,
+        launch_multiple_wrappers_from_user_side=True,
         n_workers=n_workers,
         obj_func=obj_func,
         n_actual_evals_in_opt=n_actual_evals_in_opt,

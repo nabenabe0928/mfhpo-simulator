@@ -21,7 +21,7 @@ If the optimizer interface is the [ask-and-tell](https://optuna.readthedocs.io/e
 | Arguments | What Wrapper | Function Call | Requirements | Benefits | Downsides |
 |--|:--:|:--:|--|--|--|
 | Default | Function  | Parallel | Optimizer does intra-process synchronization (e.g. [DEHB](examples/dehb.py) and [SMAC3](examples/smac.py)) | No need to change the optimizer interface and reproduce exactly how optimizers run | Could be very slow, unstable, and memory-intensive with a large `n_workers` |
-|`launch_multiple_workers_from_user_side=True`  | Function  | Parallel | Optimizer does inter-process synchronization (e.g. [NePS](examples/neps.py) and [BOHB](examples/bohb.py)) | Same above | Same above |
+|`launch_multiple_wrappers_from_user_side=True`  | Function  | Parallel | Optimizer does inter-process synchronization (e.g. [NePS](examples/neps.py) and [BOHB](examples/bohb.py)) | Same above | Same above |
 |`ask_and_tell=True` | Function and Optimizer | *Sequential | Optimizer must take the [ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html) interface (see [example](examples/ask_and_tell/)) | Fast, stable, and memory-efficient even with a large `n_workers` | Force the ask-and-tell interface and may unexpectedly ignore the memory bottleneck that could be caused by parallel runs |
 
 \* It runs function call sequentially, but function calls are internally processed as if they are run in parallel.
@@ -101,15 +101,15 @@ Note that `--seed` does not guarantee the reproducitility because of the paralle
 
 ## Arguments for Function Wrapper
 
-In most packages, users need to use the default setting (`launch_multiple_workers_from_user_side=False` and `ask_and_tell=True`).
-However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps/) are exceptions where you need to use `launch_multiple_workers_from_user_side=True`.
-Basically, we need to use `launch_multiple_workers_from_user_side=True` for BOHB and NePS because they explicitly instantiate multiple objective function objects from the user side and each of them has its own main process.
+In most packages, users need to use the default setting (`launch_multiple_wrappers_from_user_side=False` and `ask_and_tell=True`).
+However, [`BOHB`](https://github.com/automl/hpBandSter/) and [`NePS`](https://github.com/automl/neps/) are exceptions where you need to use `launch_multiple_wrappers_from_user_side=True`.
+Basically, we need to use `launch_multiple_wrappers_from_user_side=True` for BOHB and NePS because they explicitly instantiate multiple objective function objects from the user side and each of them has its own main process.
 On the other hand, when optimizers use typical multiprocessing/multithreading packages such as `multiprocessing`, `threading`, `concurrent.futures`, `joblib`, `dask`, and `mpi4py`, the main process can easily communicate with each child process, and hence users can stick to the default setting.
 Each argument of `ObjectiveFuncWrapper` is the following:
 1. `obj_func` (`ObjectiveFuncType`): The objective function to be wrapped. See [`ObjectiveFuncType`](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L40-L73) for more details,
-2. `launch_multiple_workers_from_user_side` (`bool`): Whether users need to launch multiple objective function workers from user side,
+2. `launch_multiple_wrappers_from_user_side` (`bool`): Whether users need to launch multiple objective function wrappers from user side,
 3. `ask_and_tell` (`bool`): Whether to use an ask-and-tell interface optimizer and simulate the optimization in `ObjectiveFuncWrapper`,
-4. `subdir_name` (`str | None`): The directory to store the information and it must be specified when using `launch_multiple_workers_from_user_side=True`, otherwise the directory name will be automatically generated,
+4. `subdir_name` (`str | None`): The directory to store the information and it must be specified when using `launch_multiple_wrappers_from_user_side=True`, otherwise the directory name will be automatically generated,
 5. `n_workers` (`int`): The number of parallel workers,
 6. `n_actual_evals_in_opt` (`int`): The number of evaluations inside the optimizers (this argument will be used only for raising an error),
 7. `n_evals` (`int`): The number of evaluations to be stored in the information,

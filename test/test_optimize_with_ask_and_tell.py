@@ -68,15 +68,15 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
 
 
 def test_validate_in_obj_func_wrapper():
-    with pytest.raises(ValueError, match=r"ask_and_tell and launch_multiple_workers_from_user_side cannot be True*"):
+    with pytest.raises(ValueError, match=r"ask_and_tell and launch_multiple_wrappers_from_user_side cannot be True*"):
         ObjectiveFuncWrapper(
             ask_and_tell=True,
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             obj_func=MFBranin(),
         )
-    with pytest.raises(ValueError, match=r"When launch_multiple_workers_from_user_side is False*"):
+    with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side is False*"):
         ObjectiveFuncWrapper(
-            launch_multiple_workers_from_user_side=True,
+            launch_multiple_wrappers_from_user_side=True,
             obj_func=MFBranin(),
         )
 

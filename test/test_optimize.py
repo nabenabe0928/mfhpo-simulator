@@ -79,6 +79,10 @@ def run_dehb(n_workers: int):
         runtime_key="cost",
         fidel_keys=["epoch"],
     )
+    assert worker.fidel_keys == ["epoch"]
+    assert worker.runtime_key == "cost"
+    assert worker.n_actual_evals_in_opt == n_actual_evals_in_opt
+    assert worker.n_workers == n_workers
 
     dehb = DEHB(
         f=worker,
