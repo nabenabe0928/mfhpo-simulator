@@ -9,6 +9,9 @@
     <tr>
         <td><img src="figs/compress-conceptual.png" alt=""></td>
     </tr>
+    <tr>
+        <td><img src="figs/api-conceptual.png" alt=""></td>
+    </tr>
 </table>
 
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
