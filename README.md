@@ -39,6 +39,7 @@ Our wrapper assumes that none of the workers will not die and any additional wor
 Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
 We are not sure if we will support any additional workers after the initialization yet.
 Furthermore, our package **cannot be run on Windows OS** because the Python module `fcntl` is not supported on Windows OS.
+Although our package supports MacOS, it is advisable to use Linux system.
 
 ## Setup
 
