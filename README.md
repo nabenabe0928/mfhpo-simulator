@@ -133,10 +133,11 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 8. `continual_max_fidel` (`int | None`): The maximum fidelity value used for the continual evaluation (it is valid only if we have a single fidelity). If `None`, we just do a normal asynchronous or multi-fidelity optimization. Note that continual evaluation is to train each hyperparameter configuration from scratch or from intermediate results. For example, when we have a training result of a neural network with a hyperparameter configuration `A` for 10 epochs, we train a neural network with `A` for 30 epochs from 10 epochs rather than from scratch,
 9. `obj_keys` (`list[str]`): The list of objective names in the output from `obj_func`,
 10. `runtime_key` (`str`): The key is for runtime. The output of the objective function must include runtime,
-11. `obj_keys` (`list[str]`): The list of fidelity names that will be fed to the objective function,
+11. `fidel_keys` (`list[str]`): The list of fidelity names that will be fed to the objective function,
 12. `seed` (`int | None`): The random seed to be used in each worker,
-13. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`, and
-14. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments.
+13. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`,
+14. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments, and
+15. `check_interval_time` (`float`): How often each worker should check whether a new job can be assigned to it. For example, if `1e-2` is specified, each worker check whether they can get a new job every `1e-2` seconds. If there are many workers, too small `check_interval_time` may cause a big bottleneck. On the other hand, a big `check_interval_time` spends more time for waiting. By default, `check_interval_time` is set to a relatively small number, so users might rather want to increase the number to avoid the bottleneck for many workers.
 
 ## Simulation Using Only the Main Process
 This is the description for `ask_and_tell=True`.
