@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
+import pytest
 import time
 import unittest
 
@@ -10,10 +9,11 @@ from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 
 import numpy as np
 
-from tests.utils import IS_LOCAL, ON_UBUNTU, SUBDIR_NAME, remove_tree
+from tests.utils import ON_UBUNTU, SUBDIR_NAME, cleanup
 
 
 N_EVALS = 20
+LATENCY = "latency"
 UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
@@ -145,47 +145,34 @@ class MyOptimizer(AbstractAskTellOptimizer):
         pass
 
 
-def optimize_parallel(n_workers: int):
-    remove_tree()
+@cleanup
+def optimize_parallel(mode: str, n_workers: int):
+    latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = n_workers
-    target = OrderCheckConfigs(n_workers)
-    manager = ObjectiveFuncWrapper(obj_func=target, **kwargs)
-    manager.simulate(MyOptimizer())
+    n_evals = N_EVALS if not latency else 6
+    kwargs.update(n_workers=n_workers, n_evals=n_evals)
+    target = OrderCheckConfigsWithSampleLatency() if latency else OrderCheckConfigs(n_workers)
+    wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
+    if latency:
+        wrapper.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals))
+    else:
+        wrapper.simulate(MyOptimizer())
 
-    path = manager.dir_name
-    out = json.load(open(os.path.join(path, "results.json")))["cumtime"][:N_EVALS]
-    shutil.rmtree(path)
+    out = json.load(open(wrapper._main_wrapper._paths.result))["cumtime"][:n_evals]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)
-    assert np.all(diffs < 1)  # 1 is just a buffer.
+    buffer = UNIT_TIME * 100 if latency else 1
+    assert np.all(diffs < buffer)  # 1 is just a buffer.
 
 
-def test_optimize_parallel():
-    if IS_LOCAL:
-        optimize_parallel(n_workers=4)
-
-    optimize_parallel(n_workers=2)
-
-
-def test_optimize_with_latency():
-    remove_tree()
-    kwargs = DEFAULT_KWARGS.copy()
-    n_workers, n_evals = 2, 6
-    kwargs["n_evals"] = n_evals
-    kwargs["n_workers"] = n_workers
-    target = OrderCheckConfigsWithSampleLatency()
-    manager = ObjectiveFuncWrapper(obj_func=target, **kwargs)
-    manager.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals))
-
-    path = manager.dir_name
-    out = json.load(open(os.path.join(path, "results.json")))["cumtime"][:n_evals]
-    shutil.rmtree(path)
-    diffs = np.abs(out - np.maximum.accumulate(out))
-    assert np.allclose(diffs, 0.0)
-    diffs = np.abs(out - target._ans)
-    assert np.all(diffs < UNIT_TIME * 100)  # Right hand side is not zero, because need some buffer.
+@pytest.mark.parametrize("mode", ("normal", LATENCY))
+def test_optimize_parallel(mode):
+    if mode == LATENCY:
+        optimize_parallel(mode=mode, n_workers=2)
+    else:
+        optimize_parallel(mode=mode, n_workers=2)
+        optimize_parallel(mode=mode, n_workers=4)
 
 
 if __name__ == "__main__":

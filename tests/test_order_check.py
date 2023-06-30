@@ -13,6 +13,7 @@ from tests.utils import IS_LOCAL, ON_UBUNTU, SUBDIR_NAME, cleanup, get_pool
 
 
 N_EVALS = 20
+LATENCY = "latency"
 UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
@@ -135,7 +136,7 @@ class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
 
 @cleanup
 def optimize_parallel(mode: str):
-    latency = mode == "latency"
+    latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = 2 if latency or not IS_LOCAL else 4
     n_evals = 9 if latency else N_EVALS
@@ -160,7 +161,7 @@ def optimize_parallel(mode: str):
     assert np.all(diffs < buffer)
 
 
-@pytest.mark.parametrize("mode", ("normal", "latency"))
+@pytest.mark.parametrize("mode", ("normal", LATENCY))
 def test_optimize_parallel(mode: str):
     optimize_parallel(mode=mode)
 
