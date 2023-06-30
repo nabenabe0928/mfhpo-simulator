@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import json
-import multiprocessing
-import os
-import shutil
+import pytest
 import time
 import unittest
 
@@ -11,7 +9,7 @@ from benchmark_simulator import ObjectiveFuncWrapper
 
 import numpy as np
 
-from tests.utils import IS_LOCAL, ON_UBUNTU, SUBDIR_NAME, remove_tree
+from tests.utils import IS_LOCAL, ON_UBUNTU, SUBDIR_NAME, cleanup, get_pool
 
 
 N_EVALS = 20
@@ -129,76 +127,42 @@ class OrderCheckConfigs:
         return results
 
 
-def optimize_parallel(n_workers: int):
-    remove_tree()
-    kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = n_workers
-    target = OrderCheckConfigs(n_workers)
-    manager = ObjectiveFuncWrapper(obj_func=target, **kwargs)
-
-    pool = multiprocessing.Pool(processes=n_workers)
-    res = []
-    for index in range(N_EVALS + 4):
-        r = pool.apply_async(manager, kwds=dict(eval_config=dict(index=min(index, N_EVALS - 1))))
-        res.append(r)
-    else:
-        for r in res:
-            r.get()
-
-    pool.close()
-    pool.join()
-
-    path = manager.dir_name
-    out = json.load(open(os.path.join(path, "results.json")))["cumtime"][:N_EVALS]
-    shutil.rmtree(path)
-    diffs = out - np.maximum.accumulate(out)
-    assert np.allclose(diffs, 0.0)
-    diffs = out - target._ans
-    assert np.all(diffs < 3)  # 3 is just a buffer.
-
-
-def test_optimize_parallel():
-    if IS_LOCAL:
-        optimize_parallel(n_workers=4)
-
-    optimize_parallel(n_workers=2)
-
-
 class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
     def __call__(self, eval_config, **kwargs):
         time.sleep(UNIT_TIME * 200)
         super().__call__(eval_config, **kwargs)
 
 
-def test_optimize_with_latency():
-    remove_tree()
+@cleanup
+def optimize_parallel(mode: str):
+    latency = mode == "latency"
     kwargs = DEFAULT_KWARGS.copy()
-    n_workers, n_evals = 2, 9
-    kwargs["n_evals"] = n_evals
-    kwargs["n_workers"] = n_workers
-    target = OrderCheckConfigsWithSampleLatency()
-    manager = ObjectiveFuncWrapperWithSampleLatency(obj_func=target, **kwargs)
+    n_workers = 2 if latency or not IS_LOCAL else 4
+    n_evals = 9 if latency else N_EVALS
+    kwargs.update(n_workers=n_workers, n_evals=n_evals)
+    target = OrderCheckConfigsWithSampleLatency() if latency else OrderCheckConfigs(n_workers)
+    wrapper_cls = ObjectiveFuncWrapperWithSampleLatency if latency else ObjectiveFuncWrapper
+    wrapper = wrapper_cls(obj_func=target, **kwargs)
 
-    pool = multiprocessing.Pool(processes=n_workers)
-    res = []
-    for index in range(n_evals + n_workers):
-        eval_config = dict(index=min(index, n_evals - 1))
-        r = pool.apply_async(manager, kwds=dict(eval_config=eval_config))
-        res.append(r)
-    else:
+    with get_pool(n_workers=n_workers) as pool:
+        res = []
+        for index in range(n_evals + n_workers):
+            r = pool.apply_async(wrapper, kwds=dict(eval_config=dict(index=min(index, n_evals - 1))))
+            res.append(r)
         for r in res:
             r.get()
 
-    pool.close()
-    pool.join()
-
-    path = manager.dir_name
-    out = json.load(open(os.path.join(path, "results.json")))["cumtime"][:9]
-    shutil.rmtree(path)
+    out = json.load(open(wrapper._main_wrapper._paths.result))["cumtime"][:n_evals]
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
-    diffs = np.abs(out - target._ans)
-    assert np.all(diffs < UNIT_TIME * 100)  # Right hand side is not zero, because need some buffer.
+    diffs = out - target._ans
+    buffer = UNIT_TIME * 100 if latency else 3
+    assert np.all(diffs < buffer)
+
+
+@pytest.mark.parametrize("mode", ("normal", "latency"))
+def test_optimize_parallel(mode: str):
+    optimize_parallel(mode=mode)
 
 
 if __name__ == "__main__":
