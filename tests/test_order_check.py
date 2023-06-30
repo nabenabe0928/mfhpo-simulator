@@ -4,20 +4,16 @@ import json
 import multiprocessing
 import os
 import shutil
-import sys
 import time
 import unittest
 
 from benchmark_simulator import ObjectiveFuncWrapper
-from benchmark_simulator._constants import DIR_NAME
 
 import numpy as np
 
+from tests.utils import IS_LOCAL, ON_UBUNTU, SUBDIR_NAME, remove_tree
 
-SUBDIR_NAME = "dummy"
-IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
-ON_UBUNTU = sys.platform == "linux"
-PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
+
 N_EVALS = 20
 UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
@@ -131,13 +127,6 @@ class OrderCheckConfigs:
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
         results = self._results[eval_config["index"]]
         return results
-
-
-def remove_tree():
-    try:
-        shutil.rmtree(PATH)
-    except FileNotFoundError:
-        pass
 
 
 def optimize_parallel(n_workers: int):

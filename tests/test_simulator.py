@@ -4,23 +4,20 @@ import multiprocessing
 import os
 import pytest
 import shutil
-import sys
 import time
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import DIR_NAME, _SharedDataFileNames, _TIME_VALUES
+from benchmark_simulator._constants import _SharedDataFileNames, _TIME_VALUES
 from benchmark_simulator.simulator import ObjectiveFuncWrapper, get_multiple_wrappers
 
 import numpy as np
 
 import ujson as json
 
+from tests.utils import DIR_PATH, ON_UBUNTU, SUBDIR_NAME, get_n_workers, remove_tree
 
-SUBDIR_NAME = "dummy"
-IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
-ON_UBUNTU = sys.platform == "linux"
-PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
+
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
     n_workers=1,
@@ -116,8 +113,8 @@ def test_guarantee_no_hang():
             launch_multiple_wrappers_from_user_side=True,
             **kwargs,
         )
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
 
 def test_validate_fidel_args():
@@ -130,8 +127,8 @@ def test_validate_fidel_args():
                 launch_multiple_wrappers_from_user_side=True,
                 **kwargs,
             )
-        if os.path.exists(PATH):
-            shutil.rmtree(PATH)
+        if os.path.exists(DIR_PATH):
+            shutil.rmtree(DIR_PATH)
 
 
 def test_errors_in_proc_output():
@@ -145,8 +142,8 @@ def test_errors_in_proc_output():
         )
         worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     # Fidelity for continual evaluation must be integer
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
@@ -157,8 +154,8 @@ def test_errors_in_proc_output():
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1.0})
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
         worker = ObjectiveFuncWrapper(
@@ -168,8 +165,8 @@ def test_errors_in_proc_output():
         )
         worker(eval_config={"x": 0}, fidels={"epoch": -1})
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     kwargs.pop("continual_max_fidel")
     # The keys in fidels must be identical to fidel_keys
@@ -181,8 +178,8 @@ def test_errors_in_proc_output():
         )
         worker(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1})
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     kwargs["fidel_keys"] = ["dummy-fidel"]
     # The keys in fidels must be identical to fidel_keys
@@ -194,8 +191,8 @@ def test_errors_in_proc_output():
         )
         worker(eval_config={"x": 0}, fidels={"epoch": 1})
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
 
 def test_error_in_keys():
@@ -325,18 +322,6 @@ def test_call_considering_state():
             assert len(states[key]) == ans
 
     shutil.rmtree(worker.dir_name)
-
-
-def remove_tree():
-    try:
-        shutil.rmtree(PATH)
-    except FileNotFoundError:
-        pass
-
-
-def get_n_workers():
-    n_workers = 4 if IS_LOCAL else 2  # github actions has only 2 cores
-    return n_workers
 
 
 def test_central_worker_manager():
@@ -520,7 +505,7 @@ def run_optimize_parallel(wrong_n_workers: bool, remained_file: bool = False):
     manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
     if remained_file:
-        with open(os.path.join(PATH, _SharedDataFileNames.proc_alloc.value), mode="w") as f:
+        with open(os.path.join(DIR_PATH, _SharedDataFileNames.proc_alloc.value), mode="w") as f:
             json.dump({"0": 0, "1": 1, "2": 2}, f)
 
     pool = multiprocessing.Pool(processes=n_workers + wrong_n_workers)

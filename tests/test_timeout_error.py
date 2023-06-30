@@ -9,17 +9,15 @@ import time
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator._secure_proc import _wait_until_next
 from benchmark_simulator._utils import _SecureLock
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
+from tests.utils import SUBDIR_NAME, get_n_workers, remove_tree
 
-SUBDIR_NAME = "dummy"
-IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
-PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
+
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
     n_workers=4,
@@ -28,18 +26,6 @@ DEFAULT_KWARGS = dict(
     continual_max_fidel=10,
     fidel_keys=["epoch"],
 )
-
-
-def remove_tree():
-    try:
-        shutil.rmtree(PATH)
-    except FileNotFoundError:
-        pass
-
-
-def get_n_workers():
-    n_workers = 4 if IS_LOCAL else 2  # github actions has only 2 cores
-    return n_workers
 
 
 def dummy_func_with_wait(

@@ -6,15 +6,14 @@ import shutil
 import unittest
 from typing import Any
 
-from benchmark_simulator._constants import AbstractAskTellOptimizer, DIR_NAME
+from benchmark_simulator._constants import AbstractAskTellOptimizer
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
+from tests.utils import DIR_PATH, SUBDIR_NAME, remove_tree
 
-SUBDIR_NAME = "dummy"
-IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
-PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
+
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
     ask_and_tell=True,
@@ -24,13 +23,6 @@ DEFAULT_KWARGS = dict(
     continual_max_fidel=10,
     fidel_keys=["epoch"],
 )
-
-
-def remove_tree():
-    try:
-        shutil.rmtree(PATH)
-    except FileNotFoundError:
-        pass
 
 
 def dummy_func(
@@ -92,8 +84,8 @@ def test_guarantee_no_hang():
             obj_func=dummy_no_fidel_func,
             **kwargs,
         )
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
 
 def test_validate_fidel_args():
@@ -105,8 +97,8 @@ def test_validate_fidel_args():
                 obj_func=dummy_no_fidel_func,
                 **kwargs,
             )
-        if os.path.exists(PATH):
-            shutil.rmtree(PATH)
+        if os.path.exists(DIR_PATH):
+            shutil.rmtree(DIR_PATH)
 
 
 def test_errors_in_proc_output():
@@ -119,8 +111,8 @@ def test_errors_in_proc_output():
         )
         worker._main_wrapper._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     # Fidelity for continual evaluation must be integer
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
@@ -130,8 +122,8 @@ def test_errors_in_proc_output():
         )
         worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1.0}, worker_id=0)
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
         worker = ObjectiveFuncWrapper(
@@ -140,8 +132,8 @@ def test_errors_in_proc_output():
         )
         worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": -1}, worker_id=0)
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     kwargs.pop("continual_max_fidel")
     # The keys in fidels must be identical to fidel_keys
@@ -152,8 +144,8 @@ def test_errors_in_proc_output():
         )
         worker._main_wrapper._proc_obj_func(eval_config={"x": 1}, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
     kwargs["fidel_keys"] = ["dummy-fidel"]
     # The keys in fidels must be identical to fidel_keys
@@ -164,8 +156,8 @@ def test_errors_in_proc_output():
         )
         worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
 
-    if os.path.exists(PATH):
-        shutil.rmtree(PATH)
+    if os.path.exists(DIR_PATH):
+        shutil.rmtree(DIR_PATH)
 
 
 def test_error_in_keys():

@@ -3,20 +3,16 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 import time
 import unittest
 
 from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
-from benchmark_simulator._constants import DIR_NAME
 
 import numpy as np
 
+from tests.utils import IS_LOCAL, ON_UBUNTU, SUBDIR_NAME, remove_tree
 
-SUBDIR_NAME = "dummy"
-IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
-ON_UBUNTU = sys.platform == "linux"
-PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
+
 N_EVALS = 20
 UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
@@ -146,13 +142,6 @@ class MyOptimizer(AbstractAskTellOptimizer):
         return ret
 
     def tell(self, *args, **kwargs):
-        pass
-
-
-def remove_tree():
-    try:
-        shutil.rmtree(PATH)
-    except FileNotFoundError:
         pass
 
 
