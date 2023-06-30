@@ -55,8 +55,9 @@ def get_n_workers():
 
 
 @contextmanager
-def get_pool(n_workers: int) -> multiprocessing.Pool:
+def get_pool(n_workers: int, join: bool = True) -> multiprocessing.Pool:
     pool = multiprocessing.Pool(processes=n_workers)
     yield pool
     pool.close()
-    pool.join()
+    if join:  # we do not join if one of the workers is terminated because the info cannot be joined.
+        pool.join()
