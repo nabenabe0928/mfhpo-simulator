@@ -13,7 +13,7 @@ from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
-from tests.utils import SUBDIR_NAME, get_n_workers, get_pool, remove_tree
+from tests.utils import SUBDIR_NAME, cleanup, get_n_workers, get_pool
 
 
 DEFAULT_KWARGS = dict(
@@ -59,15 +59,6 @@ def dummy_func_with_pseudo_crash(
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
-def common_proc(test_func) -> None:
-    def _inner_func():
-        remove_tree()
-        test_func()
-        remove_tree()
-
-    return _inner_func
-
-
 def get_results(*, pool, func, n_configs: int, epoch_func: callable, x_func: callable):
     res = {}
     for i in range(n_configs):
@@ -107,7 +98,7 @@ def runtime_error(n_workers: int, i: int, e):
     raise RuntimeError(f"The first {n_workers} run must be timeout, but the {i+1}-th run failed with {e}")
 
 
-@common_proc
+@cleanup
 def test_timeout_error_by_wait():
     wrapper, n_workers = get_wrapper_and_n_workers(dummy_func_with_wait)
     with get_pool(n_workers=n_workers) as pool:
@@ -128,7 +119,7 @@ def test_timeout_error_by_wait():
         assert n_workers == n_timeout + 1
 
 
-@common_proc
+@cleanup
 def test_timeout_error_by_duplicated_worker():
     wrapper, n_workers = get_wrapper_and_n_workers(dummy_func_with_crash)
     with get_pool(n_workers=n_workers, join=False) as pool:
@@ -153,7 +144,7 @@ def test_timeout_error_by_duplicated_worker():
         assert n_no_proc > 0
 
 
-@common_proc
+@cleanup
 def test_timeout_error_by_pseudo_crash():
     wrapper, n_workers = get_wrapper_and_n_workers(dummy_func_with_pseudo_crash)
     with get_pool(n_workers=n_workers) as pool:
@@ -170,7 +161,7 @@ def test_timeout_error_by_pseudo_crash():
                 res[i].get()
 
 
-@common_proc
+@cleanup
 def test_timeout_error_by_pseudo_crash_at_intermidiate():
     wrapper, n_workers = get_wrapper_and_n_workers(dummy_func_with_pseudo_crash)
     with get_pool(n_workers=n_workers) as pool:

@@ -7,10 +7,12 @@ import sys
 from contextlib import contextmanager
 from typing import Any
 
+from benchmark_simulator import ObjectiveFuncWrapper
 from benchmark_simulator._constants import DIR_NAME
 
 
 SUBDIR_NAME = "dummy"
+SIMPLE_CONFIG = {"x": 0}
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 ON_UBUNTU = sys.platform == "linux"
 DIR_PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
@@ -22,6 +24,14 @@ def dummy_func(
     seed: int | None,
 ) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
+
+
+def dummy_func_with_constant_runtime(
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
+) -> dict[str, float]:
+    return dict(loss=eval_config["x"], runtime=1)
 
 
 def dummy_no_fidel_func(
@@ -42,11 +52,24 @@ def dummy_func_with_many_fidelities(
     return dict(loss=eval_config["x"], runtime=runtime)
 
 
+def cleanup(test_func) -> None:
+    def _inner_func(**kwargs):
+        remove_tree()
+        test_func(**kwargs)
+        remove_tree()
+
+    return _inner_func
+
+
 def remove_tree():
     try:
         shutil.rmtree(DIR_PATH)
     except FileNotFoundError:
         pass
+
+
+def get_worker_wrapper(**kwargs):
+    return ObjectiveFuncWrapper(**kwargs, launch_multiple_wrappers_from_user_side=True)
 
 
 def get_n_workers():

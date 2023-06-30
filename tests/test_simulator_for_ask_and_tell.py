@@ -12,6 +12,7 @@ import ujson as json
 
 from tests.utils import (
     DIR_PATH,
+    SIMPLE_CONFIG,
     SUBDIR_NAME,
     dummy_func,
     dummy_func_with_many_fidelities,
@@ -38,7 +39,7 @@ def test_error_fidel_in_call():
         **kwargs,
     )
     with pytest.raises(ValueError, match="Objective function did not get keyword `fidels`*"):
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None)
 
     shutil.rmtree(worker.dir_name)
 
@@ -48,10 +49,10 @@ def test_error_fidel_in_call():
         obj_func=dummy_no_fidel_func,
         **kwargs,
     )
-    worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, worker_id=0, fidels=None)  # no error without fidel!
+    worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None)  # no error without fidel!
     # Objective function got keyword `fidels`
     with pytest.raises(ValueError, match="Objective function got keyword `fidels`*"):
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 0}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 0}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -100,7 +101,7 @@ def test_errors_in_proc_output():
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1.0}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1.0}, worker_id=0)
 
     if os.path.exists(DIR_PATH):
         shutil.rmtree(DIR_PATH)
@@ -110,7 +111,7 @@ def test_errors_in_proc_output():
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": -1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": -1}, worker_id=0)
 
     if os.path.exists(DIR_PATH):
         shutil.rmtree(DIR_PATH)
@@ -134,7 +135,7 @@ def test_errors_in_proc_output():
             obj_func=lambda eval_config, fidels, **kwargs: dict(loss=eval_config["x"], runtime=1),
             **kwargs,
         )
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
 
     if os.path.exists(DIR_PATH):
         shutil.rmtree(DIR_PATH)
@@ -150,7 +151,7 @@ def test_error_in_keys():
             obj_keys=["dummy_loss"],
             **kwargs,
         )
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
@@ -159,7 +160,7 @@ def test_error_in_keys():
             runtime_key="dummy_runtime",
             **kwargs,
         )
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
@@ -169,7 +170,7 @@ def test_error_in_keys():
             obj_keys=["dummy_loss", "loss"],
             **kwargs,
         )
-        worker._main_wrapper._proc_obj_func(eval_config={"x": 0}, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
 
     shutil.rmtree(worker.dir_name)
 
