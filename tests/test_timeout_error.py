@@ -37,6 +37,18 @@ def dummy_func_with_wait(
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
+def dummy_func_with_crash(
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None,
+    seed: int | None,
+) -> dict[str, float]:
+    if eval_config["x"] == 0:
+        sys.exit()
+
+    time.sleep(0.1)
+    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
+
+
 def test_timeout_error_in_wait_until_next():
     file_name = "test/dummy_cumtime.json"
     with open(file_name, mode="w") as f:
@@ -89,18 +101,6 @@ def test_timeout_error_by_wait():
     pool.join()
 
     shutil.rmtree(manager.dir_name)
-
-
-def dummy_func_with_crash(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-) -> dict[str, float]:
-    if eval_config["x"] == 0:
-        sys.exit()
-
-    time.sleep(0.1)
-    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
 def test_timeout_error_by_duplicated_worker():

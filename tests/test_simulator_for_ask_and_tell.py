@@ -4,14 +4,20 @@ import os
 import pytest
 import shutil
 import unittest
-from typing import Any
 
 from benchmark_simulator._constants import AbstractAskTellOptimizer
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
-from tests.utils import DIR_PATH, SUBDIR_NAME, remove_tree
+from tests.utils import (
+    DIR_PATH,
+    SUBDIR_NAME,
+    dummy_func,
+    dummy_func_with_many_fidelities,
+    dummy_no_fidel_func,
+    remove_tree,
+)
 
 
 DEFAULT_KWARGS = dict(
@@ -23,32 +29,6 @@ DEFAULT_KWARGS = dict(
     continual_max_fidel=10,
     fidel_keys=["epoch"],
 )
-
-
-def dummy_func(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
-
-
-def dummy_no_fidel_func(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None = None,
-    seed: int | None = None,
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=10)
-
-
-def dummy_func_with_many_fidelities(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-    **data_to_scatter: Any,
-) -> dict[str, float]:
-    runtime = fidels["z1"] + fidels["z2"] + fidels["z3"]
-    return dict(loss=eval_config["x"], runtime=runtime)
 
 
 def test_error_fidel_in_call():

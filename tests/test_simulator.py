@@ -15,7 +15,16 @@ import numpy as np
 
 import ujson as json
 
-from tests.utils import DIR_PATH, ON_UBUNTU, SUBDIR_NAME, get_n_workers, remove_tree
+from tests.utils import (
+    DIR_PATH,
+    ON_UBUNTU,
+    SUBDIR_NAME,
+    dummy_func,
+    dummy_func_with_many_fidelities,
+    dummy_no_fidel_func,
+    get_n_workers,
+    remove_tree,
+)
 
 
 DEFAULT_KWARGS = dict(
@@ -28,22 +37,6 @@ DEFAULT_KWARGS = dict(
 )
 
 
-def dummy_func(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
-
-
-def dummy_no_fidel_func(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None = None,
-    seed: int | None = None,
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=10)
-
-
 def dummy_func_with_data(
     eval_config: dict[str, Any],
     fidels: dict[str, int | float] | None,
@@ -52,16 +45,6 @@ def dummy_func_with_data(
 ) -> dict[str, float]:
     assert len(data_to_scatter) > 0
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
-
-
-def dummy_func_with_many_fidelities(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-    **data_to_scatter: Any,
-) -> dict[str, float]:
-    runtime = fidels["z1"] + fidels["z2"] + fidels["z3"]
-    return dict(loss=eval_config["x"], runtime=runtime)
 
 
 def test_error_fidel_in_call():

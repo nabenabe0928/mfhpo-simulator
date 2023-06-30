@@ -111,7 +111,7 @@ def test_record_cumtime():
             n_reg = max(i + 1, n_reg)
             assert ans == _fetch_cumtimes(path, lock=LOCK)
             assert _is_simulator_ready(path, n_workers=n_reg, lock=LOCK)
-            for idx in (range(10) if j == 1 else range(i + 1)):
+            for idx in range(10) if j == 1 else range(i + 1):
                 worker_id = worker_ids[idx]
                 is_min_cumtime = bool(_is_min_cumtime(path, worker_id=worker_id, lock=LOCK))
                 assert not (is_min_cumtime ^ bool(min_id == idx))
