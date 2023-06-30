@@ -16,6 +16,8 @@ import numpy as np
 
 import ujson as json
 
+from tests.utils import IS_LOCAL
+
 
 class ToyFunc:
     def __call__(
@@ -62,6 +64,7 @@ class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):
 def run_dehb(n_workers: int):
     n_actual_evals_in_opt = 100 + n_workers
     save_dir_name = "dummy"
+    log_file_name = "dehb-log/"
     path = os.path.join(DIR_NAME, save_dir_name)
     obj_func = ToyFunc()
 
@@ -93,19 +96,19 @@ def run_dehb(n_workers: int):
         eta=3,
         client=None,
         n_workers=n_workers,
-        output_path="dehb-log/",
+        output_path=log_file_name,
     )
     dehb.run(fevals=n_actual_evals_in_opt)
-    out = json.load(open(os.path.join(path, "results.json")))["cumtime"]
-    shutil.rmtree(path)
+    out = json.load(open(worker._main_wrapper._paths.result))["cumtime"]
     assert len(out) >= 100
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-    shutil.rmtree("dehb-log")
+    shutil.rmtree(path)
+    shutil.rmtree(log_file_name)
 
 
 def test_dehb():
-    n_workers = 4 if os.system("hostname") == "EB-B9400CBA" else 2  # github actions has only 2 cores
+    n_workers = 4 if IS_LOCAL else 2  # github actions has only 2 cores
     run_dehb(n_workers)
 
 

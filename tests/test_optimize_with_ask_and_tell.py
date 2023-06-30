@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import pytest
 import shutil
 import unittest
@@ -16,6 +15,15 @@ import ConfigSpace as CS
 import numpy as np
 
 
+DEFAULT_KWARGS = dict(
+    save_dir_name="test-mfbranin-ask-and-tell",
+    ask_and_tell=True,
+    n_workers=10,
+    n_actual_evals_in_opt=411,
+    n_evals=400,
+)
+
+
 class RandomOptimizer:
     def __init__(
         self,
@@ -23,7 +31,7 @@ class RandomOptimizer:
         fidel_keys: list[str],
         min_fidels: dict[str, int | float],
         max_fidels: dict[str, int | float],
-        discrete: bool = False,
+        discrete: bool,
     ):
         self._config_space = config_space
         self._fidel_keys = fidel_keys
@@ -37,7 +45,7 @@ class RandomOptimizer:
 
 
 class RandomOptimizerWrapper(AbstractAskTellOptimizer):
-    def __init__(self, opt: RandomOptimizer, very_random: bool = False):
+    def __init__(self, opt: RandomOptimizer, very_random: bool):
         self._opt = opt
         self._fidel_keys = self._opt._fidel_keys
         self._min_fidels = self._opt._min_fidels
@@ -81,131 +89,61 @@ def test_validate_in_obj_func_wrapper():
         )
 
 
-def test_random_with_ask_and_tell():
-    save_dir_name = "test-mfbranin-ask-and-tell"
-    bench = MFBranin()
-    opt = RandomOptimizerWrapper(
+def fetch_randopt_wrapper(bench: MFBranin, discrete: bool = False, very_random: bool = False) -> RandomOptimizerWrapper:
+    return RandomOptimizerWrapper(
         RandomOptimizer(
             config_space=bench.config_space,
             fidel_keys=bench.fidel_keys,
             min_fidels=bench.min_fidels,
             max_fidels=bench.max_fidels,
+            discrete=discrete,
         ),
+        very_random=very_random,
     )
-    worker = ObjectiveFuncWrapper(
-        save_dir_name=save_dir_name,
-        ask_and_tell=True,
-        n_workers=10,
-        obj_func=bench,
-        n_actual_evals_in_opt=411,
-        n_evals=400,
-        seed=0,
-        fidel_keys=bench.fidel_keys,
-    )
+
+
+def optimize(n_evals: int = 400, discrete: bool = False, very_random: bool = False, **obj_kwd):
+    kwargs = DEFAULT_KWARGS.copy()
+    if n_evals > 1000:
+        kwargs.update(n_workers=1000, n_actual_evals_in_opt=11001, n_evals=10000)
+
+    bench = MFBranin()
+    opt = fetch_randopt_wrapper(bench=bench, discrete=discrete, very_random=very_random)
+    worker = ObjectiveFuncWrapper(obj_func=bench, fidel_keys=bench.fidel_keys, **kwargs, **obj_kwd)
     worker.simulate(opt)
-    out = json.load(open(os.path.join(worker.dir_name, "results.json")))["cumtime"]
-    assert len(out) >= 400
+    out = json.load(open(worker._main_wrapper._paths.result))
+    shutil.rmtree(worker.dir_name)
+    assert len(out["cumtime"]) >= worker._main_wrapper._wrapper_vars.n_evals
+    return out
+
+
+def test_random_with_ask_and_tell():
+    out = optimize()["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-    shutil.rmtree(worker.dir_name)
 
 
 def test_random_with_ask_and_tell_store_config():
-    save_dir_name = "test-mfbranin-ask-and-tell"
-    bench = MFBranin()
-    opt = RandomOptimizerWrapper(
-        RandomOptimizer(
-            config_space=bench.config_space,
-            fidel_keys=bench.fidel_keys,
-            min_fidels=bench.min_fidels,
-            max_fidels=bench.max_fidels,
-        ),
-    )
-    worker = ObjectiveFuncWrapper(
-        save_dir_name=save_dir_name,
-        ask_and_tell=True,
-        n_workers=10,
-        obj_func=bench,
-        n_actual_evals_in_opt=411,
-        n_evals=400,
-        seed=0,
-        fidel_keys=bench.fidel_keys,
-        store_config=True,
-    )
-    worker.simulate(opt)
-    out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    assert len(out["cumtime"]) >= 400
+    out = optimize(store_config=True)
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
-    assert all(k in list(out.keys()) for k in bench.config_space)
+    assert all(k in list(out.keys()) for k in MFBranin().config_space)
     for k in out.keys():
         assert diffs.size == len(out[k])
-
-    shutil.rmtree(worker.dir_name)
 
 
 def test_random_with_ask_and_tell_continual_eval():
-    save_dir_name = "test-mfbranin-ask-and-tell"
-    bench = MFBranin()
-    opt = RandomOptimizerWrapper(
-        RandomOptimizer(
-            config_space=bench.config_space,
-            fidel_keys=bench.fidel_keys,
-            min_fidels=bench.min_fidels,
-            max_fidels=bench.max_fidels,
-            discrete=True,
-        ),
-        very_random=True,
-    )
-    worker = ObjectiveFuncWrapper(
-        save_dir_name=save_dir_name,
-        ask_and_tell=True,
-        n_workers=10,
-        obj_func=bench,
-        n_actual_evals_in_opt=411,
-        n_evals=400,
-        seed=0,
-        fidel_keys=bench.fidel_keys,
-        continual_max_fidel=bench.max_fidels["z0"],
-    )
-    worker.simulate(opt)
-    out = json.load(open(os.path.join(worker.dir_name, "results.json")))
-    assert len(out["cumtime"]) >= 400
+    out = optimize(discrete=True, very_random=True, continual_max_fidel=MFBranin().max_fidels["z0"])
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
     for k in out.keys():
         assert diffs.size == len(out[k])
 
-    shutil.rmtree(worker.dir_name)
-
 
 def test_random_with_ask_and_tell_many_parallel():
-    save_dir_name = "test-mfbranin-ask-and-tell"
-    bench = MFBranin()
-    opt = RandomOptimizerWrapper(
-        RandomOptimizer(
-            config_space=bench.config_space,
-            fidel_keys=bench.fidel_keys,
-            min_fidels=bench.min_fidels,
-            max_fidels=bench.max_fidels,
-        ),
-    )
-    worker = ObjectiveFuncWrapper(
-        save_dir_name=save_dir_name,
-        ask_and_tell=True,
-        n_workers=1000,
-        obj_func=bench,
-        n_actual_evals_in_opt=11001,
-        n_evals=10000,
-        fidel_keys=bench.fidel_keys,
-        seed=0,
-    )
-    worker.simulate(opt)
-    out = json.load(open(os.path.join(worker.dir_name, "results.json")))["cumtime"]
-    assert len(out) >= 400
+    out = optimize(n_evals=10000)["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-    shutil.rmtree(worker.dir_name)
 
 
 if __name__ == "__main__":
