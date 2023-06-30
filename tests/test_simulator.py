@@ -3,7 +3,6 @@ from __future__ import annotations
 import multiprocessing
 import os
 import pytest
-import shutil
 import time
 import unittest
 from typing import Any
@@ -26,6 +25,8 @@ from tests.utils import (
     dummy_func_with_many_fidelities,
     dummy_no_fidel_func,
     get_n_workers,
+    get_pool,
+    get_results,
     get_worker_wrapper,
     remove_tree,
 )
@@ -209,148 +210,118 @@ def test_call():
     _check_call(worker=worker, fidel_keys=kwargs["fidel_keys"], n_evals=n_evals)
 
 
+@cleanup
 def test_call_considering_state():
     n_evals = 21
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_evals=n_evals, n_actual_evals_in_opt=22)
-    worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func,
-        launch_multiple_wrappers_from_user_side=True,
-        **kwargs,
-    )
+    worker = get_worker_wrapper(obj_func=dummy_func, **kwargs)
     worker(eval_config=SIMPLE_CONFIG, fidels={"epoch": 10})  # max-fidel and thus no need to cache
     assert len(json.load(open(worker._main_wrapper._paths.state_cache))) == 0
 
-    for i in range(10):
-        for j in range(2):
-            last = (i == 9) and (j == 1)
-            worker(eval_config=SIMPLE_CONFIG, fidels={"epoch": i + 1})
-            states = json.load(open(worker._main_wrapper._paths.state_cache))
-            assert len(states) == int(not last)
+    for k in range(20):
+        i, j = k // 2, k % 2
+        last = (i == 9) and (j == 1)
+        worker(eval_config=SIMPLE_CONFIG, fidels={"epoch": i + 1})
+        states = json.load(open(worker._main_wrapper._paths.state_cache))
+        assert len(states) == int(not last)
 
-            if last:
-                continue
+        if last:
+            continue
 
-            key = next(iter(states))
-            ans = 2
-            if (i == 0 and j == 0) or (i == 9 and j == 0):
-                ans = 1
-            assert len(states[key]) == ans
-
-    shutil.rmtree(worker.dir_name)
+        key = next(iter(states))
+        ans = 2
+        if (i == 0 and j == 0) or (i == 9 and j == 0):
+            ans = 1
+        assert len(states[key]) == ans
 
 
+@cleanup
 def test_central_worker_manager():
     remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = get_n_workers()
-    kwargs["n_actual_evals_in_opt"] = 15
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
-    assert manager.fidel_keys == ["epoch"]
-    assert manager.runtime_key == "runtime"
-    assert manager.obj_keys == ["loss"]
-    shutil.rmtree(manager.dir_name)
+    kwargs.update(n_workers=get_n_workers(), n_actual_evals_in_opt=15)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    assert wrapper.fidel_keys == ["epoch"]
+    assert wrapper.runtime_key == "runtime"
+    assert wrapper.obj_keys == ["loss"]
 
 
-def test_store_config():
-    remove_tree()
+@cleanup
+def test_store_config_without_error_seq():
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func, launch_multiple_wrappers_from_user_side=True, store_config=True, **kwargs
-    )
+    worker = get_worker_wrapper(obj_func=dummy_func, store_config=True, **kwargs)
     worker(**dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}))
-    shutil.rmtree(worker.dir_name)
 
+
+@cleanup
+def test_store_config_without_error_parallel():
+    kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
-    kwargs["n_workers"] = n_workers
-    kwargs["n_actual_evals_in_opt"] = 15
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
+    kwargs.update(n_workers=n_workers, n_actual_evals_in_opt=15)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
 
-    pool = multiprocessing.Pool(processes=n_workers)
-    res = []
-    for i in range(15):
-        kwargs = dict(
-            eval_config={"x": i},
-            fidels={"epoch": i + 1},
-        )
-        r = pool.apply_async(manager, kwds=kwargs)
-        res.append(r)
-    else:
-        for r in res:
+    with get_pool(n_workers=n_workers) as pool:
+        res = get_results(pool=pool, func=wrapper, n_configs=15, epoch_func=lambda i: i + 1, x_func=lambda i: i)
+        for r in res.values():
             r.get()
 
-    pool.close()
-    pool.join()
-
-    results = json.load(open(os.path.join(manager.dir_name, "results.json")))
+    results = json.load(open(wrapper._main_wrapper._paths.result))
     for k in ["seed", "epoch", "x"]:
         assert k in results
         assert len(results[k]) == len(results["loss"])
-    shutil.rmtree(manager.dir_name)
 
 
-def test_store_config_with_conditional():
-    remove_tree()
+@cleanup
+def test_store_config_with_conditional_without_error_seq():
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func, launch_multiple_wrappers_from_user_side=True, store_config=True, **kwargs
-    )
+    worker = get_worker_wrapper(obj_func=dummy_func, store_config=True, **kwargs)
     worker(**dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}))
     worker(**dict(eval_config={"x": 1, "y": 2}, fidels={"epoch": 1}))
-    shutil.rmtree(worker.dir_name)
 
+
+@cleanup
+def test_store_config_with_conditional_without_error_parallel():
+    kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
-    kwargs["n_workers"] = n_workers
-    kwargs["n_actual_evals_in_opt"] = 15
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
+    kwargs.update(n_workers=n_workers, n_actual_evals_in_opt=15)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
 
-    pool = multiprocessing.Pool(processes=n_workers)
-    res = []
-    for i in range(15):
-        kwargs = dict(
-            eval_config={"x": i} if i < 6 or i % 2 == 0 else {"x": i, "y": i},
-            fidels={"epoch": i + 1},
+    with get_pool(n_workers=n_workers) as pool:
+        res = get_results(
+            pool=pool,
+            func=wrapper,
+            n_configs=15,
+            epoch_func=lambda i: i + 1,
+            x_func=None,
+            conditional=lambda i: {"x": i} if i < 6 or i % 2 == 0 else {"x": i, "y": i},
         )
-        r = pool.apply_async(manager, kwds=kwargs)
-        res.append(r)
-    else:
-        for r in res:
+        for r in res.values():
             r.get()
 
-    pool.close()
-    pool.join()
-
-    results = json.load(open(os.path.join(manager.dir_name, "results.json")))
+    results = json.load(open(wrapper._main_wrapper._paths.result))
     for k in ["seed", "epoch", "x", "y"]:
         assert k in results
         assert len(results[k]) == len(results["loss"])
-    shutil.rmtree(manager.dir_name)
 
 
+@cleanup
 def test_init_alloc_without_error():
-    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
 
     for i in range(10):
-        kwargs = dict(
-            eval_config={"x": i},
-            fidels={"epoch": i + 1},
-        )
-        manager(**kwargs)
+        kwargs = dict(eval_config={"x": i}, fidels={"epoch": i + 1})
+        wrapper(**kwargs)
     else:
-        manager._pid_to_index = {}
-        manager(**kwargs)
-
-    shutil.rmtree(manager.dir_name)
+        wrapper._pid_to_index = {}
+        wrapper(**kwargs)
 
 
+@cleanup
 def test_interrupted():
-    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWrapper(
-        obj_func=dummy_func, launch_multiple_wrappers_from_user_side=True, store_config=True, **kwargs
-    )
+    worker = get_worker_wrapper(obj_func=dummy_func, store_config=True, **kwargs)
     data = json.load(open(worker._main_wrapper._paths.worker_cumtime))
     with open(worker._main_wrapper._paths.worker_cumtime, mode="w") as f:
         data[worker._main_wrapper._worker_vars.worker_id] = _TIME_VALUES.crashed
@@ -360,71 +331,55 @@ def test_interrupted():
     with pytest.raises(InterruptedError):
         worker(**dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}))
 
-    shutil.rmtree(worker.dir_name)
 
-
+@cleanup
 def test_seed_error_in_central_worker_manager():
-    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = get_n_workers()
-    kwargs["n_workers"] = n_workers
-    kwargs["n_actual_evals_in_opt"] = 15
+    kwargs.update(n_workers=n_workers, n_actual_evals_in_opt=15)
     ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
     with pytest.raises(FileExistsError):
         ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
-    remove_tree()
 
-
+@cleanup
 def test_init_alloc_in_central_worker_manager():
-    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = 1
-    kwargs["n_actual_evals_in_opt"] = 15
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
-    kwargs = dict(
-        eval_config=SIMPLE_CONFIG,
-        fidels={"epoch": 1},
-    )
+    kwargs.update(n_workers=1, n_actual_evals_in_opt=15)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
+    kwargs = dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1})
     for _ in range(2):
-        manager(**kwargs)
-
-    remove_tree()
+        wrapper(**kwargs)
 
 
+@cleanup
 def test_optimize_seq():
-    remove_tree()
     kwargs = DEFAULT_KWARGS.copy()
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
     n_evals = kwargs["n_evals"]
     n_actual_evals = 15
 
-    kwargs = dict(
-        eval_config=SIMPLE_CONFIG,
-        fidels={"epoch": 1},
-    )
+    kwargs = dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1})
     for _ in range(n_actual_evals):
-        manager(**kwargs)
+        wrapper(**kwargs)
 
-    path = manager.dir_name
-    out = json.load(open(os.path.join(path, "results.json")))
+    out = json.load(open(wrapper._main_wrapper._paths.result))
     assert len(out["cumtime"]) >= n_evals
-    shutil.rmtree(manager.dir_name)
 
 
+@cleanup
 def run_optimize_parallel(wrong_n_workers: bool, remained_file: bool = False):
-    remove_tree()
     n_workers = get_n_workers()
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_workers"] = n_workers
-    kwargs["n_actual_evals_in_opt"] = 16
-    manager = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
+    kwargs.update(n_workers=n_workers, n_actual_evals_in_opt=16)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, seed=0, **kwargs)
 
     if remained_file:
         with open(os.path.join(DIR_PATH, _SharedDataFileNames.proc_alloc.value), mode="w") as f:
             json.dump({"0": 0, "1": 1, "2": 2}, f)
 
     pool = multiprocessing.Pool(processes=n_workers + wrong_n_workers)
+    # Probably, it is better not to use shared functions
     try:
         res = []
         for _ in range(16):
@@ -433,7 +388,7 @@ def run_optimize_parallel(wrong_n_workers: bool, remained_file: bool = False):
                 eval_config=SIMPLE_CONFIG,
                 fidels={"epoch": 1},
             )
-            r = pool.apply_async(manager, kwds=kwargs)
+            r = pool.apply_async(wrapper, kwds=kwargs)
             res.append(r)
         else:
             for r in res:
@@ -445,9 +400,7 @@ def run_optimize_parallel(wrong_n_workers: bool, remained_file: bool = False):
         pool.close()
         pool.join()
 
-    path = manager.dir_name
-    out = json.load(open(os.path.join(path, "results.json")))
-    shutil.rmtree(path)
+    out = json.load(open(wrapper._main_wrapper._paths.result))
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
 
@@ -460,12 +413,12 @@ def test_optimize_parallel(wrong_n_workers: bool):
 
     if wrong_n_workers:
         with pytest.raises(ProcessLookupError):
-            run_optimize_parallel(wrong_n_workers)
+            run_optimize_parallel(wrong_n_workers=wrong_n_workers)
         # TODO: Somehow the following lines hang when using covtest
         # with pytest.raises(ValueError, match=r"Timeout in the allocation of procs*"):
         #     run_optimize_parallel(wrong_n_workers, remained_file=True)
     else:
-        run_optimize_parallel(wrong_n_workers)
+        run_optimize_parallel(wrong_n_workers=wrong_n_workers)
 
 
 if __name__ == "__main__":

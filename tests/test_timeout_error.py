@@ -13,7 +13,7 @@ from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
 import ujson as json
 
-from tests.utils import SUBDIR_NAME, cleanup, get_n_workers, get_pool
+from tests.utils import SUBDIR_NAME, cleanup, get_n_workers, get_pool, get_results
 
 
 DEFAULT_KWARGS = dict(
@@ -57,19 +57,6 @@ def dummy_func_with_pseudo_crash(
 
     time.sleep(0.01)
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
-
-
-def get_results(*, pool, func, n_configs: int, epoch_func: callable, x_func: callable):
-    res = {}
-    for i in range(n_configs):
-        kwargs = dict(
-            eval_config={"x": x_func(i)},
-            fidels={"epoch": epoch_func(i)},
-        )
-        r = pool.apply_async(func, kwds=kwargs)
-        res[i] = r
-
-    return res
 
 
 def get_wrapper_and_n_workers(func: callable) -> tuple[ObjectiveFuncWrapper, int]:

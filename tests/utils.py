@@ -61,6 +61,20 @@ def cleanup(test_func) -> None:
     return _inner_func
 
 
+def get_results(*, pool, func, n_configs: int, epoch_func: callable, x_func: callable, conditional=None):
+    res = {}
+    for i in range(n_configs):
+        eval_config = {"x": x_func(i)} if conditional is None else conditional(i)
+        kwargs = dict(
+            eval_config=eval_config,
+            fidels={"epoch": epoch_func(i)},
+        )
+        r = pool.apply_async(func, kwds=kwargs)
+        res[i] = r
+
+    return res
+
+
 def remove_tree():
     try:
         shutil.rmtree(DIR_PATH)
