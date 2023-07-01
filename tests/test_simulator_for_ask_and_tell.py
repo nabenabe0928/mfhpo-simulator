@@ -130,8 +130,7 @@ def _validate_fidel_args(fidel_keys: list[str] | None):
 
 @pytest.mark.parametrize("fidel_keys", (None, ["a", "b"], []))
 def test_validate_fidel_args(fidel_keys: list[str] | None):
-    for fidel_keys in [None, ["a", "b"], []]:
-        _validate_fidel_args(fidel_keys=fidel_keys)
+    _validate_fidel_args(fidel_keys=fidel_keys)
 
 
 @cleanup
