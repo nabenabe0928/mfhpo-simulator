@@ -9,11 +9,11 @@ with open("requirements-for-setup.txt", "r") as f:
 
 setuptools.setup(
     name="mfhpo-simulator",
-    version="1.2.1",
+    version="1.2.2",
     author="nabenabe0928",
     author_email="shuhei.watanabe.utokyo@gmail.com",
     url="https://github.com/nabenabe0928/mfhpo-simulator",
-    packages=setuptools.find_packages(),
+    packages=["benchmark_simulator", "benchmark_simulator/_simulator"],
     python_requires=">=3.8",
     platforms=["Linux", "Darwin"],
     install_requires=requirements,
