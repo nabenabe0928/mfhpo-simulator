@@ -12,21 +12,24 @@
 
 ## Motivation
 
-<table>
-    <tr>
-        <td><img src="figs/compress-conceptual.png" alt=""></td>
-    </tr>
-    <tr>
-        <td><img src="figs/api-conceptual.png" alt=""></td>
-    </tr>
-</table>
-
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
 However, the evaluation of tabular or surrogate benchmarks, by design, does not take long.
 For this reason, the timing of each configuration taken into account must be ordered as if we evaluated each configuration.
 
+<table>
+    <tr>
+        <td><img src="figs/compress-conceptual.png" alt=""></td>
+    </tr>
+</table>
+
 In this package, we automatically sort out this problem by pending to pass the hyperparameter configurations to be evaluated internally, and in turn, we obtain the right order of each hyperparameter configuration to be evaluated.
 If the optimizer interface is the [ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html) interface, users can pass the optimizer to a simulator directly and the simulator automatically performs the optimization loop as if function calls are run in parallel.
+
+<table>
+    <tr>
+        <td><img src="figs/api-conceptual.png" alt=""></td>
+    </tr>
+</table>
 
 | Arguments | What Wrapper | Function Call | Requirements | Benefits | Downsides |
 |--|:--:|:--:|--|--|--|
@@ -44,7 +47,6 @@ In exchange for the strict constraint, it stabilizes the simulation.
 
 Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
 Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
-We are not sure if we will support any additional workers after the initialization yet.
 Furthermore, our package **cannot be run on Windows OS** because the Python module `fcntl` is not supported on Windows OS.
 Although our package supports MacOS, it is advisable to use Linux system.
 
