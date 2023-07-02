@@ -200,6 +200,43 @@ def get_multiple_wrappers(
 
 
 class ObjectiveFuncWrapper:
+    """Objective function wrapper API for users.
+
+    Please check more details at https://github.com/nabenabe0928/mfhpo-simulator/
+
+    Attributes:
+        dir_name (str):
+            The relative path where results will be stored.
+            In principle, it returns `./mfhpo-simulator/<save_dir_name>`.
+        obj_keys (list[str]):
+            The objective names that will be collected in results.
+            The returned dict from users' objective functions must contain these keys.
+            If you want to include the runtime in the results, you also need to include the runtime_key in obj_keys.
+        runtime_key (str):
+            The runtime name that will be used to define the runtime which the user objective function really took.
+            The returned dict from users' objective functions must contain this key.
+        fidel_keys (list[str]):
+            The fidelity names that will be used in users' objective functions.
+            `fidels` passed to the objective functions must contain these keys.
+            When `continual_max_fidel=True`, fidel_keys can contain only one key and this fidelity will be used for
+            the definition of continual learning.
+        n_actual_evals_in_opt (int):
+            The number of configuration evaluations during the actual optimization.
+            Note that even if some configurations are continuations from an existing config with lower fidelity,
+            they are counted as separated config evaluations.
+        n_workers (int):
+            The number of workers used in the user-defined optimizer.
+
+    Methods:
+        __call__(...) -> dict[str, float]:
+            The wrapped objective function used in the user-defined optimizer. Valid only if `ask_and_tell=False`.
+            Please check `ObjectiveFuncWrapper.__call__.__doc__` for more details.
+        simulate(opt: AbstractAskTellOptimizer) -> None:
+            The optimization loop for the wrapped objective function and the user-defined optimizer.
+            Valid only if `ask_and_tell=True`.
+            Please check `ObjectiveFuncWrapper.simulate.__doc__` for more details.
+    """
+
     def __init__(
         self,
         obj_func: ObjectiveFuncType,
@@ -375,12 +412,16 @@ class ObjectiveFuncWrapper:
 
         Args:
             eval_config (dict[str, Any]):
-                The configuration to be used in the objective function.
+                The configuration to be used in the user-defined objective function.
+                This configuration will not be necessary for the processing in our API, but the storage purpose.
+                However, it will be directly passed to the user-defined objective function, hence we need it.
             fidels (dict[str, int | float] | None):
                 The fidelities to be used in the objective function. Typically training epoch in deep learning.
                 If None, no-fidelity opt.
             **data_to_scatter (Any):
                 Data to scatter across workers.
+                Users can pass any necessary information to the objective function,
+                but this variable will NOT be used by our API at all.
                 For example, when the objective function instance has a large file,
                 Dask, which is a typical module for parallel optimization, must serialize/deserialize
                 the objective function instances. It causes a significant bottleneck.

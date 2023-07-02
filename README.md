@@ -243,6 +243,44 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 14. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments, and
 15. `check_interval_time` (`float`): How often each worker should check whether a new job can be assigned to it. For example, if `1e-2` is specified, each worker check whether they can get a new job every `1e-2` seconds. If there are many workers, too small `check_interval_time` may cause a big bottleneck. On the other hand, a big `check_interval_time` spends more time for waiting. By default, `check_interval_time` is set to a relatively small number, so users might rather want to increase the number to avoid the bottleneck for many workers.
 
+## Attributes Provided for Users
+
+### Instance Variables
+
+1. `dir_name` (`str`): The relative path where results will be stored and it returns `./mfhpo-simulator/<save_dir_name>`,
+2. `obj_keys` (`list[str]`): The objective names that will be collected in results and the returned dict from users' objective functions must contain these keys. If you want to include the runtime in the results, you also need to include the runtime_key in obj_keys,
+3. `runtime_key` (`str`): The runtime name that will be used to define the runtime which the user objective function really took. The returned dict from users' objective functions must contain this key,
+4. `fidel_keys` (`list[str]`): The fidelity names that will be used in users' objective functions. `fidels` passed to the objective functions must contain these keys. When `continual_max_fidel=True`, fidel_keys can contain only one key and this fidelity will be used for the definition of continual learning,
+5. `n_actual_evals_in_opt` (`int`): The number of configuration evaluations during the actual optimization. Note that even if some configurations are continuations from an existing config with lower fidelity, they are counted as separated config evaluations, and
+6. `n_workers` (`int`): The number of workers used in the user-defined optimizer.
+
+`obj_keys`, `runtime_key`, and `fidel_keys` are necessary to match the signature of user-defined objective functions with our API.
+
+
+### Methods
+
+1. `__call__(self, eval_config: dict[str, Any], *, fidels: dict[str, int | float] | None = None, **data_to_scatter: Any) -> dict[str, float]`
+
+The wrapped objective function used in the user-defined optimizer and valid only if `ask_and_tell=False`.
+
+`eval_config` is the configuration that will be passed to the objective function via our wrapper, but the wrapper does not use this information and it will be used only if `store_config=True` for the storage purpose.
+
+`fidels` is the fidelity parameters that will be passed to the objective function via our wrapper.
+If `continual_max_fidel=True`, `fidels` must contain only one name and our wrapper uses the value in `fidels` for continual learning.
+Otherwise, our API will not use the information in `fidels` except for the storage purpose for `store_config=True`.
+
+`data_to_scatter` is any information that will be passed to the objective function.
+It is especially important when users would like to scatter in-memory large-size data using such as `dask.scatter` because parallel processing in optimizers usually requires serialization and deserialization of the objective function.
+We can simply avoid this issue by making the data size of the objective function as small as possible and passing the (in-memory) data to the objective function when it is called.
+
+The return value of the method is `dict[str, float]` where the keys are the union of `[runtime_key]` and `obj_keys` and the values are their corresponding values.
+
+2. `simulate(self, opt: AbstractAskTellOptimizer) -> None`
+
+The optimization loop for the wrapped objective function and the user-defined optimizer and valid only if `ask_and_tell=True`.
+
+Users can simply start the simulation of an optimization using `opt` and `obj_func` via `simulate`.
+
 ## Simulation Using Only the Main Process
 This is the description for `ask_and_tell=True`.
 This class wraps not only a function but also an optimizer so that we can control the right timing of the addition of data to the optimizer and of job allocation.
