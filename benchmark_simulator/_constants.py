@@ -35,6 +35,7 @@ class _InfoPaths:
     worker_cumtime: str
     timestamp: str
     timenow: str
+    config_tracker: str
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class _SharedDataFileNames(Enum):
     worker_cumtime: str = "simulated_cumtime.json"
     timestamp: str = "timestamp.json"
     timenow: str = "timenow.json"
+    config_tracker: str = "config_tracker.json"
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,7 @@ class _WrapperVars:
     check_interval_time: float
     store_config: bool
     allow_parallel_sampling: bool
+    config_tracking: bool
 
     def validate(self) -> None:
         if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:

@@ -28,6 +28,7 @@ from benchmark_simulator._secure_proc import (
 )
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
+    _ConfigIDTracker,
     _StateTracker,
     _validate_fidel_args,
     _validate_fidels,
@@ -56,6 +57,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         self._state_tracker = _StateTracker(
             path=self._paths.state_cache, lock=self._lock, continual_max_fidel=self._wrapper_vars.continual_max_fidel
         )
+        self._config_tracker = _ConfigIDTracker(path=self._paths.config_tracker, lock=self._lock)
         _init_simulator(dir_name=self.dir_name)
         _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
 
@@ -146,7 +148,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         self, eval_config: dict[str, Any], fidel: int, config_id: int | None, **data_to_scatter: Any
     ) -> dict[str, float]:
         config_hash: int = hash(str(eval_config)) if config_id is None else int(config_id)
-        cached_state, cached_state_index = self._state_tracker._get_cached_state_and_index(
+        cached_state, cached_state_index = self._state_tracker.get_cached_state_and_index(
             config_hash=config_hash, fidel=fidel, cumtime=self._cumtime, rng=self._worker_vars.rng
         )
         _fidels: dict[str, int | float] = {self._fidel_keys[0]: fidel}
@@ -161,7 +163,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         total_runtime = results[self.runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_state.runtime)
         self._cumtime += actual_runtime
-        self._state_tracker._update_state(
+        self._state_tracker.update_state(
             cumtime=self._cumtime,
             total_runtime=total_runtime,
             cached_state_index=cached_state_index,
@@ -253,6 +255,10 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             use_fidel=self._worker_vars.use_fidel,
             continual_eval=self._worker_vars.continual_eval,
         )
+        config_tracking = config_id is not None and self._wrapper_vars.config_tracking
+        if config_tracking:  # validate the config_id to ensure the user implementation is correct
+            self._config_tracker.validate(config=eval_config, config_id=config_id)
+
         if self._terminated:
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 

@@ -101,6 +101,7 @@ def get_multiple_wrappers(
     check_interval_time: float = 1e-4,
     store_config: bool = False,
     allow_parallel_sampling: bool = False,
+    config_tracking: bool = True,
 ) -> list[ObjectiveFuncWrapper]:
     """Return multiple wrapper instances.
 
@@ -165,6 +166,10 @@ def get_multiple_wrappers(
             Whether sampling can happen in parallel.
             In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False.
             The default value is False.
+        config_tracking (bool):
+            Whether to validate config_id provided from the user side.
+            It slows the simulation down when n_evals is large (> 3000),
+            but it is recommended to avoid unexpected bugs that could happen.
 
     Returns:
         wrappers (list[ObjectiveFuncWrapper]):
@@ -194,6 +199,7 @@ def get_multiple_wrappers(
         check_interval_time=check_interval_time,
         store_config=store_config,
         allow_parallel_sampling=allow_parallel_sampling,
+        config_tracking=config_tracking,
     )
     pool = Pool()
     results = []
@@ -261,6 +267,7 @@ class ObjectiveFuncWrapper:
         check_interval_time: float = 1e-4,
         store_config: bool = False,
         allow_parallel_sampling: bool = False,
+        config_tracking: bool = True,
     ):
         """The initialization of a wrapper class.
 
@@ -339,6 +346,10 @@ class ObjectiveFuncWrapper:
                 Whether sampling can happen in parallel.
                 In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False.
                 The default value is False.
+            config_tracking (bool):
+                Whether to validate config_id provided from the user side.
+                It slows the simulation down when n_evals is large (> 3000),
+                but it is recommended to avoid unexpected bugs that could happen.
         """
         curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
         wrapper_vars = _WrapperVars(
@@ -356,6 +367,7 @@ class ObjectiveFuncWrapper:
             check_interval_time=check_interval_time,
             store_config=store_config,
             allow_parallel_sampling=allow_parallel_sampling,
+            config_tracking=config_tracking,
         )
 
         self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker

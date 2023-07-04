@@ -3,7 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from benchmark_simulator._constants import AbstractAskTellOptimizer, _StateType
-from benchmark_simulator._secure_proc import _cache_state, _delete_state, _fetch_cache_states
+from benchmark_simulator._secure_proc import (
+    _cache_state,
+    _delete_state,
+    _fetch_cache_states,
+    _fetch_existing_configs,
+    _record_existing_configs,
+)
 from benchmark_simulator._utils import _SecureLock
 
 import numpy as np
@@ -26,7 +32,22 @@ def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
 
 
 class _ConfigIDTracker:
-    pass
+    def __init__(self, path: str, lock: _SecureLock):
+        self._path = path
+        self._lock = lock
+
+    def validate(self, config: dict[str, Any], config_id: int) -> None:
+        config_id_str = str(config_id)
+        existing_configs = _fetch_existing_configs(path=self._path, lock=self._lock)
+        if config_id_str not in existing_configs:
+            _record_existing_configs(path=self._path, config_id_str=config_id_str, config=config, lock=self._lock)
+            return
+
+        existing_config = existing_configs[config_id_str]
+        if not _two_dicts_almost_equal(existing_config, config):
+            raise ValueError(
+                f"{config_id=} already exists ({existing_config=}), but got the duplicated config_id for {config=}"
+            )
 
 
 class _StateTracker:
@@ -39,7 +60,7 @@ class _StateTracker:
         if not isinstance(self._continual_max_fidel, int):
             raise ValueError(f"continual_max_fidel must be int for {self.__class__.__name__}")
 
-    def _get_cached_state_and_index(
+    def get_cached_state_and_index(
         self, config_hash: int, fidel: int, cumtime: float, rng: np.random.RandomState
     ) -> tuple[_StateType, int | None]:
         self._validate()
@@ -54,7 +75,7 @@ class _StateTracker:
         else:
             return cached_states[cached_state_index], cached_state_index
 
-    def _update_state(
+    def update_state(
         self,
         cumtime: float,
         config_hash: int,

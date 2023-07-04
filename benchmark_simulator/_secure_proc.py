@@ -4,6 +4,7 @@ import fcntl
 import os
 import time
 import warnings
+from typing import Any
 
 from benchmark_simulator._constants import (
     _SharedDataFileNames,
@@ -82,6 +83,14 @@ def _record_timestamp(path: str, worker_id: str, prev_timestamp: float, lock: _S
         json.dump(record, f, indent=4)
 
 
+def _record_existing_configs(path: str, config_id_str: str, config: dict[str, Any], lock: _SecureLock) -> None:
+    with lock.edit(path) as f:
+        existing_configs = json.load(f)
+        existing_configs[config_id_str] = config
+        f.seek(0)
+        json.dump(existing_configs, f, indent=4)
+
+
 def _cache_state(
     path: str, config_hash: int, new_state: _StateType, lock: _SecureLock, update_index: int | None = None
 ) -> None:
@@ -138,6 +147,13 @@ def _fetch_timestamps(path: str, lock: _SecureLock) -> dict[str, float]:
         timestamps = json.load(f)
 
     return timestamps
+
+
+def _fetch_existing_configs(path: str, lock: _SecureLock) -> dict[str, dict[str, Any]]:
+    with lock.read(path) as f:
+        existing_configs = json.load(f)
+
+    return existing_configs
 
 
 def _fetch_proc_alloc(path: str, lock: _SecureLock) -> dict[int, int]:

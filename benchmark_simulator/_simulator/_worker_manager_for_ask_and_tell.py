@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import time
 from typing import Any
@@ -8,6 +7,7 @@ from typing import Any
 from benchmark_simulator._constants import AbstractAskTellOptimizer, _ResultData, _StateType, _WorkerVars
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
+    _ConfigIDTracker,
     _validate_fidel_args,
     _validate_fidels,
     _validate_fidels_continual,
@@ -16,6 +16,8 @@ from benchmark_simulator._simulator._utils import (
 )
 
 import numpy as np
+
+import ujson as json  # type: ignore
 
 
 class _AskTellWorkerManager(_BaseWrapperInterface):
@@ -29,6 +31,9 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             worker_id="",
             worker_index=-1,
         )
+        with open(self._paths.config_tracker, mode="w") as f:
+            json.dump({}, f, indent=4)
+        self._config_tracker = _ConfigIDTracker(path=self._paths.config_tracker, lock=self._lock)
 
         self._wrapper_vars.validate()
         _validate_fidel_args(continual_eval=self._worker_vars.continual_eval, fidel_keys=self._fidel_keys)
@@ -170,6 +175,10 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
     ) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
         start = time.time()
         eval_config, fidels, config_id = opt.ask()
+        config_tracking = config_id is not None and self._wrapper_vars.config_tracking
+        if config_tracking:  # validate the config_id to ensure the user implementation is correct
+            self._config_tracker.validate(config=eval_config, config_id=config_id)
+
         sampling_time = time.time() - start
         if self._wrapper_vars.allow_parallel_sampling:
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
