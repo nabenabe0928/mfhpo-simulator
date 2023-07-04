@@ -44,6 +44,7 @@ class _ResultData:
     results: dict[str, float]
     fidels: dict[str, int | float]
     seed: int | None
+    prev_fidel: int | None
     config_id: int | None
 
 

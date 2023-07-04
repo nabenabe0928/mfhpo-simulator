@@ -42,6 +42,8 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self._results.update({k: [] for k in self._obj_keys})
         if self._wrapper_vars.store_config:
             self._results.update({k: [] for k in self._fidel_keys + ["seed"]})
+            if self._wrapper_vars.continual_max_fidel is not None:
+                self._results["prev_fidel"] = []
 
     def _fetch_prev_state_index(self, config_hash: int, fidel: int, worker_id: int) -> int | None:
         states = self._intermediate_states.get(config_hash, [])
@@ -74,13 +76,13 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         worker_id: int,
         fidels: dict[str, int | float] | None,
         config_id: int | None,
-    ) -> tuple[dict[str, float], int | None]:
+    ) -> tuple[dict[str, float], int | None, int | None]:
         continual_max_fidel = self._wrapper_vars.continual_max_fidel
         if not self._worker_vars.continual_eval:  # not continual learning
             seed = self._worker_vars.rng.randint(1 << 30)
             results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
             _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
-            return results, seed
+            return results, seed, None
 
         fidel = _validate_fidels_continual(fidels)
         runtime_key = self._wrapper_vars.runtime_key
@@ -105,7 +107,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             else:
                 self._intermediate_states[config_hash] = [new_state]
 
-        return results, seed
+        return results, seed, old_state.fidel
 
     def _proc_obj_func(
         self,
@@ -120,7 +122,9 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             use_fidel=self._worker_vars.use_fidel,
             continual_eval=self._worker_vars.continual_eval,
         )
-        results, seed = self._proc(eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id)
+        results, seed, prev_fidel = self._proc(
+            eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id
+        )
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]
         self._pending_results[worker_id] = _ResultData(
@@ -130,6 +134,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             fidels=fidels if fidels is not None else {},
             seed=seed,
             config_id=config_id,
+            prev_fidel=prev_fidel,
         )
 
     def _record_result_data(self, result_data: _ResultData, worker_id: int) -> None:
@@ -141,6 +146,8 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
 
         if not self._wrapper_vars.store_config:
             return
+        if result_data.prev_fidel is not None:
+            self._results["prev_fidel"].append(result_data.prev_fidel)
 
         self._results["seed"].append(result_data.seed)
         for k in self._fidel_keys:

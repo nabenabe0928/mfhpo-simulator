@@ -18,8 +18,9 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 11. `fidel_keys` (`list[str]`): The list of fidelity names that will be fed to the objective function,
 12. `seed` (`int | None`): The random seed to be used in each worker,
 13. `max_waiting_time` (`float`): The maximum waiting time for each worker. If workers wait for the provided amount of time, the wrapper will return only `INF`,
-14. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments, and
-15. `check_interval_time` (`float`): How often each worker should check whether a new job can be assigned to it. For example, if `1e-2` is specified, each worker check whether they can get a new job every `1e-2` seconds. If there are many workers, too small `check_interval_time` may cause a big bottleneck. On the other hand, a big `check_interval_time` spends more time for waiting. By default, `check_interval_time` is set to a relatively small number, so users might rather want to increase the number to avoid the bottleneck for many workers.
+14. `store_config` (`bool`): Whether to store configuration, fidelities, and seed for each evaluation. It consumes much more storage when you use it for large-scale experiments,
+15. `check_interval_time` (`float`): How often each worker should check whether a new job can be assigned to it. For example, if `1e-2` is specified, each worker check whether they can get a new job every `1e-2` seconds. If there are many workers, too small `check_interval_time` may cause a big bottleneck. On the other hand, a big `check_interval_time` spends more time for waiting. By default, `check_interval_time` is set to a relatively small number, so users might rather want to increase the number to avoid the bottleneck for many workers, and
+16. `allow_parallel_sampling` (`bool`): Whether sampling can happen in parallel. In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False. The default value is False.
 
 ## Attributes Provided for Users
 
@@ -37,7 +38,7 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 
 ### Methods
 
-1. `__call__(self, eval_config: dict[str, Any], *, fidels: dict[str, int | float] | None = None, **data_to_scatter: Any) -> dict[str, float]`
+1. `__call__(self, eval_config: dict[str, Any], *, fidels: dict[str, int | float] | None = None, config_id: int | None = None, **data_to_scatter: Any) -> dict[str, float]`
 
 The wrapped objective function used in the user-defined optimizer and valid only if `ask_and_tell=False`.
 
@@ -46,6 +47,10 @@ The wrapped objective function used in the user-defined optimizer and valid only
 `fidels` is the fidelity parameters that will be passed to the objective function via our wrapper.
 If `continual_max_fidel=True`, `fidels` must contain only one name and our wrapper uses the value in `fidels` for continual learning.
 Otherwise, our API will not use the information in `fidels` except for the storage purpose for `store_config=True`.
+
+`config_id` is the identifier of configuration if needed for continual learning.
+As we internally use a hash of eval_config, it may be unstable if eval_config has float.
+However, even if config_id is not provided, our simulator works without errors although we cannot guarantee that our simulator recognizes the same configs if a users' optimizer slightly changes the content of eval_config.
 
 `data_to_scatter` is any information that will be passed to the objective function.
 It is especially important when users would like to scatter in-memory large-size data using such as `dask.scatter` because parallel processing in optimizers usually requires serialization and deserialization of the objective function.

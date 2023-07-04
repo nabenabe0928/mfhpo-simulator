@@ -1,6 +1,75 @@
 from __future__ import annotations
 
-from benchmark_simulator._constants import AbstractAskTellOptimizer
+from typing import Any
+
+from benchmark_simulator._constants import AbstractAskTellOptimizer, _StateType
+from benchmark_simulator._secure_proc import _cache_state, _delete_state, _fetch_cache_states
+from benchmark_simulator._utils import _SecureLock
+
+import numpy as np
+
+
+def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
+    """for atol and rtol, I referred to numpy.isclose"""
+    if set(d1.keys()) == set(d2.keys()):
+        return False
+
+    for k in d1.keys():
+        v1, v2 = d1[k], d2[k]
+        if isinstance(v1, (float, int)) and isinstance(v2, (float, int)):
+            if not np.isclose(v1, v2):
+                return False
+        elif v1 != v2:
+            return False
+
+    return True
+
+
+class _ConfigIDTracker:
+    pass
+
+
+class _StateTracker:
+    def __init__(self, path: str, lock: _SecureLock, continual_max_fidel: int | None):
+        self._path = path
+        self._lock = lock
+        self._continual_max_fidel = continual_max_fidel
+
+    def _validate(self) -> None:
+        if not isinstance(self._continual_max_fidel, int):
+            raise ValueError(f"continual_max_fidel must be int for {self.__class__.__name__}")
+
+    def _get_cached_state_and_index(
+        self, config_hash: int, fidel: int, cumtime: float, rng: np.random.RandomState
+    ) -> tuple[_StateType, int | None]:
+        self._validate()
+        cached_states = _fetch_cache_states(path=self._path, config_hash=config_hash, lock=self._lock)
+        intermediate_avail = [state.cumtime <= cumtime and state.fidel < fidel for state in cached_states]
+        # This guarantees that `cached_state_index` yields the max fidel available in the cache
+        cached_state_index = intermediate_avail.index(True) if any(intermediate_avail) else None
+        if cached_state_index is None:
+            # initial seed, note: 1 << 30 is a huge number that fits 32bit.
+            init_state = _StateType(seed=rng.randint(1 << 30))
+            return init_state, None
+        else:
+            return cached_states[cached_state_index], cached_state_index
+
+    def _update_state(
+        self,
+        cumtime: float,
+        config_hash: int,
+        fidel: int,
+        total_runtime: float,
+        seed: int | None,
+        cached_state_index: int | None,
+    ) -> None:
+        self._validate()
+        kwargs = dict(path=self._path, config_hash=config_hash, lock=self._lock)
+        if fidel != self._continual_max_fidel:  # update the cache data
+            new_state = _StateType(runtime=total_runtime, cumtime=cumtime, fidel=fidel, seed=seed)
+            _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)  # type: ignore[arg-type]
+        elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
+            _delete_state(index=cached_state_index, **kwargs)  # type: ignore[arg-type]
 
 
 def _validate_opt_class(opt: AbstractAskTellOptimizer) -> None:

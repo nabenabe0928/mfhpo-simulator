@@ -6,15 +6,11 @@ from typing import Any
 
 from benchmark_simulator._constants import (
     INF,
-    _StateType,
     _TIME_VALUES,
     _TimeNowDictType,
     _WorkerVars,
 )
 from benchmark_simulator._secure_proc import (
-    _cache_state,
-    _delete_state,
-    _fetch_cache_states,
     _fetch_cumtimes,
     _fetch_timenow,
     _fetch_timestamps,
@@ -32,6 +28,7 @@ from benchmark_simulator._secure_proc import (
 )
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
+    _StateTracker,
     _validate_fidel_args,
     _validate_fidels,
     _validate_fidels_continual,
@@ -56,6 +53,9 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
 
     def _init_worker(self, worker_id: str) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
+        self._state_tracker = _StateTracker(
+            path=self._paths.state_cache, lock=self._lock, continual_max_fidel=self._wrapper_vars.continual_max_fidel
+        )
         _init_simulator(dir_name=self.dir_name)
         _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
 
@@ -95,33 +95,6 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
                 "This error could be avoided by increasing `max_waiting_time` (however, np.inf is discouraged).\n"
             )
 
-    def _get_cached_state_and_index(self, config_hash: int, fidel: int) -> tuple[_StateType, int | None]:
-        cached_states = _fetch_cache_states(path=self._paths.state_cache, config_hash=config_hash, lock=self._lock)
-        intermediate_avail = [state.cumtime <= self._cumtime and state.fidel < fidel for state in cached_states]
-        # This guarantees that `cached_state_index` yields the max fidel available in the cache
-        cached_state_index = intermediate_avail.index(True) if any(intermediate_avail) else None
-        if cached_state_index is None:
-            # initial seed, note: 1 << 30 is a huge number that fits 32bit.
-            init_state = _StateType(seed=self._worker_vars.rng.randint(1 << 30))
-            return init_state, None
-        else:
-            return cached_states[cached_state_index], cached_state_index
-
-    def _update_state(
-        self,
-        config_hash: int,
-        fidel: int,
-        total_runtime: float,
-        seed: int | None,
-        cached_state_index: int | None,
-    ) -> None:
-        kwargs = dict(path=self._paths.state_cache, config_hash=config_hash, lock=self._lock)
-        if fidel != self._wrapper_vars.continual_max_fidel:  # update the cache data
-            new_state = _StateType(runtime=total_runtime, cumtime=self._cumtime, fidel=fidel, seed=seed)
-            _cache_state(new_state=new_state, update_index=cached_state_index, **kwargs)  # type: ignore[arg-type]
-        elif cached_state_index is not None:  # if None, newly start and train till the end, so no need to delete.
-            _delete_state(index=cached_state_index, **kwargs)  # type: ignore[arg-type]
-
     def _wait_other_workers(self) -> None:
         """
         Wait until the worker's cumulative runtime becomes the smallest.
@@ -147,11 +120,16 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         eval_config: dict[str, Any],
         fidels: dict[str, int | float] | None,
         seed: int | None,
+        prev_fidel: int | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         if self._wrapper_vars.store_config:
             self._used_config = eval_config.copy()
-            self._used_config.update(**(fidels if fidels is not None else {}), seed=seed)
+            self._used_config.update(
+                **(fidels if fidels is not None else {}),
+                **({"prev_fidel": prev_fidel} if prev_fidel is not None else {}),
+                seed=seed,
+            )
 
         return self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed, **data_to_scatter)
 
@@ -168,16 +146,23 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         self, eval_config: dict[str, Any], fidel: int, config_id: int | None, **data_to_scatter: Any
     ) -> dict[str, float]:
         config_hash: int = hash(str(eval_config)) if config_id is None else int(config_id)
-        cached_state, cached_state_index = self._get_cached_state_and_index(config_hash=config_hash, fidel=fidel)
+        cached_state, cached_state_index = self._state_tracker._get_cached_state_and_index(
+            config_hash=config_hash, fidel=fidel, cumtime=self._cumtime, rng=self._worker_vars.rng
+        )
         _fidels: dict[str, int | float] = {self._fidel_keys[0]: fidel}
         results = self._query_obj_func(
-            eval_config=eval_config, seed=cached_state.seed, fidels=_fidels, **data_to_scatter
+            eval_config=eval_config,
+            seed=cached_state.seed,
+            fidels=_fidels,
+            prev_fidel=cached_state.fidel,
+            **data_to_scatter,
         )
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
         total_runtime = results[self.runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_state.runtime)
         self._cumtime += actual_runtime
-        self._update_state(
+        self._state_tracker._update_state(
+            cumtime=self._cumtime,
             total_runtime=total_runtime,
             cached_state_index=cached_state_index,
             seed=cached_state.seed,
