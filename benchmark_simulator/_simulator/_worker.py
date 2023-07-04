@@ -28,13 +28,13 @@ from benchmark_simulator._secure_proc import (
 )
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
-    _ConfigIDTracker,
-    _StateTracker,
     _validate_fidel_args,
     _validate_fidels,
     _validate_fidels_continual,
     _validate_output,
 )
+from benchmark_simulator._trackers._config_tracker import _ConfigIDTracker
+from benchmark_simulator._trackers._state_tracker import _StateTracker
 from benchmark_simulator._utils import _generate_time_hash
 
 import numpy as np

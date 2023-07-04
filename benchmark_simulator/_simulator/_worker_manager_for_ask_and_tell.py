@@ -7,14 +7,14 @@ from typing import Any
 from benchmark_simulator._constants import AbstractAskTellOptimizer, _ResultData, _StateType, _WorkerVars
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
-    _AskTellConfigIDTracker,
-    _AskTellStateTracker,
     _validate_fidel_args,
     _validate_fidels,
     _validate_fidels_continual,
     _validate_opt_class,
     _validate_output,
 )
+from benchmark_simulator._trackers._config_tracker import _AskTellConfigIDTracker
+from benchmark_simulator._trackers._state_tracker import _AskTellStateTracker
 
 import numpy as np
 
