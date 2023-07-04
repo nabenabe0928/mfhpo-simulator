@@ -60,6 +60,7 @@ class _CentralWorkerManager(_BaseWrapperInterface):
         eval_config: dict[str, Any],
         *,
         fidels: dict[str, int | float] | None = None,
+        config_id: int | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         pid = os.getpid()
@@ -76,5 +77,7 @@ class _CentralWorkerManager(_BaseWrapperInterface):
             )
 
         worker_index = self._pid_to_index[pid]
-        results = self._workers[worker_index](eval_config=eval_config, fidels=fidels, **data_to_scatter)
+        results = self._workers[worker_index](
+            eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter
+        )
         return results

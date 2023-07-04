@@ -63,7 +63,7 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
             if self._very_random
             else self._opt._max_fidels
         )
-        return eval_config, fidels
+        return eval_config, fidels, None
 
     def tell(
         self,
@@ -71,6 +71,7 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
         results: dict[str, float],
         *,
         fidels: dict[str, int | float] | None,
+        config_id: int | None,
     ) -> None:
         pass
 

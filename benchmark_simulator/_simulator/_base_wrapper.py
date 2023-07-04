@@ -58,6 +58,7 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         eval_config: dict[str, Any],
         *,
         fidels: dict[str, int | float] | None = None,
+        config_id: int | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         raise NotImplementedError(

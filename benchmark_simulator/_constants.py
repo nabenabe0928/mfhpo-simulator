@@ -44,6 +44,7 @@ class _ResultData:
     results: dict[str, float]
     fidels: dict[str, int | float]
     seed: int | None
+    config_id: int | None
 
 
 class _SharedDataFileNames(Enum):
@@ -104,7 +105,7 @@ _TIME_VALUES = _TimeValue()
 
 class AbstractAskTellOptimizer(metaclass=ABCMeta):
     @abstractmethod
-    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None]:
+    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
         """
         The ask method to sample a configuration using an optimizer.
 
@@ -121,6 +122,13 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
                 * fidels (dict[str, int | float] | None):
                     The fidelity parameters to be used for the evaluation of the objective function.
                     If not multi-fidelity optimization, simply return None.
+                * config_id (int | None):
+                    The identifier of configuration if needed for continual learning.
+                    Not used at all when continual_max_fidel=None.
+                    As we internally use a hash of eval_config, it may be unstable if eval_config has float.
+                    However, even if config_id is not provided, our simulator works without errors
+                    although we cannot guarantee that our simulator recognizes the same configs if a users' optimizer
+                    slightly changes the content of eval_config.
         """
         raise NotImplementedError
 
@@ -130,18 +138,27 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
         eval_config: dict[str, Any],
         results: dict[str, float],
         *,
-        fidels: dict[str, int | float] | None,
+        fidels: dict[str, int | float] | None = None,
+        config_id: int | None = None,
     ) -> None:
         """
         The tell method to register for a tuple of configuration, fidelity, and the results to an optimizer.
 
         Args:
             eval_config (dict[str, Any]):
-                The evaluated configuration.
+                The configuration to be used in the objective function.
             results (dict[str, float]):
                 The dict of the return values from the objective function.
-            fidels (dict[str, int | float] | None):
-                The fidelity parameters used in the evaluation.
+            fidels (dict[str, Union[float, int] | None):
+                The fidelities to be used in the objective function. Typically training epoch in deep learning.
+                If None, we assume that no fidelity is used.
+            config_id (int | None):
+                The identifier of configuration if needed for continual learning.
+                Not used at all when continual_max_fidel=None.
+                As we internally use a hash of eval_config, it may be unstable if eval_config has float.
+                However, even if config_id is not provided, our simulator works without errors
+                although we cannot guarantee that our simulator recognizes the same configs if a users' optimizer
+                slightly changes the content of eval_config.
 
         Returns:
             None
@@ -163,10 +180,10 @@ class ObjectiveFuncType(Protocol):
         Args:
             eval_config (dict[str, Any]):
                 The configuration to be used in the objective function.
-            fidels (Optional[dict[str, Union[float, int]]):
+            fidels (dict[str, Union[float, int] | None):
                 The fidelities to be used in the objective function. Typically training epoch in deep learning.
                 If None, we assume that no fidelity is used.
-            seed (Optional[int]):
+            seed (int | None):
                 The random seed to be used in the objective function.
             **data_to_scatter (Any):
                 Data to scatter across workers.

@@ -404,6 +404,7 @@ class ObjectiveFuncWrapper:
         eval_config: dict[str, Any],
         *,
         fidels: dict[str, int | float] | None = None,
+        config_id: int | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         """The meta-wrapper method of the objective function method in WorkerFunc instances.
@@ -418,6 +419,12 @@ class ObjectiveFuncWrapper:
             fidels (dict[str, int | float] | None):
                 The fidelities to be used in the objective function. Typically training epoch in deep learning.
                 If None, no-fidelity opt.
+            config_id (int | None):
+                The identifier of configuration if needed for continual learning.
+                As we internally use a hash of eval_config, it may be unstable if eval_config has float.
+                However, even if config_id is not provided, our simulator works without errors
+                although we cannot guarantee that our simulator recognizes the same configs if a users' optimizer
+                slightly changes the content of eval_config.
             **data_to_scatter (Any):
                 Data to scatter across workers.
                 Users can pass any necessary information to the objective function,
@@ -435,7 +442,7 @@ class ObjectiveFuncWrapper:
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
         """
-        return self._main_wrapper(eval_config=eval_config, fidels=fidels, **data_to_scatter)
+        return self._main_wrapper(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         """

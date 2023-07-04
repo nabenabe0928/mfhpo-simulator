@@ -45,7 +45,7 @@ class _DummyOptConsideringState(AbstractAskTellOptimizer):
             fidels = {"epoch": i + 1}
 
         self._n_calls += 1
-        return eval_config, fidels
+        return eval_config, fidels, None
 
     def tell(self, *args, **kwargs):
         pass
@@ -57,7 +57,7 @@ class _DummyOpt(AbstractAskTellOptimizer):
 
     def ask(self):
         self._n_calls += 1
-        return {"x": self._n_calls}, {"epoch": self._n_calls + 1}
+        return {"x": self._n_calls}, {"epoch": self._n_calls + 1}, None
 
     def tell(self, *args, **kwargs):
         pass
@@ -72,7 +72,7 @@ class _DummyOptCond(AbstractAskTellOptimizer):
         i = self._n_calls
         eval_config = {"x": i} if i < 6 or i % 2 == 0 else {"x": i, "y": i}
         fidels = {"epoch": i + 1}
-        return eval_config, fidels
+        return eval_config, fidels, None
 
     def tell(self, *args, **kwargs):
         pass
@@ -97,7 +97,7 @@ def test_error_no_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     with pytest.raises(ValueError, match="Objective function did not get keyword `fidels`*"):
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None, config_id=None)
 
 
 @cleanup
@@ -106,10 +106,12 @@ def test_error_unneeded_fidel_in_call():
     kwargs.pop("continual_max_fidel")
     kwargs.pop("fidel_keys")
     worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None)  # no error without fidel!
+    worker._main_wrapper._proc_obj_func(  # no error without fidel!
+        eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None, config_id=None
+    )
     # Objective function got keyword `fidels`
     with pytest.raises(ValueError, match="Objective function got keyword `fidels`*"):
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 0}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 0}, worker_id=0, config_id=None)
 
 
 @cleanup
@@ -138,7 +140,9 @@ def test_fidel_must_have_only_one_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(ValueError, match="fidels must have only one element*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(
+            eval_config=SIMPLE_CONFIG, fidels={"epoch": 1, "epoch2": 1}, worker_id=0, config_id=None
+        )
 
 
 @cleanup
@@ -146,7 +150,9 @@ def test_fidel_must_be_int_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_constant_runtime, **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1.0}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(
+            eval_config=SIMPLE_CONFIG, fidels={"epoch": 1.0}, worker_id=0, config_id=None
+        )
 
 
 @cleanup
@@ -154,7 +160,9 @@ def test_fidel_must_be_non_negative_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_constant_runtime, **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": -1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(
+            eval_config=SIMPLE_CONFIG, fidels={"epoch": -1}, worker_id=0, config_id=None
+        )
 
 
 @cleanup
@@ -163,7 +171,9 @@ def test_fidel_keys_must_be_identical_using_weird_call():
     kwargs.pop("continual_max_fidel")
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1, "epoch2": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(
+            eval_config=SIMPLE_CONFIG, fidels={"epoch": 1, "epoch2": 1}, worker_id=0, config_id=None
+        )
 
 
 @cleanup
@@ -173,7 +183,7 @@ def test_fidel_keys_must_be_identical_using_weird_instance():
     kwargs["fidel_keys"] = ["dummy-fidel"]
     with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_constant_runtime, **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
 
 @cleanup
@@ -181,7 +191,7 @@ def _weird_obj_keys(obj_keys: list[str]):
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, obj_keys=["dummy_loss"], **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
 
 @pytest.mark.parametrize("obj_keys", (["dummy_loss"], ["dummy_loss", "loss"]))
@@ -194,7 +204,7 @@ def test_weird_runtime_key():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(KeyError, match="The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, runtime_key="dummy_runtime", **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
 
 @cleanup
@@ -207,7 +217,9 @@ def test_call_with_many_fidelities():
     worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_many_fidelities, **kwargs)
 
     for i in range(15):
-        worker._main_wrapper._proc_obj_func(eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i}, worker_id=0)
+        worker._main_wrapper._proc_obj_func(
+            eval_config={"x": i}, fidels={"z1": i, "z2": i, "z3": i}, worker_id=0, config_id=None
+        )
 
 
 @cleanup
@@ -220,16 +232,16 @@ def test_call_considering_state():
     for k in range(-1, 20):
         if k == -1:
             # max-fidel and thus no need to cache
-            eval_config, fidels = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
-            worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
+            eval_config, fidels, _ = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
+            worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels, config_id=None)
             worker._main_wrapper._tell_pending_result(opt=opt, worker_id=0)
             assert len(worker._main_wrapper._intermediate_states) == 0
             continue
 
         i, j = k // 2, k % 2
         last = (i == 9) and (j == 1)
-        eval_config, fidels = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
-        worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels)
+        eval_config, fidels, _ = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
+        worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels, config_id=None)
         worker._main_wrapper._tell_pending_result(opt=opt, worker_id=0)
 
         states = worker._main_wrapper._intermediate_states

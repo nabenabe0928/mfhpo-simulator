@@ -45,6 +45,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
 
     def _fetch_prev_state_index(self, config_hash: int, fidel: int, worker_id: int) -> int | None:
         states = self._intermediate_states.get(config_hash, [])
+        # This guarantees that `cached_state_index` yields the max fidel available in the cache
         intermediate_avail = [state.cumtime <= self._cumtimes[worker_id] and state.fidel < fidel for state in states]
         return intermediate_avail.index(True) if any(intermediate_avail) else None
 
@@ -72,6 +73,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         eval_config: dict[str, Any],
         worker_id: int,
         fidels: dict[str, int | float] | None,
+        config_id: int | None,
     ) -> tuple[dict[str, float], int | None]:
         continual_max_fidel = self._wrapper_vars.continual_max_fidel
         if not self._worker_vars.continual_eval:  # not continual learning
@@ -82,7 +84,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
 
         fidel = _validate_fidels_continual(fidels)
         runtime_key = self._wrapper_vars.runtime_key
-        config_hash = int(hash(str(eval_config)))
+        config_hash = int(hash(str(eval_config))) if config_id is None else config_id
         seed = self._fetch_prev_seed(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
         results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
@@ -110,6 +112,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         eval_config: dict[str, Any],
         worker_id: int,
         fidels: dict[str, int | float] | None,
+        config_id: int | None,
     ) -> None:
         _validate_fidels(
             fidels=fidels,
@@ -117,7 +120,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             use_fidel=self._worker_vars.use_fidel,
             continual_eval=self._worker_vars.continual_eval,
         )
-        results, seed = self._proc(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
+        results, seed = self._proc(eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id)
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]
         self._pending_results[worker_id] = _ResultData(
@@ -126,6 +129,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             results=results,
             fidels=fidels if fidels is not None else {},
             seed=seed,
+            config_id=config_id,
         )
 
     def _record_result_data(self, result_data: _ResultData, worker_id: int) -> None:
@@ -156,13 +160,13 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self,
         opt: AbstractAskTellOptimizer,
         worker_id: int,
-    ) -> tuple[dict[str, Any], dict[str, int | float] | None]:
+    ) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
         start = time.time()
-        eval_config, fidels = opt.ask()
+        eval_config, fidels, config_id = opt.ask()
         sampling_time = time.time() - start
         self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
         self._cumtimes[worker_id] = self._timenow
-        return eval_config, fidels
+        return eval_config, fidels, config_id
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
         result_data = self._pending_results[worker_id]
@@ -170,7 +174,12 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             return
 
         self._record_result_data(result_data=result_data, worker_id=worker_id)
-        opt.tell(eval_config=result_data.eval_config, results=result_data.results, fidels=result_data.fidels)
+        opt.tell(
+            eval_config=result_data.eval_config,
+            results=result_data.results,
+            fidels=result_data.fidels,
+            config_id=result_data.config_id,
+        )
         self._pending_results[worker_id] = None
 
     def _save_results(self) -> None:
@@ -181,8 +190,8 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         _validate_opt_class(opt)
         worker_id = 0
         for _ in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
-            eval_config, fidels = self._ask_with_timer(opt=opt, worker_id=worker_id)
-            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels)
+            eval_config, fidels, config_id = self._ask_with_timer(opt=opt, worker_id=worker_id)
+            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id)
             worker_id = np.argmin(self._cumtimes)
             self._tell_pending_result(opt=opt, worker_id=worker_id)
 

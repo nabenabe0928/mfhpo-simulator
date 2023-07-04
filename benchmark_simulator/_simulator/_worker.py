@@ -98,6 +98,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
     def _get_cached_state_and_index(self, config_hash: int, fidel: int) -> tuple[_StateType, int | None]:
         cached_states = _fetch_cache_states(path=self._paths.state_cache, config_hash=config_hash, lock=self._lock)
         intermediate_avail = [state.cumtime <= self._cumtime and state.fidel < fidel for state in cached_states]
+        # This guarantees that `cached_state_index` yields the max fidel available in the cache
         cached_state_index = intermediate_avail.index(True) if any(intermediate_avail) else None
         if cached_state_index is None:
             # initial seed, note: 1 << 30 is a huge number that fits 32bit.
@@ -164,9 +165,9 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         return {k: results[k] for k in self._worker_vars.stored_obj_keys}
 
     def _proc_output_from_existing_state(
-        self, eval_config: dict[str, Any], fidel: int, **data_to_scatter: Any
+        self, eval_config: dict[str, Any], fidel: int, config_id: int | None, **data_to_scatter: Any
     ) -> dict[str, float]:
-        config_hash: int = hash(str(eval_config))
+        config_hash: int = hash(str(eval_config)) if config_id is None else int(config_id)
         cached_state, cached_state_index = self._get_cached_state_and_index(config_hash=config_hash, fidel=fidel)
         _fidels: dict[str, int | float] = {self._fidel_keys[0]: fidel}
         results = self._query_obj_func(
@@ -186,14 +187,20 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         return {**{k: results[k] for k in self._obj_keys}, self.runtime_key: actual_runtime}
 
     def _proc_output(
-        self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None, **data_to_scatter: Any
+        self,
+        eval_config: dict[str, Any],
+        fidels: dict[str, int | float] | None,
+        config_id: int | None,
+        **data_to_scatter: Any,
     ) -> dict[str, float]:
         if not self._worker_vars.continual_eval:
             return self._proc_output_from_scratch(eval_config=eval_config, fidels=fidels, **data_to_scatter)
 
         # Otherwise, we try the continual evaluation
         fidel = _validate_fidels_continual(fidels)
-        return self._proc_output_from_existing_state(eval_config=eval_config, fidel=fidel, **data_to_scatter)
+        return self._proc_output_from_existing_state(
+            eval_config=eval_config, fidel=fidel, config_id=config_id, **data_to_scatter
+        )
 
     def _post_proc(self, results: dict[str, float]) -> None:
         # First, record the simulated cumulative runtime after calling the objective
@@ -246,6 +253,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         eval_config: dict[str, Any],
         *,
         fidels: dict[str, int | float] | None = None,
+        config_id: int | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         prev_timestamp = self._load_timestamps()
@@ -264,7 +272,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         _record_timenow(path=self._paths.timenow, timenow_data=timenow_data, lock=self._lock)
 
         self._cumtime += sampling_time
-        results = self._proc_output(eval_config, fidels, **data_to_scatter)
+        results = self._proc_output(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)
         self._post_proc(results)
         return results
 
