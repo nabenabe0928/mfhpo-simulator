@@ -243,7 +243,11 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         timenow_data = _fetch_timenow(path=self._paths.timenow, lock=self._lock)
         cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
         # Consider the sampling time overlap
-        self._cumtime = max(cumtime, np.max(timenow_data["after_sample"][timenow_data["before_sample"] <= cumtime]))
+        self._cumtime = (
+            max(cumtime, np.max(timenow_data["after_sample"][timenow_data["before_sample"] <= cumtime]))
+            if not self._wrapper_vars.allow_parallel_sampling
+            else cumtime
+        )
         self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
         return timestamp_dict[worker_id]

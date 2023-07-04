@@ -77,6 +77,7 @@ class _WrapperVars:
     max_waiting_time: float
     check_interval_time: float
     store_config: bool
+    allow_parallel_sampling: bool
 
     def validate(self) -> None:
         if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:

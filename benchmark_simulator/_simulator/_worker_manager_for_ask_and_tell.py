@@ -164,8 +164,12 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         start = time.time()
         eval_config, fidels, config_id = opt.ask()
         sampling_time = time.time() - start
-        self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
-        self._cumtimes[worker_id] = self._timenow
+        if self._wrapper_vars.allow_parallel_sampling:
+            self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
+        else:
+            self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
+            self._cumtimes[worker_id] = self._timenow
+
         return eval_config, fidels, config_id
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:

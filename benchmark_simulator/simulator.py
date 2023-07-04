@@ -100,6 +100,7 @@ def get_multiple_wrappers(
     max_waiting_time: float = np.inf,
     check_interval_time: float = 1e-4,
     store_config: bool = False,
+    allow_parallel_sampling: bool = False,
 ) -> list[ObjectiveFuncWrapper]:
     """Return multiple wrapper instances.
 
@@ -160,6 +161,10 @@ def get_multiple_wrappers(
             Whether to store all config/fidel information.
             The information is sorted chronologically.
             When you do large-scale experiments, this may incur too much storage consumption.
+        allow_parallel_sampling (bool):
+            Whether sampling can happen in parallel.
+            In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False.
+            The default value is False.
 
     Returns:
         wrappers (list[ObjectiveFuncWrapper]):
@@ -188,6 +193,7 @@ def get_multiple_wrappers(
         max_waiting_time=max_waiting_time,
         check_interval_time=check_interval_time,
         store_config=store_config,
+        allow_parallel_sampling=allow_parallel_sampling,
     )
     pool = Pool()
     results = []
@@ -254,6 +260,7 @@ class ObjectiveFuncWrapper:
         max_waiting_time: float = np.inf,
         check_interval_time: float = 1e-4,
         store_config: bool = False,
+        allow_parallel_sampling: bool = False,
     ):
         """The initialization of a wrapper class.
 
@@ -328,6 +335,10 @@ class ObjectiveFuncWrapper:
                 Whether to store all config/fidel information.
                 The information is sorted chronologically.
                 When you do large-scale experiments, this may incur too much storage consumption.
+            allow_parallel_sampling (bool):
+                Whether sampling can happen in parallel.
+                In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False.
+                The default value is False.
         """
         curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
         wrapper_vars = _WrapperVars(
@@ -344,6 +355,7 @@ class ObjectiveFuncWrapper:
             max_waiting_time=max_waiting_time,
             check_interval_time=check_interval_time,
             store_config=store_config,
+            allow_parallel_sampling=allow_parallel_sampling,
         )
 
         self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker
