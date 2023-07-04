@@ -39,18 +39,11 @@ class OptunaWrapper(AbstractAskTellOptimizer):
         self._study = optuna.create_study()
         self._obj_key = obj_key
         self._distributions = distributions
-        self._hp_names = list(self._distributions.keys())
-        self._pending_trials: dict[int, list[optuna.Trial]] = {}
-
-    ######################################
-    # ask and tell methods are mandatory #
-    ######################################
 
     def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None]:
         # Ask method is mandatory
         trial = self._study.ask(self._distributions)
-        self._store_trial(trial)
-        return trial.params, None
+        return trial.params, None, trial._trial_id
 
     def tell(
         self,
@@ -58,34 +51,11 @@ class OptunaWrapper(AbstractAskTellOptimizer):
         results: dict[str, float],
         *,
         fidels: dict[str, int | float] | None,
+        config_id: int | None,
     ) -> None:
+        assert isinstance(config_id, int)  # mypy redefinition
         # Tell method is mandatory
-        trial = self._fetch_trial(eval_config)
-        self._study.tell(trial, results[self._obj_key])
-
-    #######################################################
-    # Custom methods due to the Optuna's algorithm design #
-    #######################################################
-
-    def _calculate_config_hash(self, eval_config: dict[str, Any]) -> int:
-        # It may not be the safest option, but it is sufficient for this example.
-        return int(hash(str({k: eval_config[k] for k in self._hp_names})))
-
-    def _store_trial(self, trial: optuna.Trial) -> None:
-        config_hash = self._calculate_config_hash(trial.params)
-        if config_hash in self._pending_trials:
-            self._pending_trials[config_hash].append(trial)
-        else:
-            self._pending_trials[config_hash] = [trial]
-
-    def _fetch_trial(self, eval_config: dict[str, Any]) -> optuna.Trial:
-        config_hash = self._calculate_config_hash(eval_config)
-        trial = self._pending_trials[config_hash].pop(0)
-        if len(self._pending_trials[config_hash]) == 0:
-            # Empty the cache if the length is zero.
-            self._pending_trials.pop(config_hash)
-
-        return trial
+        self._study.tell(trial=config_id, values=results[self._obj_key])
 
 
 if __name__ == "__main__":

@@ -22,9 +22,9 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
     def __init__(self, opt: RandomOptimizer):
         self._opt = opt
 
-    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None]:
+    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
         eval_config = self._opt.ask()
-        return eval_config, self._opt._max_fidels
+        return eval_config, self._opt._max_fidels, None
 
     def tell(
         self,
@@ -32,6 +32,7 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
         results: dict[str, float],
         *,
         fidels: dict[str, int | float] | None,
+        config_id: int | None,
     ) -> None:
         pass
 

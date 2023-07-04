@@ -7,7 +7,7 @@ Unlike the other worker wrappers, each objective function will not run in parall
 Instead, we internally simulate the cumulative runtime for each worker.
 For this sake, the provided optimizer must take the so-called **[ask-and-tell](https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/009_ask_and_tell.html)** interface.
 As long as the optimizer takes this interface, arbitrary optimizers can be used for this class.
-Please check [examples](examples/ask_and_tell/) to know how to encapsulate an optimizer with an incompatible interface.
+Please check [examples](../examples/ask_and_tell/) to know how to encapsulate an optimizer with an incompatible interface and [AbstractAskTellOptimizer](https://github.com/nabenabe0928/mfhpo-simulator/blob/main/benchmark_simulator/_constants.py#L106-L166) how the optimizer wrapper should look like.
 The benefits of this option are:
 1. Very stable because all function calls are performed sequentially and unexpected behavior due to parallel computation will not happen while preserving the same results from the parallel version,
 2. No slow down even when using a large `n_workers`, and
@@ -19,5 +19,5 @@ You can run the example via:
 $ python -m examples.ask_and_tell.random --bench_name branin --seed 0 --n_workers 4
 
 # Optuna
-$ python -m examples.ask_and_tell.optuna --bench_name branin --seed 0 --n_workers 4
+$ python -m examples.ask_and_tell.optuna --bench_name hpolib --dataset_id 0 --seed 0 --n_workers 4
 ```

@@ -1,6 +1,6 @@
 ## Usage
 
-We first note that this example is based on [examples/random_with_dummy.py](examples/random_with_dummy.py).
+We first note that this example is based on [examples/random_with_dummy.py](../examples/random_with_dummy.py).
 After `pip install mfhpo-simulator`, you can test it with:
 
 ```shell

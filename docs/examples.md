@@ -1,6 +1,6 @@
 ## Tests Using Various Open Source Optimizers
 
-The very minimal examples are provided in [examples/minimal/](examples/minimal/).
+The very minimal examples are provided in [examples/minimal/](../examples/minimal/).
 After `pip install -r requirements-for-developer.txt`, you can run these examples by:
 
 ```shell
