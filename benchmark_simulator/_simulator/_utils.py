@@ -31,16 +31,27 @@ def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
     return True
 
 
+def _validate_continual_max_fidel(continual_max_fidel: int | None, cls_name: str) -> None:
+    if not isinstance(continual_max_fidel, int):
+        raise ValueError(f"continual_max_fidel must be int for {cls_name}")
+
+
 class _ConfigIDTracker:
     def __init__(self, path: str, lock: _SecureLock):
         self._path = path
         self._lock = lock
 
+    def _fetch_existing_configs(self) -> dict[str, dict[str, Any]]:
+        return _fetch_existing_configs(path=self._path, lock=self._lock)
+
+    def _record_existing_configs(self, config_id_str: str, config: dict[str, Any]) -> None:
+        _record_existing_configs(path=self._path, config_id_str=config_id_str, config=config, lock=self._lock)
+
     def validate(self, config: dict[str, Any], config_id: int) -> None:
         config_id_str = str(config_id)
-        existing_configs = _fetch_existing_configs(path=self._path, lock=self._lock)
+        existing_configs = self._fetch_existing_configs()
         if config_id_str not in existing_configs:
-            _record_existing_configs(path=self._path, config_id_str=config_id_str, config=config, lock=self._lock)
+            self._record_existing_configs(config_id_str=config_id_str, config=config)
             return
 
         existing_config = existing_configs[config_id_str]
@@ -50,20 +61,76 @@ class _ConfigIDTracker:
             )
 
 
+class _AskTellConfigIDTracker(_ConfigIDTracker):
+    def __init__(self) -> None:
+        self._existing_configs: dict[str, dict[str, Any]] = {}
+
+    def _fetch_existing_configs(self) -> dict[str, dict[str, Any]]:
+        return self._existing_configs
+
+    def _record_existing_configs(self, config_id_str: str, config: dict[str, Any]) -> None:
+        self._existing_configs[config_id_str] = config.copy()
+
+
+class _AskTellStateTracker:
+    def __init__(self, continual_max_fidel: int | None):
+        self._intermediate_states: dict[int, list[_StateType]] = {}
+        self._continual_max_fidel = continual_max_fidel
+
+    def _fetch_prev_state_index(self, config_hash: int, fidel: int, cumtime: float) -> int | None:
+        states = self._intermediate_states.get(config_hash, [])
+        # This guarantees that `cached_state_index` yields the max fidel available in the cache
+        intermediate_avail = [state.cumtime <= cumtime and state.fidel < fidel for state in states]
+        return intermediate_avail.index(True) if any(intermediate_avail) else None
+
+    def fetch_prev_seed(self, config_hash: int, fidel: int, cumtime: float, rng: np.random.RandomState) -> int | None:
+        prev_state_index = self._fetch_prev_state_index(config_hash=config_hash, fidel=fidel, cumtime=cumtime)
+        if prev_state_index is None:
+            return rng.randint(1 << 30)
+        else:
+            return self._intermediate_states[config_hash][prev_state_index].seed
+
+    def pop_old_state(self, config_hash: int, fidel: int, cumtime: float) -> _StateType | None:
+        prev_state_index = self._fetch_prev_state_index(config_hash=config_hash, fidel=fidel, cumtime=cumtime)
+        if prev_state_index is None:
+            return None
+
+        old_state = self._intermediate_states[config_hash].pop(prev_state_index)
+        if len(self._intermediate_states[config_hash]) == 0:
+            # Remove the empty set
+            self._intermediate_states.pop(config_hash)
+
+        return old_state
+
+    def update_state(
+        self,
+        config_hash: int,
+        fidel: int,
+        runtime: float,
+        cumtime: float,
+        seed: int | None,
+    ) -> None:
+        _validate_continual_max_fidel(continual_max_fidel=self._continual_max_fidel, cls_name=self.__class__.__name__)
+        assert isinstance(self._continual_max_fidel, int)  # mypy redefinition
+        if fidel < self._continual_max_fidel:
+            new_state = _StateType(runtime=runtime, cumtime=cumtime, fidel=fidel, seed=seed)
+            if config_hash in self._intermediate_states:
+                self._intermediate_states[config_hash].append(new_state)
+            else:
+                self._intermediate_states[config_hash] = [new_state]
+
+
 class _StateTracker:
     def __init__(self, path: str, lock: _SecureLock, continual_max_fidel: int | None):
         self._path = path
         self._lock = lock
         self._continual_max_fidel = continual_max_fidel
 
-    def _validate(self) -> None:
-        if not isinstance(self._continual_max_fidel, int):
-            raise ValueError(f"continual_max_fidel must be int for {self.__class__.__name__}")
-
     def get_cached_state_and_index(
         self, config_hash: int, fidel: int, cumtime: float, rng: np.random.RandomState
     ) -> tuple[_StateType, int | None]:
-        self._validate()
+        _validate_continual_max_fidel(continual_max_fidel=self._continual_max_fidel, cls_name=self.__class__.__name__)
+        assert isinstance(self._continual_max_fidel, int)  # mypy redefinition
         cached_states = _fetch_cache_states(path=self._path, config_hash=config_hash, lock=self._lock)
         intermediate_avail = [state.cumtime <= cumtime and state.fidel < fidel for state in cached_states]
         # This guarantees that `cached_state_index` yields the max fidel available in the cache
@@ -84,7 +151,7 @@ class _StateTracker:
         seed: int | None,
         cached_state_index: int | None,
     ) -> None:
-        self._validate()
+        _validate_continual_max_fidel(continual_max_fidel=self._continual_max_fidel, cls_name=self.__class__.__name__)
         kwargs = dict(path=self._path, config_hash=config_hash, lock=self._lock)
         if fidel != self._continual_max_fidel:  # update the cache data
             new_state = _StateType(runtime=total_runtime, cumtime=cumtime, fidel=fidel, seed=seed)

@@ -7,7 +7,8 @@ from typing import Any
 from benchmark_simulator._constants import AbstractAskTellOptimizer, _ResultData, _StateType, _WorkerVars
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
-    _ConfigIDTracker,
+    _AskTellConfigIDTracker,
+    _AskTellStateTracker,
     _validate_fidel_args,
     _validate_fidels,
     _validate_fidels_continual,
@@ -31,16 +32,14 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             worker_id="",
             worker_index=-1,
         )
-        with open(self._paths.config_tracker, mode="w") as f:
-            json.dump({}, f, indent=4)
-        self._config_tracker = _ConfigIDTracker(path=self._paths.config_tracker, lock=self._lock)
+        self._config_tracker = _AskTellConfigIDTracker()
+        self._state_tracker = _AskTellStateTracker(continual_max_fidel=self._wrapper_vars.continual_max_fidel)
 
         self._wrapper_vars.validate()
         _validate_fidel_args(continual_eval=self._worker_vars.continual_eval, fidel_keys=self._fidel_keys)
 
         self._timenow = 0.0
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
-        self._intermediate_states: dict[int, list[_StateType]] = {}
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
         self._seen_config_keys: list[str] = []
         self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
@@ -50,31 +49,6 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             if self._wrapper_vars.continual_max_fidel is not None:
                 self._results["prev_fidel"] = []
 
-    def _fetch_prev_state_index(self, config_hash: int, fidel: int, worker_id: int) -> int | None:
-        states = self._intermediate_states.get(config_hash, [])
-        # This guarantees that `cached_state_index` yields the max fidel available in the cache
-        intermediate_avail = [state.cumtime <= self._cumtimes[worker_id] and state.fidel < fidel for state in states]
-        return intermediate_avail.index(True) if any(intermediate_avail) else None
-
-    def _fetch_prev_seed(self, config_hash: int, fidel: int, worker_id: int) -> int | None:
-        prev_state_index = self._fetch_prev_state_index(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
-        if prev_state_index is None:
-            return self._worker_vars.rng.randint(1 << 30)
-        else:
-            return self._intermediate_states[config_hash][prev_state_index].seed
-
-    def _pop_old_state(self, config_hash: int, fidel: int, worker_id: int) -> _StateType | None:
-        prev_state_index = self._fetch_prev_state_index(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
-        if prev_state_index is None:
-            return None
-
-        old_state = self._intermediate_states[config_hash].pop(prev_state_index)
-        if len(self._intermediate_states[config_hash]) == 0:
-            # Remove the empty set
-            self._intermediate_states.pop(config_hash)
-
-        return old_state
-
     def _proc(
         self,
         eval_config: dict[str, Any],
@@ -82,7 +56,6 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         fidels: dict[str, int | float] | None,
         config_id: int | None,
     ) -> tuple[dict[str, float], int | None, int | None]:
-        continual_max_fidel = self._wrapper_vars.continual_max_fidel
         if not self._worker_vars.continual_eval:  # not continual learning
             seed = self._worker_vars.rng.randint(1 << 30)
             results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
@@ -92,25 +65,27 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         fidel = _validate_fidels_continual(fidels)
         runtime_key = self._wrapper_vars.runtime_key
         config_hash = int(hash(str(eval_config))) if config_id is None else config_id
-        seed = self._fetch_prev_seed(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
+        seed = self._state_tracker.fetch_prev_seed(
+            config_hash=config_hash,
+            fidel=fidel,
+            cumtime=self._cumtimes[worker_id],
+            rng=self._worker_vars.rng,
+        )
         results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
-        old_state = self._pop_old_state(config_hash=config_hash, fidel=fidel, worker_id=worker_id)
+        old_state = self._state_tracker.pop_old_state(
+            config_hash=config_hash, fidel=fidel, cumtime=self._cumtimes[worker_id]
+        )
         old_state = _StateType(seed=seed) if old_state is None else old_state
 
         results[runtime_key] = max(0.0, results[runtime_key] - old_state.runtime)
-        assert continual_max_fidel is not None  # mypy redefinition
-        if fidel < continual_max_fidel:
-            new_state = _StateType(
-                runtime=results[runtime_key],
-                cumtime=self._cumtimes[worker_id],
-                fidel=fidel,
-                seed=old_state.seed,
-            )
-            if config_hash in self._intermediate_states:
-                self._intermediate_states[config_hash].append(new_state)
-            else:
-                self._intermediate_states[config_hash] = [new_state]
+        self._state_tracker.update_state(
+            config_hash=config_hash,
+            fidel=fidel,
+            runtime=results[runtime_key],
+            cumtime=self._cumtimes[worker_id],
+            seed=old_state.seed,
+        )
 
         return results, seed, old_state.fidel
 
@@ -177,6 +152,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         eval_config, fidels, config_id = opt.ask()
         config_tracking = config_id is not None and self._wrapper_vars.config_tracking
         if config_tracking:  # validate the config_id to ensure the user implementation is correct
+            assert config_id is not None  # mypy redefinition
             self._config_tracker.validate(config=eval_config, config_id=config_id)
 
         sampling_time = time.time() - start

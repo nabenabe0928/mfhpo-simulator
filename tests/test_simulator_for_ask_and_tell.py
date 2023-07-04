@@ -235,7 +235,7 @@ def test_call_considering_state():
             eval_config, fidels, _ = worker._main_wrapper._ask_with_timer(opt=opt, worker_id=0)
             worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels, config_id=None)
             worker._main_wrapper._tell_pending_result(opt=opt, worker_id=0)
-            assert len(worker._main_wrapper._intermediate_states) == 0
+            assert len(worker._main_wrapper._state_tracker._intermediate_states) == 0
             continue
 
         i, j = k // 2, k % 2
@@ -244,7 +244,7 @@ def test_call_considering_state():
         worker._main_wrapper._proc_obj_func(eval_config=eval_config, worker_id=0, fidels=fidels, config_id=None)
         worker._main_wrapper._tell_pending_result(opt=opt, worker_id=0)
 
-        states = worker._main_wrapper._intermediate_states
+        states = worker._main_wrapper._state_tracker._intermediate_states
         assert len(states) == int(not last)
 
         if last:

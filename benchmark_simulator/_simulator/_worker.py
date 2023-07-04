@@ -257,6 +257,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         )
         config_tracking = config_id is not None and self._wrapper_vars.config_tracking
         if config_tracking:  # validate the config_id to ensure the user implementation is correct
+            assert config_id is not None  # mypy redefinition
             self._config_tracker.validate(config=eval_config, config_id=config_id)
 
         if self._terminated:
