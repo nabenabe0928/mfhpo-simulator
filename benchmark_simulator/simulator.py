@@ -176,7 +176,7 @@ def get_multiple_wrappers(
             A list of wrappers.
             It contains n_workers of worker wrappers.
     """
-    curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
     save_dir_name = save_dir_name if save_dir_name is not None else f"data-{curtime}"
 
     dir_name = os.path.join(DIR_NAME, save_dir_name)
@@ -351,7 +351,7 @@ class ObjectiveFuncWrapper:
                 It slows the simulation down when n_evals is large (> 3000),
                 but it is recommended to avoid unexpected bugs that could happen.
         """
-        curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
         wrapper_vars = _WrapperVars(
             obj_func=obj_func,
             save_dir_name=save_dir_name if save_dir_name is not None else f"data-{curtime}",
