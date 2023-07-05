@@ -139,7 +139,7 @@ def run_without_wrapper(bench: MFHartmann, seed: int) -> tuple[np.ndarray, np.nd
     return extract(results, start=start)
 
 
-def main():
+def main(deterministic: bool):
     data = {
         "naive": {
             "loss": [],
@@ -156,7 +156,7 @@ def main():
             "simulated_cumtime": [],
         },
     }
-    bench = MFHartmann(dim=6, runtime_factor=RUNTIME_FACTOR)
+    bench = MFHartmann(dim=6, runtime_factor=RUNTIME_FACTOR, deterministic=deterministic)
     for seed in range(N_SEEDS):
         print(f"Run with {seed=}")
 
@@ -183,9 +183,11 @@ def main():
         percent = 100 * np.sum(np.isclose(naive_loss, our_loss)) / len(our_loss)
         print(f"How much was correct?: {percent:.2f}%. NOTE: Tie-break could cause False!")
 
-        with open("demo/validation-results.json", mode="w") as f:
+        suffix = "deterministic" if deterministic else "noisy"
+        with open(f"demo/validation-results-{suffix}.json", mode="w") as f:
             json.dump(data, f, indent=4)
 
 
 if __name__ == "__main__":
-    main()
+    main(deterministic=True)
+    main(deterministic=False)

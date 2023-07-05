@@ -52,8 +52,9 @@ def plot_traj(
     return line
 
 
-def main(ours_key: str, ours_label: str, file_suffix: str):
-    with open("demo/validation-results.json", mode="r") as f:
+def main(deterministic: bool, ours_key: str, ours_label: str, file_suffix: str, fmt: str):
+    suffix = "deterministic" if deterministic else "noisy"
+    with open(f"demo/validation-results-{suffix}.json", mode="r") as f:
         data = {k: {k2: np.array(v2) for k2, v2 in v.items()} for k, v in json.load(f).items()}
 
     _, ax = plt.subplots(figsize=(10, 5))
@@ -85,9 +86,12 @@ def main(ours_key: str, ours_label: str, file_suffix: str):
     )
     ax.grid(which="minor", color="gray", linestyle=":")
     ax.grid(which="major", color="black")
-    plt.savefig(f"demo/validation-{file_suffix}.png", bbox_inches="tight")
+    plt.savefig(f"demo/validation-{file_suffix}-{suffix}.{fmt}", bbox_inches="tight")
 
 
 if __name__ == "__main__":
-    main(ours_key="ours", ours_label="Ours", file_suffix="ours")
-    main(ours_key="ours_ask_and_tell", ours_label="Ours (A&T)", file_suffix="ours-ask-and-tell")
+    kwargs = {"fmt": "png"}
+    for c in [True, False]:
+        kwargs.update(deterministic=c)
+        main(**kwargs, ours_key="ours", ours_label="Ours", file_suffix="ours")
+        main(**kwargs, ours_key="ours_ask_and_tell", ours_label="Ours (A&T)", file_suffix="ours-ask-and-tell")
