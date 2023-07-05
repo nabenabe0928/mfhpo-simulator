@@ -8,4 +8,7 @@ dist/
 *.egg-info/
 .venv/
 
+demo/*.png
+demo/*.json
+
 **/.ipynb_checkpoints

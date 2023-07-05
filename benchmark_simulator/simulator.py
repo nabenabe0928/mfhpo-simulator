@@ -388,6 +388,10 @@ class ObjectiveFuncWrapper:
         return self._main_wrapper.dir_name
 
     @property
+    def result_file_path(self) -> str:
+        return self._main_wrapper._paths.result
+
+    @property
     def obj_keys(self) -> list[str]:
         return self._main_wrapper.obj_keys
 
