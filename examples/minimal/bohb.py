@@ -25,7 +25,10 @@ class BOHBWorker(Worker):
     def compute(self, config: dict[str, Any], budget: int, **kwargs: Any) -> dict[str, float]:
         fidel_keys = self._worker.fidel_keys
         fidels = dict(epoch=int(budget)) if "epoch" in fidel_keys else {k: int(budget) for k in fidel_keys}
-        results = self._worker(eval_config=config, fidels=fidels)
+        # config_id: a triplet of ints(iteration, budget index, running index) internally used in BOHB
+        # By passing config_id, it increases the safety in the continual learning (, but it is not mandatory)
+        config_id = kwargs["config_id"][0] + 100000 * kwargs["config_id"][2]
+        results = self._worker(eval_config=config, fidels=fidels, config_id=config_id)
         return dict(loss=results["loss"])
 
 

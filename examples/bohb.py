@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import os
-from multiprocessing import Pool
 from typing import Any
 
 import ConfigSpace as CS
 
-from benchmark_simulator import ObjectiveFuncWrapper
+from benchmark_simulator import ObjectiveFuncWrapper, get_multiple_wrappers
 
 from hpbandster.core import nameserver as hpns
 from hpbandster.core.worker import Worker
@@ -19,7 +18,7 @@ from examples.utils import get_bench_instance, get_save_dir_name, parse_args
 
 class BOHBWorker(Worker):
     # https://github.com/automl/HpBandSter
-    def __init__(self, worker: ObjectiveFuncWrapper, sleep_interval: int = 0, **kwargs: Any):
+    def __init__(self, worker: ObjectiveFuncWrapper, sleep_interval: int = 0.5, **kwargs: Any):
         super().__init__(**kwargs)
         self.sleep_interval = sleep_interval
         self._worker = worker
@@ -27,7 +26,10 @@ class BOHBWorker(Worker):
     def compute(self, config: dict[str, Any], budget: int, **kwargs: Any) -> dict[str, float]:
         fidel_keys = self._worker.fidel_keys
         fidels = dict(epoch=int(budget)) if "epoch" in fidel_keys else {k: int(budget) for k in fidel_keys}
-        results = self._worker(eval_config=config, fidels=fidels)
+        # config_id: a triplet of ints(iteration, budget index, running index) internally used in BOHB
+        # By passing config_id, it increases the safety in the continual learning
+        config_id = kwargs["config_id"][0] + 100000 * kwargs["config_id"][2]
+        results = self._worker(eval_config=config, fidels=fidels, config_id=config_id)
         return dict(loss=results["loss"])
 
 
@@ -45,7 +47,6 @@ def get_bohb_workers(
 ) -> list[BOHBWorker]:
     kwargs = dict(
         obj_func=obj_func,
-        launch_multiple_wrappers_from_user_side=True,
         n_workers=n_workers,
         save_dir_name=save_dir_name,
         continual_max_fidel=max_fidel,
@@ -53,21 +54,11 @@ def get_bohb_workers(
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
         seed=seed,
+        store_config=True,
     )
-
-    pool = Pool()
-    results = []
-    for _ in range(n_workers):
-        results.append(pool.apply_async(ObjectiveFuncWrapper, kwds=kwargs))
-
-    pool.close()
-    pool.join()
-
-    workers = [result.get() for result in results]
     bohb_workers = []
-    kwargs = dict(sleep_interval=0.5, nameserver=ns_host, run_id=run_id)
-    for i in range(n_workers):
-        worker = BOHBWorker(worker=workers[i], id=i, **kwargs)
+    for i, w in enumerate(get_multiple_wrappers(**kwargs)):
+        worker = BOHBWorker(worker=w, id=i, nameserver=ns_host, run_id=run_id)
         worker.run(background=True)
         bohb_workers.append(worker)
 

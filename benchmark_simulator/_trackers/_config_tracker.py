@@ -10,7 +10,7 @@ import numpy as np
 
 def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
     """for atol and rtol, I referred to numpy.isclose"""
-    if set(d1.keys()) == set(d2.keys()):
+    if set(d1.keys()) != set(d2.keys()):
         return False
 
     for k in d1.keys():
