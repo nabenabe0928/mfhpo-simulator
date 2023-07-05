@@ -96,6 +96,7 @@ class OrderCheckConfigs:
                 ]
             ),
         }[n_workers]
+        self._n_evals = self._ans.size
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
         results = self._results[eval_config["index"]]

@@ -34,13 +34,28 @@ class OrderCheckConfigsWithSampleLatency:
               200 300   200 600         200 400
     worker-1: ooooxxx|---|ooxxx|---|xxx|---|
               400     200 300   200 200 200
+
+    xxx means sampling time, --- means waiting time.
+    Note that the first sample can be considered for Ask-and-Tell interface!
+
+    [1] 2 worker case (sampling time is 200 ms)
+    worker-0: xxx|-----|xxx|---|xxx|-------|
+              200 300   200 200 200 400
+    worker-1: xxx|---|xxx|-------|xxx|---|xxx|-|
+              200 200 200 400     200 200 200 100
     """
 
-    def __init__(self):
-        loss_vals = [i for i in range(6)]
-        runtimes = np.array([300, 200, 600, 200, 200, 400]) * UNIT_TIME
+    def __init__(self, parallel_sampler: bool):
+        if parallel_sampler:
+            runtimes = np.array([300, 200, 400, 200, 400, 200, 100]) * UNIT_TIME
+            self._ans = np.array([400, 500, 900, 1000, 1400, 1500, 1700]) * UNIT_TIME
+        else:
+            runtimes = np.array([300, 200, 600, 200, 200, 400]) * UNIT_TIME
+            self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
+
+        loss_vals = [i for i in range(self._ans.size)]
         self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
-        self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
+        self._n_evals = self._ans.size
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
         results = self._results[eval_config["index"]]
@@ -64,12 +79,12 @@ class MyOptimizer(AbstractAskTellOptimizer):
 
 
 @cleanup
-def optimize_parallel(mode: str, n_workers: int):
+def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False):
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
-    n_evals = N_EVALS if not latency else 6
-    kwargs.update(n_workers=n_workers, n_evals=n_evals)
-    target = OrderCheckConfigsWithSampleLatency() if latency else OrderCheckConfigs(n_workers)
+    target = OrderCheckConfigsWithSampleLatency(parallel_sampler) if latency else OrderCheckConfigs(n_workers)
+    n_evals = target._n_evals
+    kwargs.update(n_workers=n_workers, n_evals=n_evals, allow_parallel_sampling=parallel_sampler)
     wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
     if latency:
         wrapper.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals))
@@ -85,12 +100,15 @@ def optimize_parallel(mode: str, n_workers: int):
 
 
 @pytest.mark.parametrize("mode", ("normal", LATENCY))
-def test_optimize_parallel(mode):
+@pytest.mark.parametrize("parallel_sampler", (True, False))
+def test_optimize_parallel(mode: str, parallel_sampler: bool):
     if mode == LATENCY:
-        optimize_parallel(mode=mode, n_workers=2)
-    else:
+        optimize_parallel(mode=mode, n_workers=2, parallel_sampler=parallel_sampler)
+    elif not parallel_sampler:
         optimize_parallel(mode=mode, n_workers=2)
         optimize_parallel(mode=mode, n_workers=4)
+    else:
+        pass
 
 
 if __name__ == "__main__":
