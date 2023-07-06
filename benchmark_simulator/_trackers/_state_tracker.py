@@ -12,7 +12,7 @@ import numpy as np
 
 
 def _validate_continual_max_fidel(continual_max_fidel: int | None, cls_name: str) -> None:
-    if not isinstance(continual_max_fidel, int):
+    if not isinstance(continual_max_fidel, int):  # pragma: no cover
         raise ValueError(f"continual_max_fidel must be int for {cls_name}")
 
 

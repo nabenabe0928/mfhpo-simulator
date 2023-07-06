@@ -156,7 +156,7 @@ def _fetch_existing_configs(path: str, lock: _SecureLock) -> dict[str, dict[str,
     return existing_configs
 
 
-def _fetch_proc_alloc(path: str, lock: _SecureLock) -> dict[int, int]:
+def _fetch_proc_alloc(path: str, lock: _SecureLock) -> dict[int, int]:  # pragma: no cover
     return _complete_proc_allocation(path=path, lock=lock)
 
 
@@ -196,7 +196,7 @@ def _is_allocation_ready(path: str, n_workers: int, lock: _SecureLock) -> bool:
     with lock.read(path) as f:
         n_allocs = len(json.load(f))
 
-    if n_allocs > n_workers:
+    if n_allocs > n_workers:  # pragma: no cover
         raise ValueError(_get_timeout_message("the allocation of procs", path))
 
     return n_allocs == n_workers

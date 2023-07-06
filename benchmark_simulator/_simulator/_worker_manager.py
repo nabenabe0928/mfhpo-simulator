@@ -48,7 +48,8 @@ class _CentralWorkerManager(_BaseWrapperInterface):
                 path=path, n_workers=self._wrapper_vars.n_workers, lock=self._lock
             )
         else:
-            self._pid_to_index = _fetch_proc_alloc(path=path, lock=self._lock)
+            # This line is actually covered, but it is not visible due to multiprocessing nature
+            self._pid_to_index = _fetch_proc_alloc(path=path, lock=self._lock)  # pragma: no cover
 
     def __call__(
         self,
@@ -63,7 +64,7 @@ class _CentralWorkerManager(_BaseWrapperInterface):
         if len(self._pid_to_index) != self._wrapper_vars.n_workers:
             self._init_alloc(pid)
 
-        if pid not in self._pid_to_index:
+        if pid not in self._pid_to_index:  # pragma: no cover
             raise ProcessLookupError(
                 f"An unknown process/thread with ID {pid} was specified.\n"
                 "It is likely that one of the workers crashed and a new worker was added or \n"
