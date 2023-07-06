@@ -99,6 +99,7 @@ def plot_traj(
         markevery=10,
         markersize=10,
         label=label,
+        alpha=0.5,
     )[0]
     ax.fill_between(time_step, m - s, m + s, color=color, alpha=0.2)
     return line
@@ -147,7 +148,7 @@ def plot_perf_over_time(
     for cumtime_key, label, linestyle in zip(
         ["actual_cumtime", "simulated_cumtime"],
         [ours_label, f"Reproduced from {ours_label}"],
-        [None, "dashed"],
+        [None, "dotted"],
     ):
         line, label, t0, t1 = proc_plot_traj(**kwargs, cumtime_key=cumtime_key, linestyle=linestyle, label=label)
         tmin, tmax = min(tmin, t0), max(tmax, t1)
@@ -189,7 +190,7 @@ def plot_perf_over_time(
 
 
 if __name__ == "__main__":
-    fmt = "png"
+    fmt = "pdf"
     fig, axes = plt.subplots(
         figsize=(15, 5),
         ncols=2,

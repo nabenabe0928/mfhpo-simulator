@@ -58,6 +58,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             path=self._paths.state_cache, lock=self._lock, continual_max_fidel=self._wrapper_vars.continual_max_fidel
         )
         self._config_tracker = _ConfigIDTracker(path=self._paths.config_tracker, lock=self._lock)
+        # Prevent unnecessary overwrite from any other workers by making workers wait for a random fraction
+        time.sleep(np.random.random() * 1e-2)  # DO NOT REMOVE
         _init_simulator(dir_name=self.dir_name)
         _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
 
@@ -65,7 +67,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         worker_id_to_index = _wait_all_workers(
             path=self._paths.worker_cumtime, n_workers=self._wrapper_vars.n_workers, lock=self._lock
         )
-        time.sleep(1e-2)  # buffer before the optimization
+        time.sleep(1e-2)  # buffer before the optimization: DO NOT REMOVE
         return worker_id_to_index[worker_id]
 
     def _init_wrapper(self) -> None:
