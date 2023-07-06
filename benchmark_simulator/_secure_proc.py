@@ -317,8 +317,8 @@ def _wait_until_next(
         if int(curtime - start + 1) % warning_interval == 0:
             warnings.warn(
                 "Workers might be hanging. Please consider setting `max_waiting_time` (< np.inf).\n"
-                "Note that if samplers or the objective function need long time (> 10 seconds), "
-                "please ignore this warning."
+                "Note that if samplers or the objective function need long time (> 10 seconds), or \n"
+                "n_workers is large, please ignore this warning."
             )
 
         if curtime - start > max_waiting_time:

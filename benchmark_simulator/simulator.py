@@ -75,7 +75,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from multiprocessing import Pool
 from typing import Any
 
 from benchmark_simulator._constants import AbstractAskTellOptimizer, DIR_NAME, ObjectiveFuncType, _WrapperVars
@@ -201,14 +200,7 @@ def get_multiple_wrappers(
         allow_parallel_sampling=allow_parallel_sampling,
         config_tracking=config_tracking,
     )
-    pool = Pool()
-    results = []
-    for _ in range(n_workers):
-        results.append(pool.apply_async(ObjectiveFuncWrapper, kwds=wrapper_kwargs))
-
-    pool.close()
-    pool.join()
-    return [result.get() for result in results]
+    return [ObjectiveFuncWrapper(**wrapper_kwargs, _worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
 
 
 class ObjectiveFuncWrapper:
@@ -268,6 +260,7 @@ class ObjectiveFuncWrapper:
         store_config: bool = False,
         allow_parallel_sampling: bool = False,
         config_tracking: bool = True,
+        _worker_index: int | None = None,
     ):
         """The initialization of a wrapper class.
 
@@ -350,6 +343,9 @@ class ObjectiveFuncWrapper:
                 Whether to validate config_id provided from the user side.
                 It slows the simulation down when n_evals is large (> 3000),
                 but it is recommended to avoid unexpected bugs that could happen.
+            _worker_index (int | None):
+                This argument is only for API side and it should not be touched.
+                By specifying the worker_index from here, we can instantiate the wrapper with a large n_workers.
         """
         curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
         wrapper_vars = _WrapperVars(
@@ -379,7 +375,7 @@ class ObjectiveFuncWrapper:
         if ask_and_tell:
             self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
         elif launch_multiple_wrappers_from_user_side:
-            self._main_wrapper = _ObjectiveFuncWorker(wrapper_vars)
+            self._main_wrapper = _ObjectiveFuncWorker(wrapper_vars, worker_index=_worker_index)
         else:
             self._main_wrapper = _CentralWorkerManager(wrapper_vars)
 

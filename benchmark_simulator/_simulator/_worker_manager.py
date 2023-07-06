@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import threading
-from multiprocessing import Pool
 from typing import Any
 
 from benchmark_simulator._secure_proc import (
@@ -36,14 +35,10 @@ class _CentralWorkerManager(_BaseWrapperInterface):
         if os.path.exists(self.dir_name):
             raise FileExistsError(f"The directory `{self.dir_name}` already exists. Remove it first.")
 
-        pool = Pool()
-        results = []
-        for _ in range(self._wrapper_vars.n_workers):
-            results.append(pool.apply_async(_ObjectiveFuncWorker, kwds=dict(wrapper_vars=self._wrapper_vars)))
-
-        pool.close()
-        pool.join()
-        self._workers = [result.get() for result in results]
+        n_workers = self._wrapper_vars.n_workers
+        self._workers = [
+            _ObjectiveFuncWorker(wrapper_vars=self._wrapper_vars, worker_index=i) for i in range(n_workers)
+        ]
 
     def _init_alloc(self, pid: int) -> None:
         path = self._paths.proc_alloc

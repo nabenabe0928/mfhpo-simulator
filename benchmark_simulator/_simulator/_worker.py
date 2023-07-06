@@ -9,6 +9,7 @@ from benchmark_simulator._constants import (
     _TIME_VALUES,
     _TimeNowDictType,
     _WorkerVars,
+    _WrapperVars,
 )
 from benchmark_simulator._secure_proc import (
     _fetch_cumtimes,
@@ -49,6 +50,10 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         See benchmark_simulator/simulator.py to know variables shared across workers.
     """
 
+    def __init__(self, wrapper_vars: _WrapperVars, worker_index: int | None):
+        self._worker_index = worker_index
+        super().__init__(wrapper_vars=wrapper_vars)
+
     def __repr__(self) -> str:
         return f"Worker-{self._worker_vars.worker_id}"
 
@@ -76,7 +81,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         self._wrapper_vars.validate()
         _validate_fidel_args(continual_eval, fidel_keys=self._fidel_keys)
         self._init_worker(worker_id)
-        worker_index = self._alloc_index(worker_id)
+        worker_index = self._alloc_index(worker_id) if self._worker_index is None else self._worker_index
         self._worker_vars = _WorkerVars(
             continual_eval=continual_eval,
             worker_id=worker_id,
