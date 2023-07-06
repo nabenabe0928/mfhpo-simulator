@@ -99,7 +99,7 @@ def run_dehb(n_workers: int):
         output_path=log_file_name,
     )
     dehb.run(fevals=n_actual_evals_in_opt)
-    out = json.load(open(worker._main_wrapper._paths.result))["cumtime"]
+    out = json.load(open(worker.result_file_path))["cumtime"]
     assert len(out) >= 100
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)

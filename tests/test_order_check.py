@@ -86,7 +86,7 @@ def optimize_parallel(mode: str, parallel_sampler: bool):
         for r in res:
             r.get()
 
-    out = json.load(open(wrapper._main_wrapper._paths.result))["cumtime"][:n_evals]
+    out = json.load(open(wrapper.result_file_path))["cumtime"][:n_evals]
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
     diffs = out - target._ans

@@ -112,7 +112,7 @@ def optimize(n_evals: int = 400, discrete: bool = False, very_random: bool = Fal
     opt = fetch_randopt_wrapper(bench=bench, discrete=discrete, very_random=very_random)
     worker = ObjectiveFuncWrapper(obj_func=bench, fidel_keys=bench.fidel_keys, **kwargs, **obj_kwd)
     worker.simulate(opt)
-    out = json.load(open(worker._main_wrapper._paths.result))
+    out = json.load(open(worker.result_file_path))
     shutil.rmtree(worker.dir_name)
     assert len(out["cumtime"]) >= worker._main_wrapper._wrapper_vars.n_evals
     return out

@@ -264,7 +264,7 @@ def _store_config(opt):
     worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
     worker.simulate(opt())
 
-    results = json.load(open(worker._main_wrapper._paths.result))
+    results = json.load(open(worker.result_file_path))
     keys = ["seed", "epoch", "x"]
     if isinstance(opt, _DummyOptCond):
         keys.append("y")

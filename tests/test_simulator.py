@@ -266,7 +266,7 @@ def test_store_config_without_error_parallel():
         for r in res.values():
             r.get()
 
-    results = json.load(open(wrapper._main_wrapper._paths.result))
+    results = json.load(open(wrapper.result_file_path))
     for k in ["seed", "epoch", "x"]:
         assert k in results
         assert len(results[k]) == len(results["loss"])
@@ -299,7 +299,7 @@ def test_store_config_with_conditional_without_error_parallel():
         for r in res.values():
             r.get()
 
-    results = json.load(open(wrapper._main_wrapper._paths.result))
+    results = json.load(open(wrapper.result_file_path))
     for k in ["seed", "epoch", "x", "y"]:
         assert k in results
         assert len(results[k]) == len(results["loss"])
@@ -363,7 +363,7 @@ def test_optimize_seq():
     for _ in range(n_actual_evals):
         wrapper(**kwargs)
 
-    out = json.load(open(wrapper._main_wrapper._paths.result))
+    out = json.load(open(wrapper.result_file_path))
     assert len(out["cumtime"]) >= n_evals
 
 
@@ -400,7 +400,7 @@ def run_optimize_parallel(wrong_n_workers: bool, remained_file: bool = False):
         pool.close()
         pool.join()
 
-    out = json.load(open(wrapper._main_wrapper._paths.result))
+    out = json.load(open(wrapper.result_file_path))
     diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
     assert np.allclose(diffs, 0.0)
 

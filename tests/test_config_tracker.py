@@ -48,6 +48,11 @@ def test_two_dicts_almost_equal():
     assert not _two_dicts_almost_equal(d1, d2)
     d1, d2 = {"x": 1.0}, {"x": 2.0}
     assert not _two_dicts_almost_equal(d1, d2)
+    d1, d2 = {"x": "a"}, {"x": "A"}
+    assert not _two_dicts_almost_equal(d1, d2)
+    d1, d2 = {"x": 1.0, "y": 1.0}, {"x": 1.0 + 1e-12, "y": 1.0 - 1e-12}
+    assert _two_dicts_almost_equal(d1, d2)
+    assert d1 != d2
 
 
 def run_opt(wrapper, opt, ask_and_tell):
@@ -79,7 +84,7 @@ def optimize(ask_and_tell: bool, valid: bool):
     else:
         run_opt(wrapper, opt, ask_and_tell)
 
-    with open(wrapper._main_wrapper._paths.result, mode="r") as f:
+    with open(wrapper.result_file_path, mode="r") as f:
         out = json.load(f)["prev_fidel"]
 
     assert out == opt._ans
