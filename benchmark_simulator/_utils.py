@@ -2,7 +2,6 @@ import fcntl
 import glob
 import hashlib
 import os
-import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -15,7 +14,7 @@ import numpy as np
 def _generate_time_hash() -> str:
     hash = hashlib.sha1()
     # Try to make it as unique as possible! time.time() was not sufficient!
-    timehash_pid = str(time.time()) + str(os.getpid()) + str(threading.get_ident())  # DO NOT MAKE IT SIMPLE
+    timehash_pid = str(time.time() + os.getpid() + np.random.random() * 1e9)  # DO NOT MAKE IT SIMPLE
     hash.update(timehash_pid.encode("utf-8"))
     return hash.hexdigest()
 
