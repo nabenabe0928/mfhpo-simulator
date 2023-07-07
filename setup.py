@@ -9,7 +9,7 @@ with open("requirements-for-setup.txt", "r") as f:
 
 setuptools.setup(
     name="mfhpo-simulator",
-    version="1.2.3",
+    version="1.2.4",
     author="nabenabe0928",
     author_email="shuhei.watanabe.utokyo@gmail.com",
     url="https://github.com/nabenabe0928/mfhpo-simulator",

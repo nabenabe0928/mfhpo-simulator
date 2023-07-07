@@ -72,7 +72,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         n_files = len(self._paths)
         n_repeats = 10000
         n_workers = self._wrapper_vars.n_workers
-        while len(os.listdir(self.dir_name)) < n_files:
+        while len(os.listdir(self.dir_name)) < n_files:  # pragma: no cover
+            # In fact, below is covered by test, but not detected by pytest-cov
             time.sleep(1e-4)
             n_repeats -= 1
             if n_repeats == 0:

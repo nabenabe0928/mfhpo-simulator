@@ -73,6 +73,37 @@ def test_validate_in_obj_func_wrapper():
         )
 
 
+def async_instantiation(worker_indices: list[int], join: bool = True):
+    kwargs = DEFAULT_KWARGS.copy()
+    n_workers = len(worker_indices)
+    kwargs.update(launch_multiple_wrappers_from_user_side=True, obj_func=dummy_func, n_workers=n_workers, n_evals=5)
+    results = []
+    with get_pool(n_workers=n_workers, join=join) as pool:
+        for i in worker_indices:
+            r = pool.apply_async(ObjectiveFuncWrapper, kwds=dict(**kwargs, worker_index=i))
+            results.append(r)
+
+        ret = [r.get() for r in results]
+
+    return ret
+
+
+@cleanup
+def test_init_failure_in_async_instantiation():
+    with pytest.raises(TimeoutError, match=r"The file initialization did not finish*"):
+        async_instantiation(worker_indices=[1, 1], join=False)
+
+
+@cleanup
+def success_in_async_instantiation(worker_indices: list[int]):
+    async_instantiation(worker_indices=worker_indices)
+
+
+@pytest.mark.parametrize("worker_indices", ([0, 1], [0]))
+def test_success_in_async_instantiation(worker_indices: list[int]):
+    success_in_async_instantiation(worker_indices=worker_indices)
+
+
 @cleanup
 def test_error_no_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
