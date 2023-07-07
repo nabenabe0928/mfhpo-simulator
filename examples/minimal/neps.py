@@ -37,12 +37,13 @@ def get_pipeline_space(config_space: CS.ConfigurationSpace) -> dict[str, neps.se
     return pipeline_space
 
 
-def parse_n_workers() -> int:
+def parse_n_workers_and_worker_index() -> tuple[int, int]:
     parser = ArgumentParser()
     # As each process is separately excuted via commandline, we must receive the n_workers from commandline.
     parser.add_argument("--n_workers", type=int, required=4)
+    parser.add_argument("--worker_index", type=int, default=None)
     args = parser.parse_args()
-    return args.n_workers
+    return args.n_workers, args.worker_index
 
 
 if __name__ == "__main__":
@@ -53,7 +54,8 @@ if __name__ == "__main__":
             f"so pleaase remove the `{log_file_name}` if you would like to start the optimization from scratch."
         )
 
-    bench, fidel_key, n_workers = MFBranin(), "z0", parse_n_workers()
+    bench, fidel_key = MFBranin(), "z0"
+    n_workers, worker_index = parse_n_workers_and_worker_index()
 
     # 1. Define a wrapper instance
     worker = NEPSWorker(
@@ -62,6 +64,7 @@ if __name__ == "__main__":
         launch_multiple_wrappers_from_user_side=True,
         fidel_keys=[fidel_key],
         n_workers=n_workers,
+        worker_index=worker_index,
     )
     pipeline_space = get_pipeline_space(bench.config_space)
     pipeline_space[fidel_key] = neps.IntegerParameter(

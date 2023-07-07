@@ -46,6 +46,7 @@ def run_neps(
     min_fidel: int,
     max_fidel: int,
     fidel_key: str,
+    worker_index: int,
     n_workers: int = 4,
     n_actual_evals_in_opt: int = 455,
     seed: int = 42,
@@ -62,6 +63,7 @@ def run_neps(
         fidel_keys=[fidel_key],
         continual_max_fidel=max_fidel,
         seed=seed,
+        worker_index=worker_index,
     )
     pipeline_space = get_pipeline_space(config_space)
     pipeline_space[fidel_key] = neps.IntegerParameter(lower=min_fidel, upper=max_fidel, is_fidelity=True)
@@ -95,4 +97,5 @@ if __name__ == "__main__":
         n_workers=args.n_workers,
         save_dir_name=os.path.join("neps", save_dir_name),
         seed=args.seed,
+        worker_index=args.worker_index,
     )
