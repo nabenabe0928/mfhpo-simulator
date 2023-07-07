@@ -50,8 +50,9 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         See benchmark_simulator/simulator.py to know variables shared across workers.
     """
 
-    def __init__(self, wrapper_vars: _WrapperVars, worker_index: int | None):
-        self._worker_index = worker_index
+    def __init__(self, wrapper_vars: _WrapperVars, worker_index: int | None, async_instantiations: bool):
+        self._temp_worker_index = worker_index
+        self._async_inst = async_instantiations
         super().__init__(wrapper_vars=wrapper_vars)
 
     def __repr__(self) -> str:
@@ -63,12 +64,30 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             path=self._paths.state_cache, lock=self._lock, continual_max_fidel=self._wrapper_vars.continual_max_fidel
         )
         self._config_tracker = _ConfigIDTracker(path=self._paths.config_tracker, lock=self._lock)
-        # Prevent unnecessary overwrite from any other workers by making workers wait for a random fraction
-        time.sleep(np.random.random() * 1e-2)  # DO NOT REMOVE
-        _init_simulator(dir_name=self.dir_name)
+        _init_simulator(dir_name=self.dir_name, worker_index=self._temp_worker_index)
+        self._wait_till_init_simulator_finish()
         _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
 
+    def _wait_till_init_simulator_finish(self) -> None:
+        n_files = len(self._paths)
+        n_repeats = 10000
+        n_workers = self._wrapper_vars.n_workers
+        while len(os.listdir(self.dir_name)) < n_files:
+            time.sleep(1e-4)
+            n_repeats -= 1
+            if n_repeats == 0:
+                msg = [
+                    "The file initialization did not finish.",
+                    "worker_index specified by users probably did not include 0.",
+                    f"worker_index must be unique and in [0, {n_workers-1=}].",
+                ]
+                raise TimeoutError("\n".join(msg))
+
     def _alloc_index(self, worker_id: str) -> int:
+        if not self._async_inst:
+            assert self._temp_worker_index is not None  # mypy redefinition
+            return self._temp_worker_index
+
         worker_id_to_index = _wait_all_workers(
             path=self._paths.worker_cumtime, n_workers=self._wrapper_vars.n_workers, lock=self._lock
         )
@@ -81,7 +100,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         self._wrapper_vars.validate()
         _validate_fidel_args(continual_eval, fidel_keys=self._fidel_keys)
         self._init_worker(worker_id)
-        worker_index = self._alloc_index(worker_id) if self._worker_index is None else self._worker_index
+        worker_index = self._alloc_index(worker_id)
         self._worker_vars = _WorkerVars(
             continual_eval=continual_eval,
             worker_id=worker_id,

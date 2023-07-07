@@ -37,6 +37,9 @@ class _InfoPaths:
     timenow: str
     config_tracker: str
 
+    def __len__(self) -> int:
+        return len(self.__dict__)
+
 
 @dataclass(frozen=True)
 class _ResultData:

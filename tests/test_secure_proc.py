@@ -41,7 +41,7 @@ LOCK = _SecureLock()
 
 def _init_for_tests():
     os.makedirs(DIR_NAME, exist_ok=True)
-    _init_simulator(DIR_NAME)
+    _init_simulator(DIR_NAME, worker_index=None)
 
 
 def test_get_timeout_message():

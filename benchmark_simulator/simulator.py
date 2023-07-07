@@ -199,8 +199,9 @@ def get_multiple_wrappers(
         store_config=store_config,
         allow_parallel_sampling=allow_parallel_sampling,
         config_tracking=config_tracking,
+        _async_instantiations=False,
     )
-    return [ObjectiveFuncWrapper(**wrapper_kwargs, _worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
+    return [ObjectiveFuncWrapper(**wrapper_kwargs, worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
 
 
 class ObjectiveFuncWrapper:
@@ -260,7 +261,8 @@ class ObjectiveFuncWrapper:
         store_config: bool = False,
         allow_parallel_sampling: bool = False,
         config_tracking: bool = True,
-        _worker_index: int | None = None,
+        worker_index: int | None = None,
+        _async_instantiations: bool = True,
     ):
         """The initialization of a wrapper class.
 
@@ -343,9 +345,18 @@ class ObjectiveFuncWrapper:
                 Whether to validate config_id provided from the user side.
                 It slows the simulation down when n_evals is large (> 3000),
                 but it is recommended to avoid unexpected bugs that could happen.
-            _worker_index (int | None):
-                This argument is only for API side and it should not be touched.
-                By specifying the worker_index from here, we can instantiate the wrapper with a large n_workers.
+            worker_index (int | None):
+                It specifies which worker index will be used for this wrapper.
+                It is typically useful when you run this wrapper from different processes in parallel.
+                If you did not specify this index, our wrapper automatically allocates worker indices,
+                but this may sometimes fail (in our environment with 0.01% of the probability for n_workers=8).
+                The failure rate might be higher especially when you use a large n_workers, so in that case,
+                probably users would like to use this option.
+                The worker indices must be unique across the parallel workers and must be in [0, n_workers - 1].
+            _async_instantiations (bool):
+                Whether each worker is instantiated asynchrously.
+                In other words, whether to wait all workers' instantiations or not.
+                This argument must not be touched by users.
         """
         curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
         wrapper_vars = _WrapperVars(
@@ -371,11 +382,15 @@ class ObjectiveFuncWrapper:
             save_dir_name=save_dir_name,
             ask_and_tell=ask_and_tell,
             launch_multiple_wrappers_from_user_side=launch_multiple_wrappers_from_user_side,
+            worker_index=worker_index,
+            n_workers=n_workers,
         )
         if ask_and_tell:
             self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
         elif launch_multiple_wrappers_from_user_side:
-            self._main_wrapper = _ObjectiveFuncWorker(wrapper_vars, worker_index=_worker_index)
+            self._main_wrapper = _ObjectiveFuncWorker(
+                wrapper_vars, worker_index=worker_index, async_instantiations=_async_instantiations
+            )
         else:
             self._main_wrapper = _CentralWorkerManager(wrapper_vars)
 
@@ -412,6 +427,8 @@ class ObjectiveFuncWrapper:
         save_dir_name: str | None,
         ask_and_tell: bool,
         launch_multiple_wrappers_from_user_side: bool,
+        n_workers: int,
+        worker_index: int | None,
     ) -> None:
         if ask_and_tell and launch_multiple_wrappers_from_user_side:
             raise ValueError(
@@ -422,6 +439,13 @@ class ObjectiveFuncWrapper:
                 "When launch_multiple_wrappers_from_user_side is False, save_dir_name must be specified so that \n"
                 "each worker recognizes with which processes it shares the optimization results."
             )
+        if worker_index is not None and (ask_and_tell or not launch_multiple_wrappers_from_user_side):
+            raise ValueError(
+                "When launch_multiple_wrappers_from_user_side=False or ask_and_tell=True, "
+                "worker_index cannot be specified."
+            )
+        if worker_index is not None and worker_index not in list(range(n_workers)):
+            raise ValueError(f"worker_index must be in [0, {n_workers-1=}], but got {worker_index=}")
 
     def __call__(
         self,

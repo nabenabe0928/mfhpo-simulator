@@ -37,7 +37,8 @@ class _CentralWorkerManager(_BaseWrapperInterface):
 
         n_workers = self._wrapper_vars.n_workers
         self._workers = [
-            _ObjectiveFuncWorker(wrapper_vars=self._wrapper_vars, worker_index=i) for i in range(n_workers)
+            _ObjectiveFuncWorker(wrapper_vars=self._wrapper_vars, worker_index=i, async_instantiations=False)
+            for i in range(n_workers)
         ]
 
     def _init_alloc(self, pid: int) -> None:

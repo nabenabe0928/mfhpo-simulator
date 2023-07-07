@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import pytest
 import shutil
 import unittest
 from typing import Any
@@ -74,20 +73,6 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
         config_id: int | None,
     ) -> None:
         pass
-
-
-def test_validate_in_obj_func_wrapper():
-    with pytest.raises(ValueError, match=r"ask_and_tell and launch_multiple_wrappers_from_user_side cannot be True*"):
-        ObjectiveFuncWrapper(
-            ask_and_tell=True,
-            launch_multiple_wrappers_from_user_side=True,
-            obj_func=MFBranin(),
-        )
-    with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side is False*"):
-        ObjectiveFuncWrapper(
-            launch_multiple_wrappers_from_user_side=True,
-            obj_func=MFBranin(),
-        )
 
 
 def fetch_randopt_wrapper(bench: MFBranin, discrete: bool = False, very_random: bool = False) -> RandomOptimizerWrapper:

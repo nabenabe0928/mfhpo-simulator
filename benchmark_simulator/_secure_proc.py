@@ -19,7 +19,12 @@ import numpy as np
 import ujson as json  # type: ignore
 
 
-def _init_simulator(dir_name: str) -> None:
+def _init_simulator(dir_name: str, worker_index: int | None) -> None:
+    if worker_index is not None and worker_index != 0:  # only if worker index == 0, we initialize
+        return
+
+    # Prevent unnecessary overwrite from any other workers by making workers wait for a random fraction
+    time.sleep(np.random.random() * 1e-2)  # DO NOT REMOVE
     for fn in _SharedDataFileNames:
         path = os.path.join(dir_name, fn.value)
         with open(path, "a+") as f:

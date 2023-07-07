@@ -7,6 +7,8 @@ import time
 import unittest
 from typing import Any
 
+from benchmark_apis import MFBranin
+
 from benchmark_simulator._constants import _SharedDataFileNames, _TIME_VALUES
 from benchmark_simulator.simulator import ObjectiveFuncWrapper, get_multiple_wrappers
 
@@ -50,6 +52,25 @@ def dummy_func_with_data(
 ) -> dict[str, float]:
     assert len(data_to_scatter) > 0
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
+
+
+def test_validate_in_obj_func_wrapper():
+    with pytest.raises(ValueError, match=r"ask_and_tell and launch_multiple_wrappers_from_user_side cannot be True*"):
+        ObjectiveFuncWrapper(
+            ask_and_tell=True,
+            launch_multiple_wrappers_from_user_side=True,
+            obj_func=MFBranin(),
+        )
+    with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side is False*"):
+        ObjectiveFuncWrapper(launch_multiple_wrappers_from_user_side=True, obj_func=MFBranin())
+    with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side=False or ask_and_tell=True*"):
+        ObjectiveFuncWrapper(obj_func=MFBranin(), worker_index=0)
+    with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side=False or ask_and_tell=True*"):
+        ObjectiveFuncWrapper(ask_and_tell=True, obj_func=MFBranin(), worker_index=0)
+    with pytest.raises(ValueError, match=r"worker_index must be in*"):
+        ObjectiveFuncWrapper(
+            save_dir_name="dummy", launch_multiple_wrappers_from_user_side=True, obj_func=MFBranin(), worker_index=-1
+        )
 
 
 @cleanup
