@@ -13,6 +13,12 @@ def _validate_performance(
 ) -> np.ndarray:
     n_seeds = len(cumtimes)
     loss_vals = []
+    if len(cumtimes) != len(perf_vals):
+        raise ValueError(
+            "The number of seeds used in cumtimes and perf_vals must be identical, but got "
+            f"{len(cumtimes)=} and {len(perf_vals)=}."
+        )
+
     for i in range(n_seeds):
         cumtime, perf_val = cumtimes[i], perf_vals[i]
         if not isinstance(cumtime, (list, np.ndarray)) or not isinstance(perf_val, (list, np.ndarray)):
