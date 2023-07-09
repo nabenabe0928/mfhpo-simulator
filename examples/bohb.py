@@ -54,7 +54,6 @@ def get_bohb_workers(
         n_actual_evals_in_opt=n_actual_evals_in_opt,
         n_evals=n_evals,
         seed=seed,
-        store_config=True,
     )
     bohb_workers = []
     for i, w in enumerate(get_multiple_wrappers(**kwargs)):

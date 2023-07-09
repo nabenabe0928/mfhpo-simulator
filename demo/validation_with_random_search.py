@@ -119,8 +119,7 @@ def run_with_wrapper(
         results = opt.optimize()
 
     _, actual_cumtime = extract(results, start=start)
-    with open(wrapper.result_file_path, mode="r") as f:
-        results = json.load(f)
+    results = wrapper.get_results()
 
     return np.array(results["loss"][:N_EVALS]), np.array(results["cumtime"][:N_EVALS]), actual_cumtime
 

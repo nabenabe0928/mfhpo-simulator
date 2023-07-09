@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+from benchmark_simulator.utils import get_performance_over_time
+
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -59,26 +61,6 @@ def add_arrow(
     )
 
 
-def get_traj(data: DataDType, name: str, cumtime_key: str) -> tuple[np.ndarray, np.ndarray]:
-    n_seeds = len(data["ours"]["loss"])
-    tmin = np.min([np.min(t) for t in data[name][cumtime_key]])
-    tmax = np.max([np.max(t) for t in data[name][cumtime_key]])
-    time_step = np.exp(np.linspace(np.log(tmin), np.log(tmax), 100))
-
-    loss_vals = []
-    for i in range(n_seeds):
-        loss, cumtime = np.minimum.accumulate(data[name]["loss"][i]).copy(), data[name][cumtime_key][i].copy()
-        cumtime = np.insert(cumtime, 0, 0.0)
-        cumtime = np.append(cumtime, np.inf)
-        loss = np.insert(loss, 0, np.nan)
-        loss = np.append(loss, loss[-1])
-        # cumtime[i - 1] < time_step <= cumtime[i]
-        indices = np.searchsorted(cumtime, time_step, side="left")
-        loss_vals.append(loss[indices])
-
-    return np.array(loss_vals), time_step
-
-
 def plot_traj(
     ax: plt.Axes,
     time_step: np.ndarray,
@@ -118,7 +100,7 @@ def log_grid(ax: plt.Axes):
 
 
 def proc_plot_traj(ax: plt.Axes, data, name: str, cumtime_key: str, color: str, linestyle: str, label: str):
-    traj, time_step = get_traj(data, name=name, cumtime_key=cumtime_key)
+    time_step, traj = get_performance_over_time(cumtimes=data[name][cumtime_key], perf_vals=data[name]["loss"])
     line = plot_traj(ax=ax, time_step=time_step, traj=traj, color=color, label=label, linestyle=linestyle)
     if cumtime_key == "actual_cumtime":
         tmins, tmaxs, ymin, ymax = get_tmins_and_tmaxs_and_yrange(data)

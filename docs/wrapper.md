@@ -65,3 +65,31 @@ The return value of the method is `dict[str, float]` where the keys are the unio
 The optimization loop for the wrapped objective function and the user-defined optimizer and valid only if `ask_and_tell=True`.
 
 Users can simply start the simulation of an optimization using `opt` and `obj_func` via `simulate`.
+
+## Utilities
+
+- `get_performance_over_time`
+
+A function to extract the performance over time across multiple random seeds based on a given set of cumulative time and performance metric.
+
+Arguments are as follows:
+1. `cumtimes` (`np.ndarray | list[np.ndarray] | list[list[float]]`): The cumulative times of each evaluation finished. The shape should be `(n_seeds, n_evals)`. However, if each seed has different n_evals, users can simply provide a list of arrays with different size,
+2. `perf_vals` (`np.ndarray | list[np.ndarray] | list[list[float]]`): The performance metric values of each evaluation. The shape should be `(n_seeds, n_evals)`. However, if each seed has different n_evals, users can simply provide a list of arrays with different size,
+3. `step` (`int`): The number of time points to take. The minimum/maximum time points are determined based on the provided cumtimes. minimum time points := np.min(cumtimes) and maximum time points := np.max(cumtimes),
+4. `minimize` (`bool`): Whether the performance metric is better when it is smaller. The returned perf_vals will be an increasing sequence if `minimize=False`, and
+5. `log` (`bool`): Whether the time points should be taken on log-scale.
+
+This function returns `time_steps` (`np.ndarray`), which are the time points that were used to extract the perf_vals, and `perf_vals` (`np.ndarray`), which is the cumulative best performance metric value up to the corresponding time point.
+Both of them have the shape `(step, )`.
+
+- `get_performance_over_time_from_paths`
+
+This function also extracts the same information as `get_performance_over_time`.
+
+The difference is the arguments.
+While `get_performance_over_time` takes `cumtimes` and `perf_vals`, `get_performance_over_time_from_paths` takes `paths` (`list[str]`) and `obj_keys` (`str`) instead.
+
+`paths` is a list of paths the `results.json` is stored.
+Since we bundle the information, these paths should contain the results on the same setup with different random seeds.
+
+`obj_key` is a key of the performance metric in `results.json`.
