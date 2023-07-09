@@ -65,7 +65,7 @@ and we need this information to manage the order of job allocations to each work
     * workerN_id -- prev_timestampN
 This file tells the last checkpoint timestamp of each worker (prev_timestamp).
 
-6. mfhpo-simulator-info/*/timenow.json
+6. mfhpo-simulator-info/*/sampled_time.json
     * before_sample -- [time1 before sample, time2 before sample, ...]
     * after_sample -- [time1 after sample, time2 after sample, ...]
 This file is used to consider the sampling time.
@@ -73,6 +73,7 @@ after_sample is the latest cumtime immediately after the last sample and before_
 """
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from typing import Any
@@ -421,6 +422,12 @@ class ObjectiveFuncWrapper:
     @property
     def n_workers(self) -> int:
         return self._main_wrapper._wrapper_vars.n_workers
+
+    def get_results(self) -> dict[str, list[int | float | str | bool]]:
+        with open(self.result_file_path, mode="r") as f:
+            results = json.load(f)
+
+        return results
 
     def _validate(
         self,

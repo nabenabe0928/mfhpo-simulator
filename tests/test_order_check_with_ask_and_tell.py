@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import pytest
 import time
 import unittest
@@ -91,7 +90,7 @@ def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False)
     else:
         wrapper.simulate(MyOptimizer())
 
-    out = json.load(open(wrapper.result_file_path))["cumtime"][:n_evals]
+    out = wrapper.get_results()["cumtime"][:n_evals]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)

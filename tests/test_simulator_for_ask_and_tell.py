@@ -6,8 +6,6 @@ import unittest
 from benchmark_simulator._constants import AbstractAskTellOptimizer
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
-import ujson as json
-
 from tests.utils import (
     SIMPLE_CONFIG,
     SUBDIR_NAME,
@@ -264,7 +262,7 @@ def _store_config(opt):
     worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)
     worker.simulate(opt())
 
-    results = json.load(open(worker.result_file_path))
+    results = worker.get_results()
     keys = ["seed", "epoch", "x"]
     if isinstance(opt, _DummyOptCond):
         keys.append("y")

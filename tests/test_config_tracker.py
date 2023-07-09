@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import pytest
 import unittest
 
@@ -84,8 +83,7 @@ def optimize(ask_and_tell: bool, valid: bool):
     else:
         run_opt(wrapper, opt, ask_and_tell)
 
-    with open(wrapper.result_file_path, mode="r") as f:
-        out = json.load(f)["prev_fidel"]
+    out = wrapper.get_results()["prev_fidel"]
 
     assert out == opt._ans
 

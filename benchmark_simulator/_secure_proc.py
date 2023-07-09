@@ -7,10 +7,10 @@ import warnings
 from typing import Any
 
 from benchmark_simulator._constants import (
+    _SampledTimeDictType,
     _SharedDataFileNames,
     _StateType,
     _TIME_VALUES,
-    _TimeNowDictType,
 )
 from benchmark_simulator._utils import _SecureLock
 
@@ -58,10 +58,10 @@ def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
     return alloc
 
 
-def _record_timenow(path: str, timenow_data: _TimeNowDictType, lock: _SecureLock) -> None:
+def _record_sampled_time(path: str, sampled_time: _SampledTimeDictType, lock: _SecureLock) -> None:
     with lock.edit(path) as f:
         record = json.load(f)
-        for k, v in timenow_data.__dict__.items():
+        for k, v in sampled_time.__dict__.items():
             if k not in record:
                 record[k] = [v]
             else:
@@ -133,7 +133,7 @@ def _fetch_cache_states(path: str, config_hash: int, lock: _SecureLock) -> list[
     return [_StateType(runtime=state[0], cumtime=state[1], fidel=state[2], seed=state[3]) for state in states]
 
 
-def _fetch_timenow(path: str, lock: _SecureLock) -> dict[str, np.ndarray]:
+def _fetch_sampled_time(path: str, lock: _SecureLock) -> dict[str, np.ndarray]:
     with lock.read(path) as f:
         data = {k: np.asarray(v) for k, v in json.load(f).items()}
 

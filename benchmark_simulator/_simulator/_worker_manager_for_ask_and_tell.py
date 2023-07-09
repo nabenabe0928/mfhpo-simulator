@@ -42,6 +42,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
         self._seen_config_keys: list[str] = []
+        self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": []}
         self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
         self._results.update({k: [] for k in self._obj_keys})
         if self._wrapper_vars.store_config:
@@ -156,6 +157,8 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             self._config_tracker.validate(config=eval_config, config_id=config_id)
 
         sampling_time = time.time() - start
+        self._sampled_time["before_sample"].append(self._cumtimes[worker_id])
+        self._sampled_time["after_sample"].append(self._cumtimes[worker_id] + sampling_time)
         if self._wrapper_vars.allow_parallel_sampling:
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
         else:
@@ -181,6 +184,9 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
     def _save_results(self) -> None:
         with open(self._paths.result, mode="w") as f:
             json.dump({k: np.asarray(v).tolist() for k, v in self._results.items()}, f, indent=4)
+
+        with open(self._paths.sampled_time, mode="w") as f:
+            json.dump({k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}, f, indent=4)
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         _validate_opt_class(opt)

@@ -6,21 +6,21 @@ from typing import Any
 
 from benchmark_simulator._constants import (
     INF,
+    _SampledTimeDictType,
     _TIME_VALUES,
-    _TimeNowDictType,
     _WorkerVars,
     _WrapperVars,
 )
 from benchmark_simulator._secure_proc import (
     _fetch_cumtimes,
-    _fetch_timenow,
+    _fetch_sampled_time,
     _fetch_timestamps,
     _finish_worker_timer,
     _init_simulator,
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
-    _record_timenow,
+    _record_sampled_time,
     _record_timestamp,
     _start_timestamp,
     _start_worker_timer,
@@ -254,11 +254,11 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             )
             return timestamp
 
-        timenow_data = _fetch_timenow(path=self._paths.timenow, lock=self._lock)
+        sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
         cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
         # Consider the sampling time overlap
         self._cumtime = (
-            max(cumtime, np.max(timenow_data["after_sample"][timenow_data["before_sample"] <= cumtime]))
+            max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
             if not self._wrapper_vars.allow_parallel_sampling
             else cumtime
         )
@@ -291,8 +291,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 
         sampling_time = max(0.0, time.time() - prev_timestamp)
-        timenow_data = _TimeNowDictType(before_sample=self._cumtime, after_sample=self._cumtime + sampling_time)
-        _record_timenow(path=self._paths.timenow, timenow_data=timenow_data, lock=self._lock)
+        sampled_time = _SampledTimeDictType(before_sample=self._cumtime, after_sample=self._cumtime + sampling_time)
+        _record_sampled_time(path=self._paths.sampled_time, sampled_time=sampled_time, lock=self._lock)
 
         self._cumtime += sampling_time
         results = self._proc_output(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)

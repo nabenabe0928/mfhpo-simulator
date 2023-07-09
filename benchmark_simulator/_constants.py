@@ -14,7 +14,7 @@ INF: Final[float] = float(1 << 30)
 
 
 @dataclass(frozen=True)
-class _TimeNowDictType:
+class _SampledTimeDictType:
     before_sample: float
     after_sample: float
 
@@ -34,7 +34,7 @@ class _InfoPaths:
     state_cache: str
     worker_cumtime: str
     timestamp: str
-    timenow: str
+    sampled_time: str
     config_tracker: str
 
     def __len__(self) -> int:
@@ -58,7 +58,7 @@ class _SharedDataFileNames(Enum):
     state_cache: str = "state_cache.json"
     worker_cumtime: str = "simulated_cumtime.json"
     timestamp: str = "timestamp.json"
-    timenow: str = "timenow.json"
+    sampled_time: str = "sampled_time.json"
     config_tracker: str = "config_tracker.json"
 
 

@@ -14,8 +14,6 @@ from dehb import DEHB
 
 import numpy as np
 
-import ujson as json
-
 from tests.utils import IS_LOCAL
 
 
@@ -99,7 +97,7 @@ def run_dehb(n_workers: int):
         output_path=log_file_name,
     )
     dehb.run(fevals=n_actual_evals_in_opt)
-    out = json.load(open(worker.result_file_path))["cumtime"]
+    out = worker.get_results()["cumtime"]
     assert len(out) >= 100
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
