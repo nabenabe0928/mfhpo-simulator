@@ -1,4 +1,5 @@
 import pytest
+import shutil
 import unittest
 
 from benchmark_simulator.simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
@@ -109,6 +110,8 @@ def test_get_performance_over_time_from_paths():
     assert y.shape == (n_seeds, 100)
     assert is_log_scale(x)
     assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
+    for path in paths:
+        shutil.rmtree(path)
 
 
 if __name__ == "__main__":

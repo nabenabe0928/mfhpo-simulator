@@ -102,6 +102,7 @@ def get_multiple_wrappers(
     store_config: bool = False,
     allow_parallel_sampling: bool = False,
     config_tracking: bool = True,
+    max_total_eval_time: float = np.inf,
 ) -> list[ObjectiveFuncWrapper]:
     """Return multiple wrapper instances.
 
@@ -170,6 +171,11 @@ def get_multiple_wrappers(
             Whether to validate config_id provided from the user side.
             It slows the simulation down when n_evals is large (> 3000),
             but it is recommended to avoid unexpected bugs that could happen.
+        max_total_eval_time (float):
+            The maximum total evaluation time for the optimization.
+            For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time
+            reaches 3600 seconds.
+            It is useful to combine with a large n_evals and n_actual_evals_in_opt.
 
     Returns:
         wrappers (list[ObjectiveFuncWrapper]):
@@ -200,6 +206,7 @@ def get_multiple_wrappers(
         store_config=store_config,
         allow_parallel_sampling=allow_parallel_sampling,
         config_tracking=config_tracking,
+        max_total_eval_time=max_total_eval_time,
         _async_instantiations=False,
     )
     return [ObjectiveFuncWrapper(**wrapper_kwargs, worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
@@ -263,6 +270,7 @@ class ObjectiveFuncWrapper:
         allow_parallel_sampling: bool = False,
         config_tracking: bool = True,
         worker_index: int | None = None,
+        max_total_eval_time: float = np.inf,
         _async_instantiations: bool = True,
     ):
         """The initialization of a wrapper class.
@@ -354,6 +362,11 @@ class ObjectiveFuncWrapper:
                 The failure rate might be higher especially when you use a large n_workers, so in that case,
                 probably users would like to use this option.
                 The worker indices must be unique across the parallel workers and must be in [0, n_workers - 1].
+            max_total_eval_time (float):
+                The maximum total evaluation time for the optimization.
+                For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time
+                reaches 3600 seconds.
+                It is useful to combine with a large n_evals and n_actual_evals_in_opt.
             _async_instantiations (bool):
                 Whether each worker is instantiated asynchrously.
                 In other words, whether to wait all workers' instantiations or not.
@@ -376,6 +389,7 @@ class ObjectiveFuncWrapper:
             store_config=store_config,
             allow_parallel_sampling=allow_parallel_sampling,
             config_tracking=config_tracking,
+            max_total_eval_time=max_total_eval_time,
         )
 
         self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker

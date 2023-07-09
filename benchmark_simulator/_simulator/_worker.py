@@ -238,7 +238,12 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             self._paths.result, results=row, fixed=bool(not self._wrapper_vars.store_config), lock=self._lock
         )
         self._used_config = {}  # Make it empty
-        if _is_simulator_terminated(self._paths.result, max_evals=self._wrapper_vars.n_evals, lock=self._lock):
+        if _is_simulator_terminated(
+            self._paths.result,
+            max_evals=self._wrapper_vars.n_evals,
+            max_total_eval_time=self._wrapper_vars.max_total_eval_time,
+            lock=self._lock,
+        ):
             self._finish()
 
     def _load_timestamps(self) -> float:
@@ -262,7 +267,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             if not self._wrapper_vars.allow_parallel_sampling
             else cumtime
         )
-        self._terminated = self._cumtime >= _TIME_VALUES.terminated - 1e-5
+        self._terminated = self._cumtime >= min(self._wrapper_vars.max_total_eval_time, _TIME_VALUES.terminated - 1e-5)
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
         return timestamp_dict[worker_id]
 

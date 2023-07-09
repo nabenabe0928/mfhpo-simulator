@@ -32,6 +32,8 @@ from benchmark_simulator._secure_proc import (
 )
 from benchmark_simulator._utils import _SecureLock
 
+import numpy as np
+
 import ujson as json
 
 
@@ -160,13 +162,13 @@ def test_record_result():
         _record_result(path, results={"loss": i, "cumtime": i}, lock=LOCK)
         ans["loss"].append(i)
         ans["cumtime"].append(i)
-        assert not _is_simulator_terminated(path, max_evals=20, lock=LOCK)
+        assert not _is_simulator_terminated(path, max_evals=20, max_total_eval_time=np.inf, lock=LOCK)
         assert json.load(open(path)) == ans
     else:
         _record_result(path, results={"loss": i + 1, "cumtime": i + 1}, lock=LOCK)
         ans["loss"].append(i + 1)
         ans["cumtime"].append(i + 1)
-        assert _is_simulator_terminated(path, max_evals=20, lock=LOCK)
+        assert _is_simulator_terminated(path, max_evals=20, max_total_eval_time=np.inf, lock=LOCK)
         assert json.load(open(path)) == ans
 
 

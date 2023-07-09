@@ -75,6 +75,7 @@ class _WrapperVars:
     obj_func: ObjectiveFuncType
     n_actual_evals_in_opt: int
     n_evals: int
+    max_total_eval_time: float
     obj_keys: list[str]
     runtime_key: str
     fidel_keys: list[str] | None

@@ -197,4 +197,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             worker_id = np.argmin(self._cumtimes)
             self._tell_pending_result(opt=opt, worker_id=worker_id)
 
+            if self._cumtimes[worker_id] > self._wrapper_vars.max_total_eval_time:  # exceed time limit
+                break
+
         self._save_results()

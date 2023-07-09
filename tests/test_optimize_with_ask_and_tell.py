@@ -98,7 +98,9 @@ def optimize(n_evals: int = 400, discrete: bool = False, very_random: bool = Fal
     worker.simulate(opt)
     out = worker.get_results()
     shutil.rmtree(worker.dir_name)
-    assert len(out["cumtime"]) >= worker._main_wrapper._wrapper_vars.n_evals
+    if "max_total_eval_time" not in obj_kwd:
+        assert len(out["cumtime"]) >= worker._main_wrapper._wrapper_vars.n_evals
+
     return out
 
 
@@ -106,6 +108,13 @@ def test_random_with_ask_and_tell():
     out = optimize()["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
+
+
+def test_random_with_ask_and_tell_with_max_total_eval_time():
+    out = optimize(max_total_eval_time=3600 * 20)["cumtime"]
+    diffs = np.abs(out - np.maximum.accumulate(out))
+    assert np.allclose(diffs, 0.0)
+    assert len(out) < 300  # terminated by time limit
 
 
 def test_random_with_ask_and_tell_store_config():

@@ -183,11 +183,13 @@ def _record_result(path: str, results: dict[str, float], lock: _SecureLock, fixe
         json.dump(record, f, indent=4)
 
 
-def _is_simulator_terminated(path: str, max_evals: int, lock: _SecureLock) -> bool:
+def _is_simulator_terminated(path: str, max_evals: int, max_total_eval_time: float, lock: _SecureLock) -> bool:
     with lock.read(path) as f:
-        result = len(json.load(f)["cumtime"]) >= max_evals
+        cumtimes = json.load(f)["cumtime"]
 
-    return result
+    cond1 = len(cumtimes) >= max_evals
+    cond2 = cumtimes[-1] > max_total_eval_time
+    return cond1 or cond2
 
 
 def _is_simulator_ready(path: str, n_workers: int, lock: _SecureLock) -> bool:

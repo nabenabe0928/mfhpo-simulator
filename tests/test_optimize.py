@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import pytest
 import shutil
 import unittest
 from typing import Any
@@ -59,7 +60,7 @@ class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):
         return super().__call__(eval_config=config, fidels={"epoch": int(budget)})
 
 
-def run_dehb(n_workers: int):
+def run_dehb(n_workers: int, max_total_eval_time: float):
     n_actual_evals_in_opt = 100 + n_workers
     save_dir_name = "dummy"
     log_file_name = "dehb-log/"
@@ -79,6 +80,7 @@ def run_dehb(n_workers: int):
         obj_keys=["fitness"],
         runtime_key="cost",
         fidel_keys=["epoch"],
+        max_total_eval_time=max_total_eval_time,
     )
     assert worker.fidel_keys == ["epoch"]
     assert worker.runtime_key == "cost"
@@ -98,16 +100,22 @@ def run_dehb(n_workers: int):
     )
     dehb.run(fevals=n_actual_evals_in_opt)
     out = worker.get_results()["cumtime"]
-    assert len(out) >= 100
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
+    if max_total_eval_time < 1e9:
+        assert len(out) <= 70  # terminated before 100 evals
+        assert np.all(np.asarray(out[:-n_workers]) <= 50)
+    else:
+        assert len(out) >= 100
+
     shutil.rmtree(path)
     shutil.rmtree(log_file_name)
 
 
-def test_dehb():
+@pytest.mark.parametrize("max_total_eval_time", (np.inf, 50))
+def test_dehb(max_total_eval_time):
     n_workers = 4 if IS_LOCAL else 2  # github actions has only 2 cores
-    run_dehb(n_workers)
+    run_dehb(n_workers, max_total_eval_time=max_total_eval_time)
 
 
 if __name__ == "__main__":
