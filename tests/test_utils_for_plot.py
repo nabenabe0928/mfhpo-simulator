@@ -4,6 +4,7 @@ import unittest
 
 from benchmark_simulator.simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 from benchmark_simulator.utils._performance_over_time import (
+    get_mean_and_standard_error,
     get_performance_over_time,
     get_performance_over_time_from_paths,
 )
@@ -112,6 +113,24 @@ def test_get_performance_over_time_from_paths():
     assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
     for path in paths:
         shutil.rmtree(path)
+
+
+def test_get_mean_and_standard_error():
+    with pytest.raises(ValueError, match=r"The type of the input must be np.ndarray*"):
+        get_mean_and_standard_error(np.arange(6).reshape(2, 3).tolist())
+    with pytest.raises(ValueError, match=r"The shape of the input array must be 2D*"):
+        get_mean_and_standard_error(np.arange(6).reshape(6))
+
+    x = np.array(
+        [
+            [1, 2, 3],
+            [np.nan, 5, 6],
+            [np.nan, np.nan, 8],
+        ]
+    )
+    m, s = get_mean_and_standard_error(x)
+    assert np.allclose(m, [1, 7 / 2, 17 / 3])
+    assert np.allclose(s, [0.0, 1.5 / np.sqrt(2), 2.0548046676563256 / np.sqrt(3)])
 
 
 if __name__ == "__main__":

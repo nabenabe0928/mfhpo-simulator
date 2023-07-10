@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from benchmark_simulator.utils import get_performance_over_time
+from benchmark_simulator.utils import get_mean_and_standard_error, get_performance_over_time
 
 import matplotlib.pyplot as plt
 
@@ -27,10 +27,7 @@ def get_tmins_and_tmaxs_and_yrange(data: DataDType) -> tuple[dict[str, float], d
         with open(f"demo/validation-results-{suffix}.json", mode="r") as f:
             _data = json.load(f)
             for k, v in _data.items():
-                n_seeds = len(v["loss"])
-                loss_vals = np.minimum.accumulate(v["loss"])
-                m = np.mean(loss_vals, axis=0)
-                s = np.std(loss_vals, axis=0) / np.sqrt(n_seeds)
+                m, s = get_mean_and_standard_error(np.minimum.accumulate(v["loss"]))
                 ymin = min(ymin, np.min(m - s))
                 ymax = max(ymax, np.max(m + s))
 
@@ -70,8 +67,7 @@ def plot_traj(
     linestyle: str | None = None,
     marker: str | None = None,
 ):
-    n_seeds = traj.shape[0]
-    m, s = np.nanmean(traj, axis=0), np.nanstd(traj, axis=0) / np.sqrt(n_seeds)
+    m, s = get_mean_and_standard_error(traj)
     line = ax.plot(
         time_step,
         m,

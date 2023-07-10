@@ -1,10 +1,8 @@
 import os
 
-from benchmark_simulator.utils import get_performance_over_time_from_paths
+from benchmark_simulator.utils import get_mean_and_standard_error, get_performance_over_time_from_paths
 
 import matplotlib.pyplot as plt
-
-import numpy as np
 
 
 plt.rcParams["font.family"] = "Times New Roman"
@@ -18,8 +16,7 @@ for opt in ["bohb", "dehb", "neps", "smac"]:
     path = f"mfhpo-simulator-info/{opt}/bench=hpolib_dataset=slice-localization_nworkers=4/"
     paths = [os.path.join(path, str(seed)) for seed in range(10)]
     cumtimes, loss_vals = get_performance_over_time_from_paths(paths=paths, obj_key="loss")
-    m = np.nanmean(loss_vals, axis=0)
-    s = np.nanstd(loss_vals, axis=0) / np.sqrt(np.count_nonzero(~np.isnan(loss_vals), axis=0))
+    m, s = get_mean_and_standard_error(loss_vals)
     ax.plot(cumtimes, m, label=opt_labels[opt])
     ax.fill_between(cumtimes, m - s, m + s, alpha=0.2)
 

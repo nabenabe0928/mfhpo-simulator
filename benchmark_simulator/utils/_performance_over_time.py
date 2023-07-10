@@ -146,3 +146,14 @@ def get_performance_over_time_from_paths(
         cumtimes=cumtimes, perf_vals=perf_vals, minimize=minimize, step=step, log=log
     )
     return time_steps, return_perf_vals
+
+
+def get_mean_and_standard_error(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    if not isinstance(x, np.ndarray):
+        raise ValueError(f"The type of the input must be np.ndarray, but got {type(x)}")
+    if len(x.shape) != 2:
+        raise ValueError(f"The shape of the input array must be 2D, but got {len(x.shape)}D")
+
+    mean = np.nanmean(x, axis=0)
+    ste = np.nanstd(x, axis=0) / np.sqrt(np.count_nonzero(~np.isnan(x), axis=0))
+    return mean, ste
