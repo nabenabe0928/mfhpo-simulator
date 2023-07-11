@@ -143,6 +143,7 @@ def run_with_wrapper(
         n_actual_evals_in_opt=N_EVALS + N_WORKERS,
         n_evals=N_EVALS,
         ask_and_tell=ask_and_tell,
+        careful_init=True,
     )
     sampler = optuna.samplers.TPESampler(seed=seed)
     if ask_and_tell:
@@ -236,5 +237,5 @@ def main(deterministic: bool):
 
 
 if __name__ == "__main__":
-    # main(deterministic=True)
+    main(deterministic=True)
     main(deterministic=False)

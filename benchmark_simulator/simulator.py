@@ -271,6 +271,7 @@ class ObjectiveFuncWrapper:
         config_tracking: bool = True,
         worker_index: int | None = None,
         max_total_eval_time: float = np.inf,
+        careful_init: bool = False,
         _async_instantiations: bool = True,
     ):
         """The initialization of a wrapper class.
@@ -367,6 +368,10 @@ class ObjectiveFuncWrapper:
                 For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time
                 reaches 3600 seconds.
                 It is useful to combine with a large n_evals and n_actual_evals_in_opt.
+            careful_init (bool):
+                Whether doing initialization very carefully or not in the default setup (and only for the default).
+                If True, we try to match the initialization order using sleep.
+                It is not necessary for normal usage, but if users expect perfect reproducibility, users want to use it.
             _async_instantiations (bool):
                 Whether each worker is instantiated asynchrously.
                 In other words, whether to wait all workers' instantiations or not.
@@ -407,7 +412,7 @@ class ObjectiveFuncWrapper:
                 wrapper_vars, worker_index=worker_index, async_instantiations=_async_instantiations
             )
         else:
-            self._main_wrapper = _CentralWorkerManager(wrapper_vars)
+            self._main_wrapper = _CentralWorkerManager(wrapper_vars, careful_init=careful_init)
 
     @property
     def dir_name(self) -> str:

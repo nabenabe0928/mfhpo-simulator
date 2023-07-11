@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 from typing import Any
 
+from benchmark_simulator._constants import _WrapperVars
 from benchmark_simulator._secure_proc import (
     _allocate_proc_to_worker,
     _fetch_proc_alloc,
@@ -25,9 +27,14 @@ class _CentralWorkerManager(_BaseWrapperInterface):
         See benchmark_simulator/simulator.py to know variables shared across workers.
     """
 
+    def __init__(self, wrapper_vars: _WrapperVars, careful_init: bool):
+        self._careful_init = careful_init
+        super().__init__(wrapper_vars=wrapper_vars)
+
     def _init_wrapper(self) -> None:
         self._workers: list[_ObjectiveFuncWorker]
         self._main_pid = os.getpid()
+        self._n_workers = self._wrapper_vars.n_workers
         self._init_workers()
         self._pid_to_index: dict[int, int] = {}
 
@@ -43,11 +50,16 @@ class _CentralWorkerManager(_BaseWrapperInterface):
 
     def _init_alloc(self, pid: int) -> None:
         path = self._paths.proc_alloc
+        time_ns = time.time_ns()
         if not _is_allocation_ready(path=path, n_workers=self._wrapper_vars.n_workers, lock=self._lock):
-            _allocate_proc_to_worker(path=path, pid=pid, lock=self._lock)
+            _allocate_proc_to_worker(path=path, pid=pid, time_ns=time_ns, lock=self._lock)
+            waiting_time = 1e-4
             self._pid_to_index = _wait_proc_allocation(
-                path=path, n_workers=self._wrapper_vars.n_workers, lock=self._lock
+                path=path, n_workers=self._wrapper_vars.n_workers, waiting_time=waiting_time, lock=self._lock
             )
+            # Very important to match the initial evaluation order
+            # The longest latency has 2 * self._n_workers * waiting_time
+            time.sleep(self._careful_init * 2 * self._n_workers * waiting_time * self._pid_to_index[pid])
         else:
             # This line is actually covered, but it is not visible due to multiprocessing nature
             self._pid_to_index = _fetch_proc_alloc(path=path, lock=self._lock)  # pragma: no cover
@@ -62,7 +74,7 @@ class _CentralWorkerManager(_BaseWrapperInterface):
     ) -> dict[str, float]:
         pid = os.getpid()
         pid = threading.get_ident() if pid == self._main_pid else pid
-        if len(self._pid_to_index) != self._wrapper_vars.n_workers:
+        if len(self._pid_to_index) != self._n_workers:
             self._init_alloc(pid)
 
         if pid not in self._pid_to_index:  # pragma: no cover

@@ -22,8 +22,9 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 15. `check_interval_time` (`float`): How often each worker should check whether a new job can be assigned to it. For example, if `1e-2` is specified, each worker check whether they can get a new job every `1e-2` seconds. If there are many workers, too small `check_interval_time` may cause a big bottleneck. On the other hand, a big `check_interval_time` spends more time for waiting. By default, `check_interval_time` is set to a relatively small number, so users might rather want to increase the number to avoid the bottleneck for many workers,
 16. `allow_parallel_sampling` (`bool`): Whether sampling can happen in parallel. In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False. The default value is False,
 17. `config_tracking` (`bool`): Whether to validate config_id provided from the user side. It slows the simulation down when n_evals is large (> 3000), but it is recommended to avoid unexpected bugs that could happen,
-18. `worker_index` (`int | None`): It specifies which worker index will be used for this wrapper. It is typically useful when you run this wrapper from different processes in parallel. If you did not specify this index, our wrapper automatically allocates worker indices, but this may sometimes fail (in our environment with 0.01% of the probability for `n_workers=8`). The failure rate might be higher especially when you use a large n_workers, so in that case, probably users would like to use this option. The worker indices must be unique across the parallel workers and must be in `[0, n_workers - 1]`. See [examples using NePS](../examples/minimal/neps.py) for more details, and
-19. `max_total_eval_time` (`float`): The maximum total evaluation time for the optimization. For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time reaches 3600 seconds. It is useful to combine with a large n_evals and n_actual_evals_in_opt.
+18. `worker_index` (`int | None`): It specifies which worker index will be used for this wrapper. It is typically useful when you run this wrapper from different processes in parallel. If you did not specify this index, our wrapper automatically allocates worker indices, but this may sometimes fail (in our environment with 0.01% of the probability for `n_workers=8`). The failure rate might be higher especially when you use a large n_workers, so in that case, probably users would like to use this option. The worker indices must be unique across the parallel workers and must be in `[0, n_workers - 1]`. See [examples using NePS](../examples/minimal/neps.py) for more details,
+19. `max_total_eval_time` (`float`): The maximum total evaluation time for the optimization. For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time reaches 3600 seconds. It is useful to combine with a large n_evals and n_actual_evals_in_opt, and
+20. `careful_init` (`bool`): Whether doing initialization very carefully or not in the default setup (and only for the default). If True, we try to match the initialization order using sleep. It is not necessary for normal usage, but if users expect perfect reproducibility, users want to use it.
 
 ## Attributes Provided for Users
 
@@ -33,8 +34,10 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 2. `obj_keys` (`list[str]`): The objective names that will be collected in results and the returned dict from users' objective functions must contain these keys. If you want to include the runtime in the results, you also need to include the runtime_key in obj_keys,
 3. `runtime_key` (`str`): The runtime name that will be used to define the runtime which the user objective function really took. The returned dict from users' objective functions must contain this key,
 4. `fidel_keys` (`list[str]`): The fidelity names that will be used in users' objective functions. `fidels` passed to the objective functions must contain these keys. When `continual_max_fidel=True`, fidel_keys can contain only one key and this fidelity will be used for the definition of continual learning,
-5. `n_actual_evals_in_opt` (`int`): The number of configuration evaluations during the actual optimization. Note that even if some configurations are continuations from an existing config with lower fidelity, they are counted as separated config evaluations, and
-6. `n_workers` (`int`): The number of workers used in the user-defined optimizer.
+5. `n_actual_evals_in_opt` (`int`): The number of configuration evaluations during the actual optimization. Note that even if some configurations are continuations from an existing config with lower fidelity, they are counted as separated config evaluations,
+6. `n_workers` (`int`): The number of workers used in the user-defined optimizer,
+7. `result_file_path` (`str`): The relative file path of the result file, and
+8. `optimizer_overhead_file_path` (`str`): The relative file path of the optimizer overhead file.
 
 `obj_keys`, `runtime_key`, and `fidel_keys` are necessary to match the signature of user-defined objective functions with our API.
 
@@ -66,6 +69,14 @@ The return value of the method is `dict[str, float]` where the keys are the unio
 The optimization loop for the wrapped objective function and the user-defined optimizer and valid only if `ask_and_tell=True`.
 
 Users can simply start the simulation of an optimization using `opt` and `obj_func` via `simulate`.
+
+3. `get_results(self) -> dict[str, list[int | float | str | bool]]`
+
+It returns the results obtained using the wrapper.
+
+4. `get_optimizer_overhead(self) -> dict[str, list[float]]`
+
+It returns the optimizer overheads obtained during an optimization.
 
 ## Utilities
 

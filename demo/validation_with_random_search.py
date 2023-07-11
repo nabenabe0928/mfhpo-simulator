@@ -102,6 +102,7 @@ def run_with_wrapper(
         n_actual_evals_in_opt=N_EVALS + N_WORKERS,
         n_evals=N_EVALS,
         ask_and_tell=ask_and_tell,
+        careful_init=True,
     )
     opt = RandomOptimizer(
         func=wrapper,
@@ -173,14 +174,14 @@ def main(deterministic: bool):
         data["ours_ask_and_tell"]["actual_cumtime"].append(actual_cumtime.tolist())
         data["ours_ask_and_tell"]["simulated_cumtime"].append(simulated_cumtime.tolist())
 
-        bench.reseed(seed)
-        loss_vals, actual_cumtime = np.array(run_without_wrapper(bench, seed=seed))
-        data["naive"]["loss"].append(loss_vals.tolist())
-        data["naive"]["actual_cumtime"].append(actual_cumtime.tolist())
+        # bench.reseed(seed)
+        # loss_vals, actual_cumtime = np.array(run_without_wrapper(bench, seed=seed))
+        # data["naive"]["loss"].append(loss_vals.tolist())
+        # data["naive"]["actual_cumtime"].append(actual_cumtime.tolist())
 
-        naive_loss, our_loss = data["naive"]["loss"][-1], data["ours"]["loss"][-1]
-        percent = 100 * np.sum(np.isclose(naive_loss, our_loss)) / len(our_loss)
-        print(f"How much was correct?: {percent:.2f}%. NOTE: Tie-break could cause False!")
+        # naive_loss, our_loss = data["naive"]["loss"][-1], data["ours"]["loss"][-1]
+        # percent = 100 * np.sum(np.isclose(naive_loss, our_loss)) / len(our_loss)
+        # print(f"How much was correct?: {percent:.2f}%. NOTE: Tie-break could cause False!")
 
         suffix = "deterministic" if deterministic else "noisy"
         with open(f"demo/validation-results-{suffix}.json", mode="w") as f:

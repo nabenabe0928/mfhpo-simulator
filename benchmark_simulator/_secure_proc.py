@@ -39,10 +39,10 @@ def _init_simulator(dir_name: str, worker_index: int | None) -> None:
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
-def _allocate_proc_to_worker(path: str, pid: int, lock: _SecureLock) -> None:
+def _allocate_proc_to_worker(path: str, pid: int, time_ns: int, lock: _SecureLock) -> None:
     with lock.edit(path) as f:
         cur_alloc = json.load(f)
-        cur_alloc[pid] = 0
+        cur_alloc[pid] = time_ns
         f.seek(0)
         json.dump(cur_alloc, f, indent=4)
 
@@ -50,8 +50,7 @@ def _allocate_proc_to_worker(path: str, pid: int, lock: _SecureLock) -> None:
 def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
     with lock.edit(path) as f:
         alloc = json.load(f)
-        sorted_pids = np.sort([int(pid) for pid in alloc.keys()])
-        alloc = {pid: idx for idx, pid in enumerate(sorted_pids)}
+        alloc = {int(k): idx for idx, (k, _) in enumerate(sorted(alloc.items(), key=lambda x: x[1]))}
         f.seek(0)
         json.dump(alloc, f, indent=4)
 
@@ -256,7 +255,7 @@ def _get_timeout_message(cause: str, path: str) -> str:
 
 
 def _wait_proc_allocation(
-    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-2, time_limit: float = 10.0
+    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-4, time_limit: float = 10.0
 ) -> dict[int, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
@@ -269,7 +268,7 @@ def _wait_proc_allocation(
 
 
 def _wait_all_workers(
-    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-2, time_limit: float = 10.0
+    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-4, time_limit: float = 10.0
 ) -> dict[str, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()

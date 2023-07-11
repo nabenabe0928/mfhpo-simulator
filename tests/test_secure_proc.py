@@ -84,7 +84,7 @@ def test_allocate_proc_to_worker():
     path = os.path.join(DIR_NAME, _SharedDataFileNames.proc_alloc.value)
     ans = {}
     for i in range(10):
-        _allocate_proc_to_worker(path, pid=i * 100, lock=LOCK)
+        _allocate_proc_to_worker(path, pid=i * 100, time_ns=i, lock=LOCK)
         assert _is_allocation_ready(path, n_workers=i + 1, lock=LOCK)
         ans[i * 100] = i
 
