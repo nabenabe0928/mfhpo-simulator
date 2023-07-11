@@ -1,3 +1,4 @@
+import os
 import pytest
 import shutil
 import unittest
@@ -34,51 +35,73 @@ def is_log_scale(x: np.ndarray) -> bool:
     return is_same_interval(z)
 
 
-def run_get_performance_over_time(cumtimes, perf_vals):
-    n_seeds = len(cumtimes)
-    x, y = get_performance_over_time(cumtimes=cumtimes, perf_vals=perf_vals)
-    assert x.shape == (100,)
-    assert y.shape == (n_seeds, 100)
-    assert is_log_scale(x)
-    assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
-
-    x, y = get_performance_over_time(cumtimes=cumtimes, perf_vals=perf_vals, minimize=False)
-    assert x.shape == (100,)
-    assert y.shape == (n_seeds, 100)
-    assert is_log_scale(x)
-    assert np.allclose(y, np.maximum.accumulate(y, axis=-1))
-
-    x, y = get_performance_over_time(cumtimes=cumtimes, perf_vals=perf_vals, log=False)
-    assert x.shape == (100,)
-    assert y.shape == (n_seeds, 100)
-    assert is_same_interval(x)
-    assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
-
-    step = 50
-    x, y = get_performance_over_time(cumtimes=cumtimes, perf_vals=perf_vals, step=50)
+def _validate(
+    n_seeds: int, x: np.ndarray, y: np.ndarray, step: int = 100, log: bool = True, minimize: bool = True
+) -> None:
     assert x.shape == (step,)
     assert y.shape == (n_seeds, step)
-    assert is_log_scale(x)
-    assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
+    if log:
+        assert is_log_scale(x)
+    else:
+        assert is_same_interval(x)
+
+    if minimize:
+        assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
+    else:
+        assert np.allclose(y, np.maximum.accumulate(y, axis=-1))
 
 
-def test_errors_in_get_performance_over_time():
-    n_evals = 1000
+def run_get_performance_over_time(cumtimes, perf_vals):
+    n_seeds = len(cumtimes)
+    for kwargs in [dict(), dict(minimize=False), dict(log=False), dict(step=50)]:
+        x, y = get_performance_over_time(cumtimes=cumtimes, perf_vals=perf_vals, **kwargs)
+        _validate(n_seeds, x, y, **kwargs)
+
+
+def test_cumtime_smaller_than_overhead_error_in_get_performance_over_time():
     rng = np.random.RandomState(0)
-    cumtimes = np.sort(rng.random(size=n_evals))
-    perf_vals = rng.random(size=n_evals)
-    with pytest.raises(TypeError, match=r"cumtimes and perf_vals must be 2D array*"):
+    cumtimes = np.sort(rng.random(size=(10, 1000)))
+    overheads = cumtimes + 1.0
+    with pytest.raises(ValueError, match=r"Each element of optimizer_overheads must be smaller than that of cumtimes."):
+        x, y = get_performance_over_time(cumtimes=cumtimes, perf_vals=cumtimes.copy(), optimizer_overheads=overheads)
+
+
+def _errors_in_get_performance_over_time(size1, size2, error, match):
+    rng = np.random.RandomState(0)
+    cumtimes = np.sort(rng.random(size=size1))
+    perf_vals = rng.random(size=size2)
+    with pytest.raises(error, match=match):
         run_get_performance_over_time(cumtimes, perf_vals)
 
-    cumtimes = np.sort(rng.random(size=(10, n_evals)))
-    perf_vals = rng.random(size=(11, n_evals))
-    with pytest.raises(ValueError, match=r"The number of seeds used in cumtimes and perf_vals must be identical*"):
-        run_get_performance_over_time(cumtimes, perf_vals)
 
-    cumtimes = np.sort(rng.random(size=(1, n_evals)))
-    perf_vals = rng.random(size=(1, n_evals + 1))
-    with pytest.raises(ValueError, match=r"The shape of each cumtimes and perf_vals for each seed must be identical*"):
-        run_get_performance_over_time(cumtimes, perf_vals)
+def test_2d_array_in_get_performance_over_time():
+    n_evals = 1000
+    _errors_in_get_performance_over_time(
+        size1=n_evals,
+        size2=n_evals,
+        error=TypeError,
+        match=r"cumtimes, perf_vals, and optimizer_overheads must be 2D array*",
+    )
+
+
+def test_diff_seeds_in_get_performance_over_time():
+    n_evals = 1000
+    _errors_in_get_performance_over_time(
+        size1=(10, n_evals),
+        size2=(11, n_evals),
+        error=ValueError,
+        match=r"The number of seeds used in cumtimes, perf_vals, and optimizer_overheads must be identical*",
+    )
+
+
+def test_diff_shapes_in_get_performance_over_time():
+    n_evals = 1000
+    _errors_in_get_performance_over_time(
+        size1=(1, n_evals),
+        size2=(1, n_evals + 1),
+        error=ValueError,
+        match=r"The shapes of cumtimes, perf_vals, and optimizer_overheads for each seed must be identical*",
+    )
 
 
 def test_get_performance_over_time_with_array():
@@ -105,12 +128,17 @@ def test_get_performance_over_time_from_paths():
         opt = RandomOptimizer(seed=seed)
         wrapper.simulate(opt)
         paths.append(wrapper.dir_name)
+        assert os.path.exists(wrapper.optimizer_overhead_file_path)
+        optimizer_overhead = wrapper.get_optimizer_overhead()
+        assert len(optimizer_overhead["before_sample"]) >= wrapper._main_wrapper._wrapper_vars.n_evals
+        assert len(optimizer_overhead["before_sample"]) == len(optimizer_overhead["after_sample"])
 
-    x, y = get_performance_over_time_from_paths(paths, obj_key="loss")
-    assert x.shape == (100,)
-    assert y.shape == (n_seeds, 100)
-    assert is_log_scale(x)
-    assert np.allclose(y, np.minimum.accumulate(y, axis=-1))
+    x1, y1 = get_performance_over_time_from_paths(paths, obj_key="loss")
+    x2, y2 = get_performance_over_time_from_paths(paths, obj_key="loss", consider_optimizer_overhead=False)
+    assert x1.shape == (100,) and x2.shape == (100,)
+    assert y1.shape == (n_seeds, 100) and y2.shape == (n_seeds, 100)
+    assert is_log_scale(x1) and is_log_scale(x2)
+    assert np.allclose(y1, np.minimum.accumulate(y1, axis=-1)) and np.allclose(y2, np.minimum.accumulate(y2, axis=-1))
     for path in paths:
         shutil.rmtree(path)
 

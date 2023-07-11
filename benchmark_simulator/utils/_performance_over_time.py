@@ -9,27 +9,33 @@ import numpy as np
 def _validate_performance(
     cumtimes: np.ndarray | list[np.ndarray] | list[list[float]],
     perf_vals: np.ndarray | list[np.ndarray] | list[list[float]],
+    optimizer_overheads: np.ndarray | list[np.ndarray] | list[list[float]],
     minimize: bool,
 ) -> np.ndarray:
     n_seeds = len(cumtimes)
     loss_vals = []
-    if len(cumtimes) != len(perf_vals):
+    if len(cumtimes) != len(perf_vals) or len(cumtimes) != len(optimizer_overheads):
         raise ValueError(
-            "The number of seeds used in cumtimes and perf_vals must be identical, but got "
-            f"{len(cumtimes)=} and {len(perf_vals)=}."
+            "The number of seeds used in cumtimes, perf_vals, and optimizer_overheads must be identical, but got "
+            f"{len(cumtimes)=}, {len(perf_vals)=}, and {len(optimizer_overheads)=}."
         )
 
     for i in range(n_seeds):
-        cumtime, perf_val = cumtimes[i], perf_vals[i]
-        if not isinstance(cumtime, (list, np.ndarray)) or not isinstance(perf_val, (list, np.ndarray)):
-            raise TypeError(f"cumtimes and perf_vals must be 2D array or list, but got {cumtimes=} and {perf_vals=}.")
-
-        cumtime, perf_val = map(np.asarray, [cumtimes[i], perf_vals[i]])
-        if cumtime.shape != perf_val.shape:
-            raise ValueError(
-                "The shape of each cumtimes and perf_vals for each seed must be identical, but got "
-                f"{cumtime.shape=} and {perf_val.shape=}."
+        cumtime, perf_val, opt_overhead = cumtimes[i], perf_vals[i], optimizer_overheads[i]
+        if any(not isinstance(obj, (list, np.ndarray)) for obj in [cumtime, perf_val, opt_overhead]):
+            raise TypeError(
+                "cumtimes, perf_vals, and optimizer_overheads must be 2D array or list, but got "
+                f"{cumtimes=}, {perf_vals=}, and {optimizer_overheads=}."
             )
+
+        cumtime, perf_val, opt_overhead = map(np.asarray, [cumtimes[i], perf_vals[i], optimizer_overheads[i]])
+        if cumtime.shape != perf_val.shape or cumtime.shape != opt_overhead.shape:
+            raise ValueError(
+                "The shapes of cumtimes, perf_vals, and optimizer_overheads for each seed must be identical, but got "
+                f"{cumtime.shape=}, {perf_val.shape=}, {opt_overhead.shape=}."
+            )
+        if np.any(cumtime <= opt_overhead):
+            raise ValueError("Each element of optimizer_overheads must be smaller than that of cumtimes.")
 
         loss_vals.append((2 * minimize - 1) * perf_val.copy())
 
@@ -39,6 +45,7 @@ def _validate_performance(
 def get_performance_over_time(
     cumtimes: np.ndarray | list[np.ndarray] | list[list[float]],
     perf_vals: np.ndarray | list[np.ndarray] | list[list[float]],
+    optimizer_overheads: np.ndarray | list[np.ndarray] | list[list[float]] | None = None,
     step: int = 100,
     minimize: bool = True,
     log: bool = True,
@@ -57,6 +64,10 @@ def get_performance_over_time(
             The performance metric values of each evaluation.
             The shape should be (n_seeds, n_evals).
             However, if each seed has different n_evals, users can simply provide a list of arrays with different size.
+        optimizer_overheads (np.ndarray | list[np.ndarray] | list[list[float]] | None):
+            The overheads of optimizer during each optimization.
+            The shape should be (n_seeds, n_evals).
+            If None is provided, we subduct the overheads from the cumulative time.
         step (int):
             The number of time points to take.
             The minimum/maximum time points are determined based on the provided cumtimes.
@@ -77,14 +88,18 @@ def get_performance_over_time(
                 The cumulative best performance metric value up to the corresponding time point.
                 The shape is (step, ).
     """
-    loss_vals = _validate_performance(cumtimes=cumtimes, perf_vals=perf_vals, minimize=minimize)
-    n_seeds = len(cumtimes)
-    tmin, tmax = np.min([np.min(cumtime) for cumtime in cumtimes]), np.max([np.max(cumtime) for cumtime in cumtimes])
+    optimizer_overheads = [np.zeros_like(t) for t in cumtimes] if optimizer_overheads is None else optimizer_overheads
+    loss_vals = _validate_performance(
+        cumtimes=cumtimes, perf_vals=perf_vals, optimizer_overheads=optimizer_overheads, minimize=minimize
+    )
+    _cumtimes = [c - o for c, o in zip(cumtimes, optimizer_overheads)]
+    n_seeds = len(_cumtimes)
+    tmin, tmax = np.min([np.min(cumtime) for cumtime in _cumtimes]), np.max([np.max(cumtime) for cumtime in _cumtimes])
     time_steps = np.exp(np.linspace(np.log(tmin), np.log(tmax), step)) if log else np.linspace(tmin, tmax, step)
     return_perf_vals = []
 
     for i in range(n_seeds):
-        cumtime, loss = cumtimes[i].copy(), np.minimum.accumulate(loss_vals[i])
+        cumtime, loss = _cumtimes[i], np.minimum.accumulate(loss_vals[i])
         cumtime = np.insert(cumtime, 0, 0.0)
         cumtime = np.append(cumtime, np.inf)
         loss = np.insert(loss, 0, np.nan)
@@ -102,6 +117,7 @@ def get_performance_over_time_from_paths(
     step: int = 100,
     minimize: bool = True,
     log: bool = True,
+    consider_optimizer_overhead: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Get performance curve over time across multiple random seeds.
@@ -125,6 +141,9 @@ def get_performance_over_time_from_paths(
             The returned perf_vals will be an increasing sequence if minimize=False.
         log (bool):
             Whether the time points should be taken on log-scale.
+        consider_optimizer_overhead (bool):
+            Whetehr to consider the optimizer overhead into the simulated time.
+            If False, we will remove the optimizer overhead from the runtime.
 
     Returns:
         time_steps, perf_vals (tuple[np.ndarray, np.ndarray]):
@@ -136,14 +155,30 @@ def get_performance_over_time_from_paths(
                 The shape is (step, ).
     """
     cumtimes, perf_vals = [], []
+    optimizer_overheads: list[np.ndarray] | None = None if consider_optimizer_overhead else []
     for path in paths:
+        n_evals = 0
         with open(os.path.join(path, "results.json"), mode="r") as f:
             data = json.load(f)
             cumtimes.append(np.asarray(data["cumtime"]))
+            n_evals = cumtimes[-1].size
             perf_vals.append(np.asarray(data[obj_key]))
 
+        if optimizer_overheads is None:
+            continue
+
+        with open(os.path.join(path, "sampled_time.json"), mode="r") as f:
+            data = json.load(f)
+            optimizer_overhead = np.array(data["after_sample"]) - np.array(data["before_sample"])
+            optimizer_overheads.append(optimizer_overhead[:n_evals])
+
     time_steps, return_perf_vals = get_performance_over_time(
-        cumtimes=cumtimes, perf_vals=perf_vals, minimize=minimize, step=step, log=log
+        cumtimes=cumtimes,
+        perf_vals=perf_vals,
+        optimizer_overheads=optimizer_overheads,
+        minimize=minimize,
+        step=step,
+        log=log,
     )
     return time_steps, return_perf_vals
 
