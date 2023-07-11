@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from argparse import ArgumentParser
 
 from benchmark_simulator.utils import get_mean_and_standard_error, get_performance_over_time
 
@@ -9,6 +10,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+parser = ArgumentParser()
+parser.add_argument("--mode", choices=["random", "optuna"], default="random")
+args = parser.parse_args()
+
+MODE = "-optuna" if args.mode == "optuna" else ""
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams["font.size"] = 18
 plt.rcParams["mathtext.fontset"] = "stix"  # The setting of math font
@@ -24,7 +30,7 @@ def get_tmins_and_tmaxs_and_yrange(data: DataDType) -> tuple[dict[str, float], d
 
     ymin, ymax = np.inf, -np.inf
     for suffix in ["deterministic", "noisy"]:
-        with open(f"demo/validation-results-{suffix}.json", mode="r") as f:
+        with open(f"demo/validation{MODE}-results-{suffix}.json", mode="r") as f:
             _data = json.load(f)
             for k, v in _data.items():
                 m, s = get_mean_and_standard_error(np.minimum.accumulate(v["loss"]))
@@ -84,7 +90,7 @@ def plot_traj(
 
 
 def get_data(suffix: str):
-    with open(f"demo/validation-results-{suffix}.json", mode="r") as f:
+    with open(f"demo/validation{MODE}-results-{suffix}.json", mode="r") as f:
         data = {k: {k2: np.array(v2) for k2, v2 in v.items()} for k, v in json.load(f).items()}
 
     return data
@@ -212,4 +218,4 @@ if __name__ == "__main__":
         bbox_to_anchor=(1.05, -0.2),
         ncol=3,
     )
-    plt.savefig(f"demo/validation.{fmt}", bbox_inches="tight")
+    plt.savefig(f"demo/validation{MODE}.{fmt}", bbox_inches="tight")
