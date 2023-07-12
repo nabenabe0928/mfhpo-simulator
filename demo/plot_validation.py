@@ -12,13 +12,16 @@ import numpy as np
 
 parser = ArgumentParser()
 parser.add_argument("--mode", choices=["random", "optuna"], default="random")
+parser.add_argument("--save", choices=["True", "False"], default="True")
+parser.add_argument("--fmt", choices=["png", "pdf"], default="png")
 args = parser.parse_args()
 
 MODE = "-optuna" if args.mode == "optuna" else ""
+SAVE = eval(args.save)
+FMT = args.fmt
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams["font.size"] = 18
 plt.rcParams["mathtext.fontset"] = "stix"  # The setting of math font
-YMIN, YMAX = -2.3, 0.0
 DataDType = dict[str, dict[str, list[list[float]]]]
 
 
@@ -28,7 +31,7 @@ def get_tmins_and_tmaxs_and_yrange(data: DataDType) -> tuple[dict[str, float], d
         tmins[k] = np.min(v["actual_cumtime"])
         tmaxs[k] = np.max(v["actual_cumtime"])
 
-    ymin, ymax = np.inf, -np.inf
+    ymin, ymax, tmin, tmax = np.inf, -np.inf, np.inf, -np.inf
     for suffix in ["deterministic", "noisy"]:
         with open(f"demo/validation{MODE}-results-{suffix}.json", mode="r") as f:
             _data = json.load(f)
@@ -36,8 +39,10 @@ def get_tmins_and_tmaxs_and_yrange(data: DataDType) -> tuple[dict[str, float], d
                 m, s = get_mean_and_standard_error(np.minimum.accumulate(v["loss"]))
                 ymin = min(ymin, np.min(m - s))
                 ymax = max(ymax, np.max(m + s))
+                tmin = min(tmin, np.min(v["actual_cumtime"]))
+                tmax = max(tmax, np.max(v["actual_cumtime"]))
 
-    return tmins, tmaxs, ymin, ymax
+    return tmins, tmaxs, ymin, ymax, tmin, tmax
 
 
 def add_arrow(
@@ -105,7 +110,7 @@ def proc_plot_traj(ax: plt.Axes, data, name: str, cumtime_key: str, color: str, 
     time_step, traj = get_performance_over_time(cumtimes=data[name][cumtime_key], perf_vals=data[name]["loss"])
     line = plot_traj(ax=ax, time_step=time_step, traj=traj, color=color, label=label, linestyle=linestyle)
     if cumtime_key == "actual_cumtime":
-        tmins, tmaxs, ymin, ymax = get_tmins_and_tmaxs_and_yrange(data)
+        _, _, ymin, ymax, _, _ = get_tmins_and_tmaxs_and_yrange(data)
         ax.vlines(time_step[-1], ymin, ymax, color=color, linestyle="dashed")
 
     return line, label, time_step[0], time_step[-1]
@@ -145,7 +150,7 @@ def plot_perf_over_time(
         lines.append(line)
         labels.append(label)
 
-    _, tmaxs, ymin, ymax = get_tmins_and_tmaxs_and_yrange(data)
+    _, tmaxs, ymin, ymax, _, tmax = get_tmins_and_tmaxs_and_yrange(data)
     diff = ymax - ymin
     factor = 1e-1 if ours_key == "ours" else 5e-2
     target_pos = (tmaxs[ours_key], ymax - factor * diff)
@@ -158,7 +163,7 @@ def plot_perf_over_time(
     )
     speedup = int(tmaxs["naive"] / float(f"{tmaxs[ours_key]:.0e}"))
     ax.text(
-        target_pos[0] * 0.7,
+        target_pos[0] * (0.7 - 0.1 * bool(ours_key != "ours") * bool("optuna" in MODE)),
         target_pos[1],
         f"{speedup}x",
         horizontalalignment="right",
@@ -166,7 +171,7 @@ def plot_perf_over_time(
         bbox=dict(facecolor="white", lw=0),
         zorder=10,
     )
-    ax.set_xlim(right=max(t for t in tmaxs.values()) * 1.1)
+    ax.set_xlim(right=tmax * 1.1)
     ax.set_ylim(ymin - 1e-2 * diff, ymax + 1e-2 * diff)
     ax.set_xscale("log")
     log_grid(ax)
@@ -174,7 +179,6 @@ def plot_perf_over_time(
 
 
 if __name__ == "__main__":
-    fmt = "pdf"
     fig, axes = plt.subplots(
         figsize=(15, 5),
         ncols=2,
@@ -218,4 +222,7 @@ if __name__ == "__main__":
         bbox_to_anchor=(1.05, -0.2),
         ncol=3,
     )
-    plt.savefig(f"demo/validation{MODE}.{fmt}", bbox_inches="tight")
+    if SAVE:
+        plt.savefig(f"demo/validation{MODE}.{FMT}", bbox_inches="tight")
+    else:
+        plt.show()
