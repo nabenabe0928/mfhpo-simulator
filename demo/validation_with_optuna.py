@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from argparse import ArgumentParser
 from typing import Any
@@ -19,16 +20,22 @@ import optuna
 parser = ArgumentParser()
 parser.add_argument("--n_evals", type=int, default=100)
 parser.add_argument("--n_workers", type=int, default=8)
-parser.add_argument("--n_seeds", type=int, default=10)
+parser.add_argument("--seed", type=int, default=10)
 parser.add_argument("--runtime_factor", type=float, default=100.0)
+parser.add_argument("--raw", type=str, choices=["True", "False"], default="False")
+parser.add_argument("--deterministic", type=str, choices=["True", "False"], default="False")
+parser.add_argument("--mode", type=str, choices=["single", "multi", "no"], default="single")
 args = parser.parse_args()
 
 FIDEL_KEY = "z0"
 OBJ_KEY = "loss"
 RUNTIME_KEY = "runtime"
+RAW = eval(args.raw)
+MODE = args.mode
+DETERMINISTIC = eval(args.deterministic)
 N_WORKERS = args.n_workers
 N_EVALS = args.n_evals
-N_SEEDS = args.n_seeds
+SEED = args.seed
 RUNTIME_FACTOR = args.runtime_factor
 
 
@@ -175,61 +182,49 @@ def run_without_wrapper(
     return loss_vals[order], actual_cumtimes[order]
 
 
+def get_result_without_simulator(
+    bench, seed: int, config_space: CS.ConfigurationSpace
+) -> tuple[list[float], list[float], None]:
+    loss_vals, actual_cumtime = run_without_wrapper(bench, seed=seed, config_space=config_space)
+    return loss_vals.tolist(), actual_cumtime.tolist(), None
+
+
+def get_result_with_single_core_simulator(
+    bench, seed: int, config_space: CS.ConfigurationSpace
+) -> tuple[list[float], list[float], list[float]]:
+    loss_vals, simulated_cumtime, actual_cumtime = run_with_wrapper(
+        bench, seed=seed, ask_and_tell=True, config_space=config_space
+    )
+    return loss_vals.tolist(), actual_cumtime.tolist(), simulated_cumtime.tolist()
+
+
+def get_result_with_multi_core_simulator(
+    bench, seed: int, config_space: CS.ConfigurationSpace
+) -> tuple[list[float], list[float], list[float]]:
+    loss_vals, simulated_cumtime, actual_cumtime = run_with_wrapper(bench, seed=seed, config_space=config_space)
+    return loss_vals.tolist(), actual_cumtime.tolist(), simulated_cumtime.tolist()
+
+
 def main(deterministic: bool):
-    data = {
-        "naive": {
-            "loss": [],
-            "actual_cumtime": [],
-        },
-        "ours": {
-            "loss": [],
-            "actual_cumtime": [],
-            "simulated_cumtime": [],
-        },
-        "ours_ask_and_tell": {
-            "loss": [],
-            "actual_cumtime": [],
-            "simulated_cumtime": [],
-        },
-    }
+    data = {k: dict(loss=[], actual_cumtime=[], simulated_cumtime=[]) for k in ["naive", "ours", "ours_ask_and_tell"]}
     bench = MFHartmann(dim=6, runtime_factor=RUNTIME_FACTOR, deterministic=deterministic)
     config_space = bench.config_space
-    config_space.add_hyperparameter(
-        CS.UniformIntegerHyperparameter(
-            name=FIDEL_KEY,
-            lower=bench.min_fidels[FIDEL_KEY],
-            upper=bench.max_fidels[FIDEL_KEY],
-        )
-    )
-    for seed in range(N_SEEDS):
+    min_fidel, max_fidel = bench.min_fidels[FIDEL_KEY], bench.max_fidels[FIDEL_KEY]
+    config_space.add_hyperparameter(CS.UniformIntegerHyperparameter(name=FIDEL_KEY, lower=min_fidel, upper=max_fidel))
+
+    for seed in range(SEED):
         print(f"Run with {seed=}")
 
-        time.sleep(0.01)
-        bench.reseed(seed)
-        loss_vals, simulated_cumtime, actual_cumtime = np.array(
-            run_with_wrapper(bench, seed=seed, config_space=config_space)
-        )
-        data["ours"]["loss"].append(loss_vals.tolist())
-        data["ours"]["actual_cumtime"].append(actual_cumtime.tolist())
-        data["ours"]["simulated_cumtime"].append(simulated_cumtime.tolist())
-
-        time.sleep(0.01)
-        bench.reseed(seed)
-        loss_vals, simulated_cumtime, actual_cumtime = np.array(
-            run_with_wrapper(bench, seed=seed, ask_and_tell=True, config_space=config_space)
-        )
-        data["ours_ask_and_tell"]["loss"].append(loss_vals.tolist())
-        data["ours_ask_and_tell"]["actual_cumtime"].append(actual_cumtime.tolist())
-        data["ours_ask_and_tell"]["simulated_cumtime"].append(simulated_cumtime.tolist())
-
-        bench.reseed(seed)
-        loss_vals, actual_cumtime = np.array(run_without_wrapper(bench, seed=seed, config_space=config_space))
-        data["naive"]["loss"].append(loss_vals.tolist())
-        data["naive"]["actual_cumtime"].append(actual_cumtime.tolist())
-
-        naive_loss, our_loss = data["naive"]["loss"][-1], data["ours"]["loss"][-1]
-        percent = 100 * np.sum(np.isclose(naive_loss, our_loss)) / len(our_loss)
-        print(f"How much was correct?: {percent:.2f}%. NOTE: Tie-break could cause False!")
+        for key, result_fn in {
+            "ours": get_result_with_multi_core_simulator,
+            "ours_ask_and_tell": get_result_with_single_core_simulator,
+            "naive": get_result_without_simulator,
+        }.items():
+            bench.reseed(seed)
+            loss_vals, actual_cumtime, simulated_cumtime = result_fn(bench, seed, config_space)
+            data[key]["loss"].append(loss_vals)
+            data[key]["actual_cumtime"].append(actual_cumtime)
+            data[key]["simulated_cumtime"].append(simulated_cumtime)
 
         suffix = "deterministic" if deterministic else "noisy"
         with open(f"demo/validation-optuna-results-{suffix}.json", mode="w") as f:
@@ -237,5 +232,23 @@ def main(deterministic: bool):
 
 
 if __name__ == "__main__":
-    main(deterministic=True)
-    main(deterministic=False)
+    if not RAW:
+        main(deterministic=True)
+        main(deterministic=False)
+    else:
+        bench = MFHartmann(dim=6, runtime_factor=RUNTIME_FACTOR, deterministic=DETERMINISTIC)
+        config_space = bench.config_space
+        min_fidel, max_fidel = bench.min_fidels[FIDEL_KEY], bench.max_fidels[FIDEL_KEY]
+        fidel_param = CS.UniformIntegerHyperparameter(name=FIDEL_KEY, lower=min_fidel, upper=max_fidel)
+        config_space.add_hyperparameter(fidel_param)
+        if MODE == "single":
+            loss, actual_cumtime, simulated_cumtime = get_result_with_single_core_simulator(bench, SEED, config_space)
+        elif MODE == "multi":
+            loss, actual_cumtime, simulated_cumtime = get_result_with_multi_core_simulator(bench, SEED, config_space)
+        else:
+            loss, actual_cumtime = get_result_without_simulator(bench, SEED, config_space)
+
+        dir_name = f"demo/optuna_{MODE}_noise={not DETERMINISTIC}"
+        os.makedirs(dir_name, exist_ok=True)
+        with open(os.path.join(dir_name, f"{SEED:0>3}.json"), mode="w") as f:
+            json.dump(dict(loss=loss, actual_cumtime=actual_cumtime, simulated_cumtime=simulated_cumtime), f, indent=4)
