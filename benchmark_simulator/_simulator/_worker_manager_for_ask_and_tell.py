@@ -7,6 +7,7 @@ from typing import Any
 from benchmark_simulator._constants import AbstractAskTellOptimizer, _ResultData, _StateType, _WorkerVars
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
+    _raise_optimizer_init_error,
     _validate_fidel_args,
     _validate_fidels,
     _validate_fidels_continual,
@@ -157,13 +158,20 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             self._config_tracker.validate(config=eval_config, config_id=config_id)
 
         sampling_time = time.time() - start
-        self._sampled_time["before_sample"].append(self._cumtimes[worker_id])
-        self._sampled_time["after_sample"].append(self._cumtimes[worker_id] + sampling_time)
+        is_first_sample = bool(self._cumtimes[worker_id] < 1e-12)
         if self._wrapper_vars.allow_parallel_sampling:
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
         else:
             self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
             self._cumtimes[worker_id] = self._timenow
+
+        self._sampled_time["before_sample"].append(self._cumtimes[worker_id] - sampling_time)
+        self._sampled_time["after_sample"].append(self._cumtimes[worker_id])
+
+        if is_first_sample and not np.isclose(
+            self._cumtimes[worker_id], np.min(self._cumtimes[self._cumtimes > 1e-12])
+        ):
+            _raise_optimizer_init_error()
 
         return eval_config, fidels, config_id
 

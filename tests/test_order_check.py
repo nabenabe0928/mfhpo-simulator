@@ -36,19 +36,24 @@ class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
 
 
 @cleanup
-def optimize_parallel(mode: str, parallel_sampler: bool):
+def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False):
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = 2 if latency or not IS_LOCAL else 4
-    target = OrderCheckConfigsWithSampleLatency(parallel_sampler) if latency else OrderCheckConfigs(n_workers)
+    target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout) if latency else OrderCheckConfigs(n_workers)
     n_evals = target._n_evals
     kwargs.update(n_workers=n_workers, n_evals=n_evals, allow_parallel_sampling=parallel_sampler)
     wrapper_cls = ObjectiveFuncWrapperWithSampleLatency if latency else ObjectiveFuncWrapper
     wrapper = wrapper_cls(obj_func=target, **kwargs)
 
-    with get_pool(n_workers=n_workers) as pool:
+    with get_pool(n_workers=n_workers, join=bool(not timeout)) as pool:
         res = []
         for index in range(n_evals + n_workers):
+            if timeout:
+                time.sleep(UNIT_TIME * 200)
+                if index > 1:
+                    res[-1].get()
+
             r = pool.apply_async(wrapper, kwds=dict(eval_config=dict(index=min(index, n_evals - 1))))
             res.append(r)
         for r in res:
@@ -58,7 +63,7 @@ def optimize_parallel(mode: str, parallel_sampler: bool):
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)
-    buffer = UNIT_TIME * 190 if latency else 3
+    buffer = UNIT_TIME * 100 if latency else 3
     assert np.all(diffs < buffer)
 
 
@@ -70,6 +75,12 @@ def test_optimize_parallel(mode: str, parallel_sampler: bool):
         return
 
     optimize_parallel(mode=mode, parallel_sampler=parallel_sampler)
+
+
+@cleanup
+def test_opt_init_timeout():
+    with pytest.raises(TimeoutError, match=r"The initialization of the optimizer must be cheaper*"):
+        optimize_parallel(mode=LATENCY, parallel_sampler=False, timeout=True)
 
 
 if __name__ == "__main__":

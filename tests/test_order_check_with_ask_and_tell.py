@@ -39,10 +39,10 @@ class MyOptimizer(AbstractAskTellOptimizer):
 
 
 @cleanup
-def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False):
+def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False, timeout: bool = False):
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
-    target = OrderCheckConfigsWithSampleLatency(parallel_sampler) if latency else OrderCheckConfigs(n_workers)
+    target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout) if latency else OrderCheckConfigs(n_workers)
     n_evals = target._n_evals
     kwargs.update(n_workers=n_workers, n_evals=n_evals, allow_parallel_sampling=parallel_sampler)
     wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
@@ -69,6 +69,11 @@ def test_optimize_parallel(mode: str, parallel_sampler: bool):
         optimize_parallel(mode=mode, n_workers=4)
     else:
         pass
+
+
+def test_opt_init_timeout():
+    with pytest.raises(TimeoutError, match=r"The initialization of the optimizer must be cheaper*"):
+        optimize_parallel(mode=LATENCY, n_workers=2, parallel_sampler=False, timeout=True)
 
 
 if __name__ == "__main__":

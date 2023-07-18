@@ -116,6 +116,12 @@ class OrderCheckConfigsWithSampleLatency:
     worker-1: ooooxxx|---|ooxxx|---|xxx|---|
               400     200 300   200 200 200
 
+    [2] 2 worker case for Timeout (sampling time is 200 ms)
+    worker-0: xxx|-|
+              200 100
+    worker-1: ooooxxx|
+              400
+
     xxx means sampling time, --- means waiting time.
     Note that the first sample can be considered for Ask-and-Tell interface!
 
@@ -126,10 +132,13 @@ class OrderCheckConfigsWithSampleLatency:
               200 200 200 400     200 200 200 100
     """
 
-    def __init__(self, parallel_sampler: bool):
-        if parallel_sampler:
+    def __init__(self, parallel_sampler: bool, timeout: bool = False):
+        if parallel_sampler and not timeout:
             runtimes = np.array([300, 200, 400, 200, 400, 200, 100]) * UNIT_TIME
             self._ans = np.array([400, 500, 900, 1000, 1400, 1500, 1700]) * UNIT_TIME
+        elif not parallel_sampler and timeout:
+            runtimes = np.array([100] * 4) * UNIT_TIME
+            self._ans = np.array([np.nan] * 4) * UNIT_TIME
         else:
             runtimes = np.array([300, 200, 600, 200, 200, 400]) * UNIT_TIME
             self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
