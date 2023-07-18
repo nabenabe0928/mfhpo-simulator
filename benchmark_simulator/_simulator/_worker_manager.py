@@ -6,12 +6,7 @@ import time
 from typing import Any
 
 from benchmark_simulator._constants import _WrapperVars
-from benchmark_simulator._secure_proc import (
-    _allocate_proc_to_worker,
-    _fetch_proc_alloc,
-    _is_allocation_ready,
-    _wait_proc_allocation,
-)
+from benchmark_simulator._secure_proc import _allocate_proc_to_worker, _fetch_proc_alloc, _is_allocation_ready
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
 
@@ -50,20 +45,13 @@ class _CentralWorkerManager(_BaseWrapperInterface):
 
     def _init_alloc(self, pid: int) -> None:
         path = self._paths.proc_alloc
-        time_ns = time.time_ns()
         if not _is_allocation_ready(path=path, n_workers=self._wrapper_vars.n_workers, lock=self._lock):
-            _allocate_proc_to_worker(path=path, pid=pid, time_ns=time_ns, lock=self._lock)
+            # _allocate_proc_to_worker will not be called twice by each process due to wait_other_workers
+            worker_index = _allocate_proc_to_worker(path=path, pid=pid, time_ns=time.time_ns(), lock=self._lock)
+            # Important to match the init eval order. The longest latency has 2 * self._n_workers * waiting_time
             waiting_time = 1e-4
-            self._pid_to_index = _wait_proc_allocation(
-                path=path,
-                n_workers=self._wrapper_vars.n_workers,
-                waiting_time=waiting_time,
-                lock=self._lock,
-                time_limit=self._wrapper_vars.n_workers * 100.0,
-            )
-            # Very important to match the initial evaluation order
-            # The longest latency has 2 * self._n_workers * waiting_time
-            time.sleep(self._careful_init * 2 * self._n_workers * waiting_time * self._pid_to_index[pid])
+            time.sleep(self._careful_init * 2 * self._n_workers * waiting_time * worker_index)
+            self._pid_to_index = {pid: worker_index}
         else:
             # This line is actually covered, but it is not visible due to multiprocessing nature
             self._pid_to_index = _fetch_proc_alloc(path=path, lock=self._lock)  # pragma: no cover

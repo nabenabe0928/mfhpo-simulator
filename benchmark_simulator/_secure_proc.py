@@ -39,12 +39,17 @@ def _init_simulator(dir_name: str, worker_index: int | None) -> None:
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
-def _allocate_proc_to_worker(path: str, pid: int, time_ns: int, lock: _SecureLock) -> None:
+def _allocate_proc_to_worker(path: str, pid: int, time_ns: int, lock: _SecureLock) -> int:
     with lock.edit(path) as f:
-        cur_alloc = json.load(f)
-        cur_alloc[pid] = time_ns
-        f.seek(0)
-        json.dump(cur_alloc, f, indent=4)
+        pid_str = str(pid)
+        alloc = json.load(f)
+        if pid_str not in alloc:
+            alloc[pid_str] = time_ns
+            alloc = {k: idx for idx, (k, _) in enumerate(sorted(alloc.items(), key=lambda x: x[1]))}
+            f.seek(0)
+            json.dump(alloc, f, indent=4)
+
+    return alloc[pid_str]
 
 
 def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
