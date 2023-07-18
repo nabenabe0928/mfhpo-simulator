@@ -8,12 +8,11 @@ from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 
 import numpy as np
 
-from tests.utils import ON_UBUNTU, OrderCheckConfigs, SUBDIR_NAME, cleanup
+from tests.utils import OrderCheckConfigs, OrderCheckConfigsWithSampleLatency, SUBDIR_NAME, UNIT_TIME, cleanup
 
 
 N_EVALS = 20
 LATENCY = "latency"
-UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
     ask_and_tell=True,
@@ -21,44 +20,6 @@ DEFAULT_KWARGS = dict(
     n_actual_evals_in_opt=N_EVALS + 5,
     n_evals=N_EVALS,
 )
-
-
-class OrderCheckConfigsWithSampleLatency:
-    """
-    xxx means sampling time, ooo means waiting time for the sampling for the other worker, --- means waiting time.
-    Note that the first sample can be considered for Ask-and-Tell interface!
-
-    [1] 2 worker case (sampling time is 200 ms)
-    worker-0: xxx|-----|xxx|-----------|xxx|-------|
-              200 300   200 600         200 400
-    worker-1: ooooxxx|---|ooxxx|---|xxx|---|
-              400     200 300   200 200 200
-
-    xxx means sampling time, --- means waiting time.
-    Note that the first sample can be considered for Ask-and-Tell interface!
-
-    [1] 2 worker case (sampling time is 200 ms)
-    worker-0: xxx|-----|xxx|---|xxx|-------|
-              200 300   200 200 200 400
-    worker-1: xxx|---|xxx|-------|xxx|---|xxx|-|
-              200 200 200 400     200 200 200 100
-    """
-
-    def __init__(self, parallel_sampler: bool):
-        if parallel_sampler:
-            runtimes = np.array([300, 200, 400, 200, 400, 200, 100]) * UNIT_TIME
-            self._ans = np.array([400, 500, 900, 1000, 1400, 1500, 1700]) * UNIT_TIME
-        else:
-            runtimes = np.array([300, 200, 600, 200, 200, 400]) * UNIT_TIME
-            self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
-
-        loss_vals = [i for i in range(self._ans.size)]
-        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
-        self._n_evals = self._ans.size
-
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
-        results = self._results[eval_config["index"]]
-        return results
 
 
 class MyOptimizer(AbstractAskTellOptimizer):

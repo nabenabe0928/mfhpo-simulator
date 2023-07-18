@@ -55,7 +55,11 @@ class _CentralWorkerManager(_BaseWrapperInterface):
             _allocate_proc_to_worker(path=path, pid=pid, time_ns=time_ns, lock=self._lock)
             waiting_time = 1e-4
             self._pid_to_index = _wait_proc_allocation(
-                path=path, n_workers=self._wrapper_vars.n_workers, waiting_time=waiting_time, lock=self._lock
+                path=path,
+                n_workers=self._wrapper_vars.n_workers,
+                waiting_time=waiting_time,
+                lock=self._lock,
+                time_limit=self._wrapper_vars.n_workers * 100.0,
             )
             # Very important to match the initial evaluation order
             # The longest latency has 2 * self._n_workers * waiting_time

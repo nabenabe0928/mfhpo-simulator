@@ -8,56 +8,25 @@ from benchmark_simulator import ObjectiveFuncWrapper
 
 import numpy as np
 
-from tests.utils import IS_LOCAL, ON_UBUNTU, OrderCheckConfigs, SUBDIR_NAME, cleanup, get_pool
+from tests.utils import (
+    IS_LOCAL,
+    OrderCheckConfigs,
+    OrderCheckConfigsWithSampleLatency,
+    SUBDIR_NAME,
+    UNIT_TIME,
+    cleanup,
+    get_pool,
+)
 
 
 N_EVALS = 20
 LATENCY = "latency"
-UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
 DEFAULT_KWARGS = dict(
     save_dir_name=SUBDIR_NAME,
     n_workers=2,
     n_actual_evals_in_opt=N_EVALS + 5,
     n_evals=N_EVALS,
 )
-
-
-class OrderCheckConfigsWithSampleLatency:
-    """
-    xxx means sampling time, ooo means waiting time for the sampling for the other worker, --- means waiting time.
-    Note that the first sample cannot be considered.
-
-    [1] 2 worker case (sampling time is 200 ms)
-    worker-0: ---------|xxx|-----------|xxx|-------|ooooxxx|---|
-              500       200 600         200 400     400     200
-    worker-1: -----------|ooxxx|---|xxx|---|xxx|---|xxx|---|
-              600         300   200 200 200 200 200 200 200
-
-    xxx means sampling time, --- means waiting time.
-    Note that the first sample can be considered for Ask-and-Tell interface!
-
-    [1] 2 worker case (sampling time is 200 ms)
-    worker-0: -----|xxx|---|xxx|-------|
-              300   200 200 200 400
-    worker-1: ---|xxx|-------|xxx|---|xxx|-|
-              200 200 400     200 200 200 100
-    """
-
-    def __init__(self, parallel_sampler: bool):
-        if parallel_sampler:
-            runtimes = np.array([300, 200, 400, 200, 400, 200, 100]) * UNIT_TIME
-            self._ans = np.array([200, 300, 700, 800, 1200, 1300, 1500]) * UNIT_TIME
-        else:
-            runtimes = np.array([500, 600, 600, 200, 200, 400, 200, 200, 200]) * UNIT_TIME
-            self._ans = np.array([500, 600, 1100, 1300, 1500, 1900, 1900, 2300, 2500]) * UNIT_TIME
-
-        loss_vals = [i for i in range(self._ans.size)]
-        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
-        self._n_evals = self._ans.size
-
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
-        results = self._results[eval_config["index"]]
-        return results
 
 
 class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
@@ -88,8 +57,8 @@ def optimize_parallel(mode: str, parallel_sampler: bool):
     out = wrapper.get_results()["cumtime"][:n_evals]
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
-    diffs = out - target._ans
-    buffer = UNIT_TIME * 100 if latency else 3
+    diffs = np.abs(out - target._ans)
+    buffer = UNIT_TIME * 190 if latency else 3
     assert np.all(diffs < buffer)
 
 

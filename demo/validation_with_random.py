@@ -64,7 +64,7 @@ class RandomOptimizer:
     def tell(self, *args, **kwargs):
         self.timestamps.append(time.time())
 
-    def optimize(self) -> list[float]:
+    def optimize(self) -> list[dict[str, float]]:
         pool = multiprocessing.Pool(processes=self._n_workers)
 
         _results = []
@@ -173,7 +173,7 @@ def main(deterministic: bool):
             "naive": get_result_without_simulator,
         }.items():
             bench.reseed(seed)
-            loss_vals, simulated_cumtime, actual_cumtime = run_with_wrapper(bench, seed=seed)
+            loss_vals, actual_cumtime, simulated_cumtime = result_fn(bench, seed=seed)
             data[key]["loss"].append(loss_vals)
             data[key]["actual_cumtime"].append(actual_cumtime)
             data[key]["simulated_cumtime"].append(simulated_cumtime)

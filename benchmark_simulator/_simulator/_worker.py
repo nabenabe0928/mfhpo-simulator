@@ -58,6 +58,14 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
     def __repr__(self) -> str:
         return f"Worker-{self._worker_vars.worker_id}"
 
+    def _init_timestamp(self) -> None:
+        _start_timestamp(
+            path=self._paths.timestamp,
+            worker_id=self._worker_vars.worker_id,
+            prev_timestamp=time.time(),
+            lock=self._lock,
+        )
+
     def _init_worker(self, worker_id: str) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
         self._state_tracker = _StateTracker(
@@ -110,6 +118,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             use_fidel=self._wrapper_vars.fidel_keys is not None,
             stored_obj_keys=list(set(self.obj_keys + [self.runtime_key])),
         )
+        self._init_timestamp()
 
         # These variables change over time and must be either loaded from file system or updated.
         self._cumtime = 0.0
@@ -249,17 +258,10 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
     def _load_timestamps(self) -> float:
         timestamp_dict = _fetch_timestamps(self._paths.timestamp, lock=self._lock)
         worker_id = self._worker_vars.worker_id
-        if worker_id not in timestamp_dict:  # Initialize the timestamp
-            timestamp = time.time()
-            _start_timestamp(
-                path=self._paths.timestamp,
-                worker_id=worker_id,
-                prev_timestamp=timestamp,
-                lock=self._lock,
-            )
-            return timestamp
-
         sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
+        if len(sampled_time) == 0:
+            return timestamp_dict[worker_id]
+
         cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
         # Consider the sampling time overlap
         self._cumtime = (
