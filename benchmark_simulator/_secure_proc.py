@@ -136,7 +136,11 @@ def _fetch_sampled_time(path: str, lock: _SecureLock) -> dict[str, np.ndarray]:
     with lock.read(path) as f:
         data = {k: np.asarray(v) for k, v in json.load(f).items()}
 
-    return data
+    if len(data) == 0:
+        # It ensures nothing will change in the main proc.
+        return dict(before_sample=np.array([-np.inf]), after_sample=np.array([-np.inf]))
+    else:
+        return data
 
 
 def _fetch_cumtimes(path: str, lock: _SecureLock) -> dict[str, float]:

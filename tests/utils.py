@@ -17,7 +17,7 @@ SUBDIR_NAME = "dummy"
 SIMPLE_CONFIG = {"x": 0}
 IS_LOCAL = eval(os.environ.get("MFHPO_SIMULATOR_TEST", "False"))
 ON_UBUNTU = sys.platform == "linux"
-UNIT_TIME = 1e-3 if ON_UBUNTU else 1e-2
+UNIT_TIME = 1e-3 if ON_UBUNTU else 5e-2
 DIR_PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 
 

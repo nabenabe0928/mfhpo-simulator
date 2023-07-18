@@ -255,23 +255,26 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         ):
             self._finish()
 
-    def _load_timestamps(self) -> float:
-        timestamp_dict = _fetch_timestamps(self._paths.timestamp, lock=self._lock)
+    def _load_timestamps(self) -> None:
         worker_id = self._worker_vars.worker_id
+        sampling_time = max(0.0, time.time() - _fetch_timestamps(self._paths.timestamp, lock=self._lock)[worker_id])
         sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
-        if len(sampled_time) == 0:
-            return timestamp_dict[worker_id]
-
-        cumtime = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)[worker_id]
+        cumtimes = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)
+        cumtime = cumtimes[worker_id]
         # Consider the sampling time overlap
         self._cumtime = (
             max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
             if not self._wrapper_vars.allow_parallel_sampling
             else cumtime
-        )
+        ) + sampling_time
+        # if cumtime < 1e-12 and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
+        #     _raise_optimizer_init_error()
+
+        new_sampled_time = _SampledTimeDictType(before_sample=self._cumtime - sampling_time, after_sample=self._cumtime)
+        _record_sampled_time(path=self._paths.sampled_time, sampled_time=new_sampled_time, lock=self._lock)
+
         self._terminated = self._cumtime >= min(self._wrapper_vars.max_total_eval_time, _TIME_VALUES.terminated - 1e-5)
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
-        return timestamp_dict[worker_id]
 
     def __call__(
         self,
@@ -281,7 +284,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         config_id: int | None = None,
         **data_to_scatter: Any,
     ) -> dict[str, float]:
-        prev_timestamp = self._load_timestamps()
+        self._load_timestamps()
         self._validate()
         _validate_fidels(
             fidels=fidels,
@@ -297,11 +300,6 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         if self._terminated:
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 
-        sampling_time = max(0.0, time.time() - prev_timestamp)
-        sampled_time = _SampledTimeDictType(before_sample=self._cumtime, after_sample=self._cumtime + sampling_time)
-        _record_sampled_time(path=self._paths.sampled_time, sampled_time=sampled_time, lock=self._lock)
-
-        self._cumtime += sampling_time
         results = self._proc_output(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)
         self._post_proc(results)
         return results

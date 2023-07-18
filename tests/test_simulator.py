@@ -379,7 +379,6 @@ def test_interrupted():
         data[worker._main_wrapper._worker_vars.worker_id] = _TIME_VALUES.crashed
         json.dump(data, f)
 
-    worker(**dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}))  # Nothing happens for init
     with pytest.raises(InterruptedError):
         worker(**dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}))
 
