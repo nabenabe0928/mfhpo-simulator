@@ -87,6 +87,7 @@ class _WrapperVars:
     store_config: bool
     allow_parallel_sampling: bool
     config_tracking: bool
+    expensive_sampler: bool
 
     def validate(self) -> None:
         if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:
@@ -97,6 +98,12 @@ class _WrapperVars:
                 f"Use n_actual_evals_in_opt >= {threshold} (= n_evals + n_workers) at least. "
                 "Note that our package cannot change your optimizer setting, so "
                 "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
+            )
+        if self.allow_parallel_sampling and self.expensive_sampler:
+            raise ValueError(
+                "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"
+                "Note that allow_parallel_sampling=True correctly handles expensive samplers"
+                " if sampling happens in parallel."
             )
 
 

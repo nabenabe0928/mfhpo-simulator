@@ -224,6 +224,11 @@ def _get_worker_id_to_idx(path: str, lock: _SecureLock) -> dict[str, int]:
     return result
 
 
+def _fetch_min_cumtime(path: str, lock: _SecureLock) -> float:
+    cumtimes = _fetch_cumtimes(path=path, lock=lock)
+    return min(cumtime for cumtime in cumtimes.values())
+
+
 def _is_min_cumtime(path: str, worker_id: str, lock: _SecureLock) -> bool:
     cumtimes = _fetch_cumtimes(path=path, lock=lock)
     proc_cumtime = cumtimes[worker_id]
@@ -323,10 +328,14 @@ def _wait_until_next(
     waiting_time: float,
     warning_interval: int = 10,
     max_waiting_time: float = np.inf,
+    expensive_sampler: bool = False,
 ) -> None:
     start = time.time()
+    cur_sampling_duration, sample_start = 0.0, start
     waiting_time *= 1 + np.random.random()
-    while not _is_min_cumtime(path, worker_id=worker_id, lock=lock):
+    cumtimes = _fetch_cumtimes(path, lock=lock)
+    min_cumtime, proc_cumtime = min(cumtime for cumtime in cumtimes.values()), cumtimes[worker_id]
+    while min_cumtime + cur_sampling_duration < proc_cumtime:
         time.sleep(waiting_time)
         curtime = time.time()
         if int(curtime - start + 1) % warning_interval == 0:
@@ -341,3 +350,9 @@ def _wait_until_next(
             _terminate_with_unexpected_timeout(
                 path=path, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=lock
             )
+
+        new_min_cumtime = _fetch_min_cumtime(path, lock=lock)
+        if new_min_cumtime == min_cumtime:
+            cur_sampling_duration = curtime - sample_start if expensive_sampler else 0.0
+        else:
+            min_cumtime, cur_sampling_duration, sample_start = new_min_cumtime, 0.0, curtime

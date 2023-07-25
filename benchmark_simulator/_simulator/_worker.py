@@ -153,6 +153,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             max_waiting_time=self._wrapper_vars.max_waiting_time,
             waiting_time=self._wrapper_vars.check_interval_time,
             lock=self._lock,
+            expensive_sampler=self._wrapper_vars.expensive_sampler,
         )
 
     def _record_timestamp(self) -> None:
@@ -273,16 +274,20 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         cumtimes = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)
         cumtime = cumtimes[self._worker_vars.worker_id]
 
-        sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
-        # Consider the sampling time overlap
-        is_init_sample = bool(cumtime < 1e-12)
-        self._cumtime = (
-            max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
-            if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
-            else cumtime
-        ) + sampling_time
-        if is_init_sample and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
-            _raise_optimizer_init_error()
+        if self._wrapper_vars.expensive_sampler:
+            # In this case, sampling time already includes the idling time for the other workers.
+            self._cumtime = cumtime + sampling_time
+        else:
+            sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
+            # Consider the sampling time overlap
+            is_init_sample = bool(cumtime < 1e-12)
+            self._cumtime = (
+                max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
+                if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
+                else cumtime
+            ) + sampling_time
+            if is_init_sample and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
+                _raise_optimizer_init_error()
 
     def _load_timestamps(self) -> None:
         worker_id = self._worker_vars.worker_id
