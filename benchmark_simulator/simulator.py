@@ -36,7 +36,7 @@ For example, when we use multiprocessing, we might need it.
     :
     * objM_name -- list[objM at the n-th evaluation]
     * cumtime -- list[cumtime up to the n-th evaluation]
-    * index -- list[the index of the worker of the n-th evaluation]
+    * worker_index -- list[the index of the worker of the n-th evaluation]
 This file is necessary for post-hoc analysis.
 
 3. mfhpo-simulator-info/*/state_cache.json
@@ -68,6 +68,7 @@ This file tells the last checkpoint timestamp of each worker (prev_timestamp).
 6. mfhpo-simulator-info/*/sampled_time.json
     * before_sample -- [time1 before sample, time2 before sample, ...]
     * after_sample -- [time1 after sample, time2 after sample, ...]
+    * worker_index -- [worker_index of the 1st eval, worker_index of the 2nd eval, ...]
 This file is used to consider the sampling time.
 after_sample is the latest cumtime immediately after the last sample and before_sample is before the last sample.
 """
