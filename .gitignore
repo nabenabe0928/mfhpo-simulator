@@ -8,4 +8,8 @@ dist/
 *.egg-info/
 .venv/
 
+*mfhpo-simulator-info*/
+
+demo/random*/
+
 **/.ipynb_checkpoints

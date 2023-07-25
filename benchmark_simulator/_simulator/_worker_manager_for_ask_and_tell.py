@@ -43,7 +43,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
         self._seen_config_keys: list[str] = []
-        self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": []}
+        self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": [], "worker_index": []}
         self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
         self._results.update({k: [] for k in self._obj_keys})
         if self._wrapper_vars.store_config:
@@ -165,6 +165,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
             self._cumtimes[worker_id] = self._timenow
 
+        self._sampled_time["worker_index"].append(worker_id)
         self._sampled_time["before_sample"].append(self._cumtimes[worker_id] - sampling_time)
         self._sampled_time["after_sample"].append(self._cumtimes[worker_id])
 

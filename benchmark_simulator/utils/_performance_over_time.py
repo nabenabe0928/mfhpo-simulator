@@ -111,6 +111,22 @@ def get_performance_over_time(
     return time_steps, np.asarray(return_perf_vals)
 
 
+def _sort_optimizer_overhead(
+    optimizer_overhead: np.ndarray,
+    saved_worker_indices: np.ndarray,
+    correct_worker_indices: np.ndarray,
+) -> np.ndarray:
+    max_worker_index = np.max(correct_worker_indices)
+    sorted_optimizer_overhead = np.zeros_like(correct_worker_indices, dtype=np.float64)
+    indices = np.arange(optimizer_overhead.size)
+    for idx in range(max_worker_index + 1):
+        flag = correct_worker_indices == idx
+        corresponding_indices = indices[saved_worker_indices == idx]
+        sorted_optimizer_overhead[flag] = optimizer_overhead[corresponding_indices][: np.sum(flag)]
+
+    return sorted_optimizer_overhead
+
+
 def get_performance_over_time_from_paths(
     paths: list[str],
     obj_key: str,
@@ -158,18 +174,24 @@ def get_performance_over_time_from_paths(
     optimizer_overheads: list[np.ndarray] | None = None if consider_optimizer_overhead else []
     for path in paths:
         n_evals = 0
+        correct_worker_indices: np.ndarray
         with open(os.path.join(path, "results.json"), mode="r") as f:
             data = json.load(f)
             cumtimes.append(np.asarray(data["cumtime"]))
             n_evals = cumtimes[-1].size
             perf_vals.append(np.asarray(data[obj_key]))
+            correct_worker_indices = np.asarray(data["worker_index"])
 
         if optimizer_overheads is None:
             continue
 
         with open(os.path.join(path, "sampled_time.json"), mode="r") as f:
             data = json.load(f)
-            optimizer_overhead = np.array(data["after_sample"]) - np.array(data["before_sample"])
+            optimizer_overhead = _sort_optimizer_overhead(
+                optimizer_overhead=np.array(data["after_sample"]) - np.array(data["before_sample"]),
+                correct_worker_indices=correct_worker_indices,
+                saved_worker_indices=np.asarray(data["worker_index"]),
+            )
             optimizer_overheads.append(optimizer_overhead[:n_evals])
 
     time_steps, return_perf_vals = get_performance_over_time(

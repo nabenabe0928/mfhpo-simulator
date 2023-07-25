@@ -17,6 +17,7 @@ INF: Final[float] = float(1 << 30)
 class _SampledTimeDictType:
     before_sample: float
     after_sample: float
+    worker_index: int
 
 
 @dataclass(frozen=True)
