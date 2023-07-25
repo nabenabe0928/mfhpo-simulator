@@ -125,20 +125,27 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         self._cumtime = 0.0
         self._terminated = False
         self._crashed = False
-        self._used_config: dict[str, Any] = {}
+        self._data_to_store: dict[str, Any] = {}
 
-    def _validate(self) -> None:
+    def _validate_call(self, fidels: dict[str, int | float] | None) -> None:
         if self._crashed:
             raise InterruptedError(
                 "The simulation is interrupted due to deadlock or the dead of at least one of the workers.\n"
                 "This error could be avoided by increasing `max_waiting_time` (however, np.inf is discouraged).\n"
             )
+        _validate_fidels(
+            fidels=fidels,
+            fidel_keys=self._fidel_keys,
+            use_fidel=self._worker_vars.use_fidel,
+            continual_eval=self._worker_vars.continual_eval,
+        )
 
-    def _wait_other_workers(self) -> None:
+    def _wait_until_next(self) -> None:
         """
         Wait until the worker's cumulative runtime becomes the smallest.
         The smallest cumulative runtime implies that the order in the record will not disturbed
         even if the worker reports its results now.
+        Note that `expensive_sampler=True` considers sampling waiting time as well.
         """
         _wait_until_next(
             path=self._paths.worker_cumtime,
@@ -147,10 +154,33 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             waiting_time=self._wrapper_vars.check_interval_time,
             lock=self._lock,
         )
+
+    def _record_timestamp(self) -> None:
         _record_timestamp(
             path=self._paths.timestamp,
             worker_id=self._worker_vars.worker_id,
             prev_timestamp=time.time(),
+            lock=self._lock,
+        )
+
+    def _record_cumtime(self) -> None:
+        _record_cumtime(
+            path=self._paths.worker_cumtime,
+            worker_id=self._worker_vars.worker_id,
+            cumtime=self._cumtime,
+            lock=self._lock,
+        )
+
+    def _record_result(self) -> None:
+        fixed = bool(not self._wrapper_vars.store_config)
+        _record_result(self._paths.result, results=self._data_to_store, fixed=fixed, lock=self._lock)
+        self._data_to_store = {}  # Make it empty
+
+    def _is_simulator_terminated(self) -> bool:
+        return _is_simulator_terminated(
+            self._paths.result,
+            max_evals=self._wrapper_vars.n_evals,
+            max_total_eval_time=self._wrapper_vars.max_total_eval_time,
             lock=self._lock,
         )
 
@@ -163,8 +193,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         if self._wrapper_vars.store_config:
-            self._used_config = eval_config.copy()
-            self._used_config.update(
+            self._data_to_store.update(
+                eval_config,
                 **(fidels if fidels is not None else {}),
                 **({"prev_fidel": prev_fidel} if prev_fidel is not None else {}),
                 seed=seed,
@@ -226,53 +256,44 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             eval_config=eval_config, fidel=fidel, config_id=config_id, **data_to_scatter
         )
 
-    def _post_proc(self, results: dict[str, float]) -> None:
+    def _post_proc(self) -> None:
         # First, record the simulated cumulative runtime after calling the objective
-        _record_cumtime(
-            path=self._paths.worker_cumtime,
-            worker_id=self._worker_vars.worker_id,
-            cumtime=self._cumtime,
-            lock=self._lock,
-        )
-        # Wait till the cumulative runtime becomes the smallest
-        self._wait_other_workers()
-
-        row = dict(
-            cumtime=self._cumtime,
-            worker_index=self._worker_vars.worker_index,
-            **{k: results[k] for k in self._obj_keys},
-            **self._used_config,
-        )
+        self._record_cumtime()
+        # Wait till the cumulative runtime (+ sampling waiting time) becomes the smallest
+        self._wait_until_next()
         # Record the results to the main database when the cumulative runtime is the smallest
-        _record_result(
-            self._paths.result, results=row, fixed=bool(not self._wrapper_vars.store_config), lock=self._lock
-        )
-        self._used_config = {}  # Make it empty
-        if _is_simulator_terminated(
-            self._paths.result,
-            max_evals=self._wrapper_vars.n_evals,
-            max_total_eval_time=self._wrapper_vars.max_total_eval_time,
-            lock=self._lock,
-        ):
+        self._record_result()
+        # Record the timestamp when this worker is freed up
+        self._record_timestamp()
+
+        if self._is_simulator_terminated():
             self._finish()
 
-    def _load_timestamps(self) -> None:
-        worker_id = self._worker_vars.worker_id
-        sampling_time = max(0.0, time.time() - _fetch_timestamps(self._paths.timestamp, lock=self._lock)[worker_id])
-        sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
+    def _determine_cumtime(self, sampling_time: float) -> None:
         cumtimes = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)
-        cumtime = cumtimes[worker_id]
-        is_init_sample = bool(cumtime < 1e-12)
+        cumtime = cumtimes[self._worker_vars.worker_id]
+
+        sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
         # Consider the sampling time overlap
+        is_init_sample = bool(cumtime < 1e-12)
         self._cumtime = (
             max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
             if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
             else cumtime
         ) + sampling_time
-        if cumtime < 1e-12 and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
+        if is_init_sample and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
             _raise_optimizer_init_error()
 
-        new_sampled_time = _SampledTimeDictType(before_sample=self._cumtime - sampling_time, after_sample=self._cumtime)
+    def _load_timestamps(self) -> None:
+        worker_id = self._worker_vars.worker_id
+        sampling_time = max(0.0, time.time() - _fetch_timestamps(self._paths.timestamp, lock=self._lock)[worker_id])
+
+        self._determine_cumtime(sampling_time=sampling_time)
+        new_sampled_time = _SampledTimeDictType(
+            before_sample=self._cumtime - sampling_time,
+            after_sample=self._cumtime,
+            worker_index=self._worker_vars.worker_index,
+        )
         _record_sampled_time(path=self._paths.sampled_time, sampled_time=new_sampled_time, lock=self._lock)
 
         self._terminated = self._cumtime >= min(self._wrapper_vars.max_total_eval_time, _TIME_VALUES.terminated - 1e-5)
@@ -287,13 +308,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         **data_to_scatter: Any,
     ) -> dict[str, float]:
         self._load_timestamps()
-        self._validate()
-        _validate_fidels(
-            fidels=fidels,
-            fidel_keys=self._fidel_keys,
-            use_fidel=self._worker_vars.use_fidel,
-            continual_eval=self._worker_vars.continual_eval,
-        )
+        self._validate_call(fidels=fidels)
         config_tracking = config_id is not None and self._wrapper_vars.config_tracking
         if config_tracking:  # validate the config_id to ensure the user implementation is correct
             assert config_id is not None  # mypy redefinition
@@ -303,7 +318,12 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             return {**{k: INF for k in self._obj_keys}, self.runtime_key: INF}
 
         results = self._proc_output(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)
-        self._post_proc(results)
+        self._data_to_store.update(
+            cumtime=self._cumtime,
+            worker_index=self._worker_vars.worker_index,
+            **{k: results[k] for k in self._obj_keys},
+        )
+        self._post_proc()
         return results
 
     def _finish(self) -> None:
