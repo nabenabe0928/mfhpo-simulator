@@ -351,8 +351,9 @@ def _wait_until_next(
                 path=path, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=lock
             )
 
-        new_min_cumtime = _fetch_min_cumtime(path, lock=lock)
-        if new_min_cumtime == min_cumtime:
+        new_cumtimes = _fetch_cumtimes(path, lock=lock)
+        if new_cumtimes == cumtimes:
             cur_sampling_duration = curtime - sample_start if expensive_sampler else 0.0
         else:
-            min_cumtime, cur_sampling_duration, sample_start = new_min_cumtime, 0.0, curtime
+            new_min_cumtime = min(ct for ct in new_cumtimes.values())
+            cumtimes, min_cumtime, cur_sampling_duration, sample_start = new_cumtimes, new_min_cumtime, 0.0, curtime
