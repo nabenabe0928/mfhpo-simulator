@@ -6,6 +6,7 @@ from typing import Any
 
 from benchmark_simulator._constants import (
     INF,
+    NEGLIGIBLE_SEC,
     _SampledTimeDictType,
     _TIME_VALUES,
     _WorkerVars,
@@ -280,13 +281,13 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         else:
             sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
             # Consider the sampling time overlap
-            is_init_sample = bool(cumtime < 1e-12)
+            is_init_sample = bool(cumtime < NEGLIGIBLE_SEC)
             self._cumtime = (
                 max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
                 if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
                 else cumtime
             ) + sampling_time
-            if is_init_sample and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
+            if is_init_sample and any(NEGLIGIBLE_SEC < ct < self._cumtime for ct in cumtimes.values()):
                 _raise_optimizer_init_error()
 
     def _load_timestamps(self) -> None:

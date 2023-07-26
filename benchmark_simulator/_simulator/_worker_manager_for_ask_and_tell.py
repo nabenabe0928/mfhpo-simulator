@@ -4,7 +4,13 @@ import os
 import time
 from typing import Any
 
-from benchmark_simulator._constants import AbstractAskTellOptimizer, _ResultData, _StateType, _WorkerVars
+from benchmark_simulator._constants import (
+    AbstractAskTellOptimizer,
+    NEGLIGIBLE_SEC,
+    _ResultData,
+    _StateType,
+    _WorkerVars,
+)
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._utils import (
     _raise_optimizer_init_error,
@@ -41,6 +47,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
 
         self._timenow = 0.0
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
+        self._worker_indices = np.arange(self._wrapper_vars.n_workers)
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
         self._seen_config_keys: list[str] = []
         self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": [], "worker_index": []}
@@ -158,7 +165,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             self._config_tracker.validate(config=eval_config, config_id=config_id)
 
         sampling_time = time.time() - start
-        is_first_sample = bool(self._cumtimes[worker_id] < 1e-12)
+        is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
         if self._wrapper_vars.allow_parallel_sampling:
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
         else:
@@ -169,26 +176,34 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self._sampled_time["before_sample"].append(self._cumtimes[worker_id] - sampling_time)
         self._sampled_time["after_sample"].append(self._cumtimes[worker_id])
 
-        if is_first_sample and not np.isclose(
-            self._cumtimes[worker_id], np.min(self._cumtimes[self._cumtimes > 1e-12])
+        if (
+            not self._wrapper_vars.expensive_sampler
+            and is_first_sample
+            and self._cumtimes[worker_id] != np.min(self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC])
         ):
             _raise_optimizer_init_error()
 
         return eval_config, fidels, config_id
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
-        result_data = self._pending_results[worker_id]
-        if result_data is None:
-            return
+        free_worker_idxs = np.array([worker_id], dtype=np.int32)
+        if self._wrapper_vars.expensive_sampler:
+            before_eval = self._sampled_time["after_sample"][-1]
+            free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
 
-        self._record_result_data(result_data=result_data, worker_id=worker_id)
-        opt.tell(
-            eval_config=result_data.eval_config,
-            results=result_data.results,
-            fidels=result_data.fidels,
-            config_id=result_data.config_id,
-        )
-        self._pending_results[worker_id] = None
+        for _worker_id in free_worker_idxs.astype(np.int32):
+            result_data = self._pending_results[_worker_id]
+            if result_data is None:
+                continue
+
+            self._record_result_data(result_data=result_data, worker_id=_worker_id)
+            opt.tell(
+                eval_config=result_data.eval_config,
+                results=result_data.results,
+                fidels=result_data.fidels,
+                config_id=result_data.config_id,
+            )
+            self._pending_results[_worker_id] = None
 
     def _save_results(self) -> None:
         with open(self._paths.result, mode="w") as f:

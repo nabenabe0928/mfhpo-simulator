@@ -11,6 +11,7 @@ import numpy as np
 
 DIR_NAME: Final[str] = "mfhpo-simulator-info/"
 INF: Final[float] = float(1 << 30)
+NEGLIGIBLE_SEC: Final[float] = 1e-12
 
 
 @dataclass(frozen=True)
