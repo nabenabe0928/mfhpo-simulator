@@ -23,6 +23,7 @@ from benchmark_simulator._secure_proc import (
     _record_result,
     _record_sampled_time,
     _record_timestamp,
+    _start_sample_waiting,
     _start_timestamp,
     _start_worker_timer,
     _wait_all_workers,
@@ -77,6 +78,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         _init_simulator(dir_name=self.dir_name, worker_index=self._temp_worker_index)
         self._wait_till_init_simulator_finish()
         _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
+        if self._wrapper_vars.expensive_sampler:
+            _start_sample_waiting(path=self._paths.sample_waiting, worker_id=worker_id, lock=self._lock)
 
     def _wait_till_init_simulator_finish(self) -> None:
         n_files = len(self._paths)
@@ -154,7 +157,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             max_waiting_time=self._wrapper_vars.max_waiting_time,
             waiting_time=self._wrapper_vars.check_interval_time,
             lock=self._lock,
-            expensive_sampler=self._wrapper_vars.expensive_sampler,
+            sample_waiting_path=self._paths.sample_waiting if self._wrapper_vars.expensive_sampler else None,
         )
 
     def _record_timestamp(self) -> None:

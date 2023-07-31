@@ -100,6 +100,15 @@ def _record_existing_configs(path: str, config_id_str: str, config: dict[str, An
         json.dump(existing_configs, f, indent=4)
 
 
+def _record_sample_waiting(path: str, worker_id: str, sample_start: float, lock: _SecureLock) -> None:
+    with lock.edit(path) as f:
+        record = json.load(f)
+        # Initially, every worker waits for a sample.
+        record[worker_id] = sample_start
+        f.seek(0)
+        json.dump(record, f, indent=4)
+
+
 def _cache_state(
     path: str, config_hash: int, new_state: _StateType, lock: _SecureLock, update_index: int | None = None
 ) -> None:
@@ -146,6 +155,16 @@ def _fetch_sampled_time(path: str, lock: _SecureLock) -> dict[str, np.ndarray]:
         return dict(before_sample=np.array([-np.inf]), after_sample=np.array([-np.inf]))
     else:
         return data
+
+
+def _fetch_sample_waiting(path: str | None, lock: _SecureLock) -> dict[str, float] | None:
+    if path is None:
+        return None
+
+    with lock.read(path) as f:
+        sample_waiting = json.load(f)
+
+    return sample_waiting
 
 
 def _fetch_cumtimes(path: str, lock: _SecureLock) -> dict[str, float]:
@@ -243,6 +262,10 @@ def _start_worker_timer(path: str, worker_id: str, lock: _SecureLock) -> None:
     _record_cumtime(path=path, worker_id=worker_id, cumtime=0.0, lock=lock)
 
 
+def _start_sample_waiting(path: str, worker_id: str, lock: _SecureLock) -> None:
+    _record_sample_waiting(path=path, worker_id=worker_id, sample_start=time.time(), lock=lock)
+
+
 def _finish_worker_timer(path: str, worker_id: str, lock: _SecureLock) -> None:
     _record_cumtime(path=path, worker_id=worker_id, cumtime=_TIME_VALUES.terminated, lock=lock)
 
@@ -321,6 +344,65 @@ def _terminate_with_unexpected_timeout(path: str, worker_id: str, max_waiting_ti
     _raise_unexpected_timeout_error(max_waiting_time=max_waiting_time)
 
 
+def _get_min_cumtime_waiting(
+    cumtimes: dict[str, float], sample_waiting: dict[str, float], default: float = -_TIME_VALUES.crashed
+) -> float:
+    return min((cumtimes[wid] for wid in cumtimes if sample_waiting[wid] > 0.0), default=default)
+
+
+def _update_min_cumtimes(
+    old_min_cumtime_waiting: float,
+    sampling_duration: float,
+    new_cumtimes: dict[str, float],
+    new_sample_waiting: dict[str, float] | None,
+) -> tuple[float, float]:
+    min_cumtime_confirmed = min(ct for ct in new_cumtimes.values())
+    if new_sample_waiting is None:
+        return min_cumtime_confirmed, -_TIME_VALUES.crashed
+
+    min_cumtime_waiting = min(
+        (new_cumtimes[wid] for wid in new_cumtimes if new_sample_waiting[wid] > 0.0),
+        default=min_cumtime_confirmed,
+    )
+    return min_cumtime_confirmed, max(old_min_cumtime_waiting + sampling_duration, min_cumtime_waiting)
+
+
+def _check_long_waiting(
+    path: str,
+    worker_id: str,
+    lock: _SecureLock,
+    curtime: float,
+    start: float,
+    warning_interval: int,
+    max_waiting_time: float,
+) -> None:
+    if int(curtime - start + 1) % warning_interval == 0:
+        msg = (
+            "Workers might be hanging. Please consider setting `max_waiting_time` (< np.inf).\n"
+            "Note that if samplers or the objective function need long time (> 10 seconds), or "
+            "n_workers is large, please ignore this warning."
+        )
+        warnings.warn(msg)
+
+    if curtime - start > max_waiting_time:
+        _terminate_with_unexpected_timeout(path=path, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=lock)
+
+
+def _get_initial_min_cumtimes(
+    cumtimes: dict[str, float], sample_waiting: dict[str, float] | None, start: float
+) -> tuple[float, float]:
+    min_cumtime_confirmed = min(ct for ct in cumtimes.values())
+    min_cumtime_waiting = (
+        min(
+            (cumtimes[wid] + start - sample_waiting[wid] for wid in cumtimes if sample_waiting[wid] > 0.0),
+            default=min_cumtime_confirmed,
+        )
+        if sample_waiting is not None
+        else -_TIME_VALUES.crashed
+    )
+    return min_cumtime_confirmed, min_cumtime_waiting
+
+
 def _wait_until_next(
     path: str,
     worker_id: str,
@@ -328,32 +410,44 @@ def _wait_until_next(
     waiting_time: float,
     warning_interval: int = 10,
     max_waiting_time: float = np.inf,
-    expensive_sampler: bool = False,
+    sample_waiting_path: str | None = None,
 ) -> None:
-    start = time.time()
-    cur_sampling_duration, sample_start = 0.0, start
-    waiting_time *= 1 + np.random.random()
-    cumtimes = _fetch_cumtimes(path, lock=lock)
-    min_cumtime, proc_cumtime = min(cumtime for cumtime in cumtimes.values()), cumtimes[worker_id]
-    while min_cumtime + cur_sampling_duration < proc_cumtime:
+    if sample_waiting_path is not None:  # Got a result for the given sample and wait for the return timing.
+        _record_sample_waiting(sample_waiting_path, worker_id=worker_id, sample_start=-1, lock=lock)
+
+    long_time_kwargs = dict(
+        path=path, worker_id=worker_id, lock=lock, warning_interval=warning_interval, max_waiting_time=max_waiting_time
+    )
+    cumtimes, start, cur_sampling_duration = _fetch_cumtimes(path, lock=lock), time.time(), 0.0
+    proc_cumtime, sample_start, waiting_time = cumtimes[worker_id], start, waiting_time * (1 + np.random.random())
+    sample_waiting = _fetch_sample_waiting(sample_waiting_path, lock=lock)
+    min_cumtime_confirmed = min(ct for ct in cumtimes.values())
+    min_cumtime_confirmed, min_cumtime_waiting = _get_initial_min_cumtimes(
+        cumtimes=cumtimes, sample_waiting=sample_waiting, start=start
+    )
+
+    while min_cumtime_confirmed != proc_cumtime:
+        if min_cumtime_waiting + cur_sampling_duration >= proc_cumtime:
+            break
+
         time.sleep(waiting_time)
         curtime = time.time()
-        if int(curtime - start + 1) % warning_interval == 0:
-            msg = (
-                "Workers might be hanging. Please consider setting `max_waiting_time` (< np.inf).\n"
-                "Note that if samplers or the objective function need long time (> 10 seconds), or "
-                "n_workers is large, please ignore this warning."
-            )
-            warnings.warn(msg)
+        _check_long_waiting(curtime=curtime, start=start, **long_time_kwargs)  # type: ignore[arg-type]
 
-        if curtime - start > max_waiting_time:
-            _terminate_with_unexpected_timeout(
-                path=path, worker_id=worker_id, max_waiting_time=max_waiting_time, lock=lock
-            )
-
+        # NOTE: Must be _fetch_cumtimes --> _fetch_sample_waiting due to the file system update order
         new_cumtimes = _fetch_cumtimes(path, lock=lock)
-        if new_cumtimes == cumtimes:
-            cur_sampling_duration = curtime - sample_start if expensive_sampler else 0.0
+        new_sample_waiting = _fetch_sample_waiting(sample_waiting_path, lock=lock)
+        if new_cumtimes == cumtimes and sample_waiting == new_sample_waiting:
+            cur_sampling_duration = 0.0 if sample_waiting_path is None else curtime - sample_start
         else:
-            new_min_cumtime = min(ct for ct in new_cumtimes.values())
-            cumtimes, min_cumtime, cur_sampling_duration, sample_start = new_cumtimes, new_min_cumtime, 0.0, curtime
+            min_cumtime_confirmed, min_cumtime_waiting = _update_min_cumtimes(
+                old_min_cumtime_waiting=min_cumtime_waiting,
+                new_cumtimes=new_cumtimes,
+                sampling_duration=cur_sampling_duration,
+                new_sample_waiting=new_sample_waiting,
+            )
+            cumtimes, sample_waiting = new_cumtimes, new_sample_waiting
+            cur_sampling_duration, sample_start = 0.0, curtime
+
+    if sample_waiting_path is not None:  # Start a sampling from now
+        _record_sample_waiting(sample_waiting_path, worker_id=worker_id, sample_start=time.time(), lock=lock)

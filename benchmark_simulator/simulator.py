@@ -71,6 +71,13 @@ This file tells the last checkpoint timestamp of each worker (prev_timestamp).
     * worker_index -- [worker_index of the 1st eval, worker_index of the 2nd eval, ...]
 This file is used to consider the sampling time.
 after_sample is the latest cumtime immediately after the last sample and before_sample is before the last sample.
+
+7. mfhpo-simulator-info/*/sample_waiting.json
+    * worker1_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
+    * worker2_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
+    :
+    * workerN_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
+This file is used only if expensive_sampler=True.
 """
 from __future__ import annotations
 

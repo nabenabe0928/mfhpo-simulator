@@ -160,6 +160,14 @@ def dummy_func(
     return dict(loss=eval_config["x"], runtime=fidels["epoch"])
 
 
+def simplest_dummy_func(
+    eval_config: dict[str, Any],
+    fidels: dict[str, int | float] | None = None,
+    seed: int | None = None,
+) -> dict[str, float]:
+    return dict(loss=eval_config["x"], runtime=eval_config["x"])
+
+
 def dummy_func_with_constant_runtime(
     eval_config: dict[str, Any],
     fidels: dict[str, int | float] | None,

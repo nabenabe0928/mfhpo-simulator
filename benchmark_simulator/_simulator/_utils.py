@@ -7,7 +7,7 @@ def _raise_optimizer_init_error() -> None:
     msg = [
         "The initialization of the optimizer must be cheaper than one objective evuation.",
         "In principle, n_workers is too large for the objective to simulate correctly."
-        "Please set a smaller n_workers or use a cheaper initialization.",
+        "Please set expensive_sampler=True or a smaller n_workers, or use a cheaper initialization.",
     ]
     raise TimeoutError("\n".join(msg))
 

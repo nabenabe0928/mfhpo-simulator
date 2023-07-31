@@ -38,6 +38,7 @@ class _InfoPaths:
     timestamp: str
     sampled_time: str
     config_tracker: str
+    sample_waiting: str
 
     def __len__(self) -> int:
         return len(self.__dict__)
@@ -62,6 +63,7 @@ class _SharedDataFileNames(Enum):
     timestamp: str = "timestamp.json"
     sampled_time: str = "sampled_time.json"
     config_tracker: str = "config_tracker.json"
+    sample_waiting: str = "sample_waiting.json"
 
 
 @dataclass(frozen=True)
