@@ -344,12 +344,6 @@ def _terminate_with_unexpected_timeout(path: str, worker_id: str, max_waiting_ti
     _raise_unexpected_timeout_error(max_waiting_time=max_waiting_time)
 
 
-def _get_min_cumtime_waiting(
-    cumtimes: dict[str, float], sample_waiting: dict[str, float], default: float = -_TIME_VALUES.crashed
-) -> float:
-    return min((cumtimes[wid] for wid in cumtimes if sample_waiting[wid] > 0.0), default=default)
-
-
 def _update_min_cumtimes(
     old_min_cumtime_waiting: float,
     sampling_duration: float,
@@ -412,9 +406,6 @@ def _wait_until_next(
     max_waiting_time: float = np.inf,
     sample_waiting_path: str | None = None,
 ) -> None:
-    if sample_waiting_path is not None:  # Got a result for the given sample and wait for the return timing.
-        _record_sample_waiting(sample_waiting_path, worker_id=worker_id, sample_start=-1, lock=lock)
-
     long_time_kwargs = dict(
         path=path, worker_id=worker_id, lock=lock, warning_interval=warning_interval, max_waiting_time=max_waiting_time
     )
@@ -434,8 +425,6 @@ def _wait_until_next(
         curtime = time.time()
         _check_long_waiting(curtime=curtime, start=start, **long_time_kwargs)  # type: ignore[arg-type]
 
-        # NOTE: Must be _fetch_cumtimes --> _fetch_sample_waiting due to the file system update order
-        # More specifically, we want to prevent min_cumtime_confirmed from changing before sample_waiting is updated.
         new_cumtimes = _fetch_cumtimes(path, lock=lock)
         new_sample_waiting = _fetch_sample_waiting(sample_waiting_path, lock=lock)
         if new_cumtimes == cumtimes and sample_waiting == new_sample_waiting:
@@ -449,6 +438,3 @@ def _wait_until_next(
             )
             cumtimes, sample_waiting = new_cumtimes, new_sample_waiting
             cur_sampling_duration, sample_start = 0.0, curtime
-
-    if sample_waiting_path is not None:  # Start a sampling from now
-        _record_sample_waiting(sample_waiting_path, worker_id=worker_id, sample_start=time.time(), lock=lock)

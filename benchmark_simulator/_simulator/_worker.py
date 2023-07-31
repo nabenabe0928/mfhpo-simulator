@@ -21,6 +21,7 @@ from benchmark_simulator._secure_proc import (
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
+    _record_sample_waiting,
     _record_sampled_time,
     _record_timestamp,
     _start_sample_waiting,
@@ -176,6 +177,15 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             lock=self._lock,
         )
 
+    def _record_sample_waiting(self, sample_start: float) -> None:
+        if self._wrapper_vars.expensive_sampler:
+            _record_sample_waiting(
+                path=self._paths.sample_waiting,
+                worker_id=self._worker_vars.worker_id,
+                sample_start=sample_start,
+                lock=self._lock,
+            )
+
     def _record_result(self) -> None:
         fixed = bool(not self._wrapper_vars.store_config)
         _record_result(self._paths.result, results=self._data_to_store, fixed=fixed, lock=self._lock)
@@ -262,10 +272,16 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         )
 
     def _post_proc(self) -> None:
+        # Not waiting for sample now.
+        # NOTE: must be _record_sample_waiting --> _record_cumtime due to the update in the other workers.
+        # More specifically, if large cumtime is taken as min_cumtime before the record happens, the run will fail.
+        self._record_sample_waiting(sample_start=-1)
         # First, record the simulated cumulative runtime after calling the objective
         self._record_cumtime()
         # Wait till the cumulative runtime (+ sampling waiting time) becomes the smallest
         self._wait_until_next()
+        # Start to wait for another sample.
+        self._record_sample_waiting(sample_start=time.time())
         # Record the results to the main database when the cumulative runtime is the smallest
         self._record_result()
         # Record the timestamp when this worker is freed up
@@ -333,7 +349,6 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             **{k: results[k] for k in self._obj_keys},
         )
         self._post_proc()
-        print(f"W{self._worker_vars.worker_index}: Return at {self._cumtime}")
         return results
 
     def _finish(self) -> None:

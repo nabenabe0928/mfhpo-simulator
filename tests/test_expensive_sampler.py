@@ -51,7 +51,6 @@ class DummyOptimizer:
         counts = 0
         with ProcessPoolExecutor(max_workers=self._n_workers) as executor:
             while len(self._observations) < self._n_evals:
-                # if len(futures) >= self._n_workers or counts > self._n_evals - self._n_workers:
                 if counts >= self._n_workers:
                     self._pop_completed(futures)
 
@@ -92,16 +91,27 @@ def get_configs(index: int, unittime: float = 1e-3) -> np.ndarray:
     Worker 2: wsf.wwwwsssssf            |
     Worker 3: wwsfwwwwwwwwwssssssf      |
     Worker 4: wwwsfwwwwwwwwwwwwwwsssssssf
+
+    [4] No overlap
+
+              |0       |10       |20
+              1234567890123456789012345678
+    Worker 1: sfffffssfffffffffffff      |
+    Worker 2: wsfffffffffffffssssff      |
+    Worker 3: wwsffffffffsssfffffff      |
+    Worker 4: wwwsffffffffffffffffsssssfff
     """
     configs = [
         np.array([4.0, 6.0, 6.0, 5.0, 5.0, 3.0, 3.0, 3.0]),
         np.array([0.9] * 8),
         np.array([0.9] * 8),
+        np.array([5.0, 13.0, 8.0, 16.0, 13.0, 7.0, 2.0, 3.0]),
     ][index]
     ans = [
         np.array([5.0, 8.0, 9.0, 9.0, 12.0, 14.0, 19.0, 26.0]),
         np.array([2.0, 3.0, 5.0, 8.0, 12.0, 17.0, 23.0, 30.0]),
         np.array([2.0, 3.0, 4.0, 5.0, 9.0, 14.0, 20.0, 27.0]),
+        np.array([6.0, 11.0, 15.0, 20.0, 21.0, 21.0, 21.0, 28.0]),
     ][index]
     return configs * unittime, ans * unittime
 
@@ -126,10 +136,11 @@ def optimize(index: int, n_workers: int):
     )
     opt.optimize()
     diff = np.abs(np.array(wrapper.get_results()["cumtime"]) - ans)
+    print(np.array(wrapper.get_results()["cumtime"]), ans)
     assert np.all(diff < unittime * 1.5)
 
 
-@pytest.mark.parametrize("index", (0, 1, 2))
+@pytest.mark.parametrize("index", (0, 1, 2, 3))
 def test_opt(index: int) -> None:
     if index == 0:
         if ON_UBUNTU:
@@ -137,6 +148,9 @@ def test_opt(index: int) -> None:
     elif index == 1:
         optimize(index=index, n_workers=2)
     elif index == 2:
+        if ON_UBUNTU:
+            optimize(index=index, n_workers=4)
+    elif index == 3:
         if ON_UBUNTU:
             optimize(index=index, n_workers=4)
 
