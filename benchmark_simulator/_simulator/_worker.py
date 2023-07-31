@@ -333,6 +333,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             **{k: results[k] for k in self._obj_keys},
         )
         self._post_proc()
+        print(f"W{self._worker_vars.worker_index}: Return at {self._cumtime}")
         return results
 
     def _finish(self) -> None:

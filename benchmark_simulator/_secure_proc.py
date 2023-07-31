@@ -435,6 +435,7 @@ def _wait_until_next(
         _check_long_waiting(curtime=curtime, start=start, **long_time_kwargs)  # type: ignore[arg-type]
 
         # NOTE: Must be _fetch_cumtimes --> _fetch_sample_waiting due to the file system update order
+        # More specifically, we want to prevent min_cumtime_confirmed from changing before sample_waiting is updated.
         new_cumtimes = _fetch_cumtimes(path, lock=lock)
         new_sample_waiting = _fetch_sample_waiting(sample_waiting_path, lock=lock)
         if new_cumtimes == cumtimes and sample_waiting == new_sample_waiting:
