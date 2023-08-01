@@ -159,12 +159,12 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
     ) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
         start = time.time()
         eval_config, fidels, config_id = opt.ask()
+        sampling_time = time.time() - start
         config_tracking = config_id is not None and self._wrapper_vars.config_tracking
         if config_tracking:  # validate the config_id to ensure the user implementation is correct
             assert config_id is not None  # mypy redefinition
             self._config_tracker.validate(config=eval_config, config_id=config_id)
 
-        sampling_time = time.time() - start
         is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
         if self._wrapper_vars.allow_parallel_sampling:
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
@@ -206,8 +206,10 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             self._pending_results[_worker_id] = None
 
     def _save_results(self) -> None:
+        cumtime = np.array(self._results["cumtime"])
+        order = np.argsort(cumtime) if self._wrapper_vars.expensive_sampler else np.arange(cumtime.size)
         with open(self._paths.result, mode="w") as f:
-            json.dump({k: np.asarray(v).tolist() for k, v in self._results.items()}, f, indent=4)
+            json.dump({k: np.asarray(v)[order].tolist() for k, v in self._results.items()}, f, indent=4)
 
         with open(self._paths.sampled_time, mode="w") as f:
             json.dump({k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}, f, indent=4)
@@ -215,11 +217,15 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         _validate_opt_class(opt)
         worker_id = 0
-        for _ in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
+        for i in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
             eval_config, fidels, config_id = self._ask_with_timer(opt=opt, worker_id=worker_id)
             self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id)
             worker_id = np.argmin(self._cumtimes)
-            self._tell_pending_result(opt=opt, worker_id=worker_id)
+
+            if i + 1 >= self._wrapper_vars.n_workers:
+                # This `if` is needed for the compatibility with the other modes.
+                # It ensures that all workers filled out first.
+                self._tell_pending_result(opt=opt, worker_id=worker_id)
 
             if self._cumtimes[worker_id] > self._wrapper_vars.max_total_eval_time:  # exceed time limit
                 break
