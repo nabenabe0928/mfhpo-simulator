@@ -71,6 +71,13 @@ This file tells the last checkpoint timestamp of each worker (prev_timestamp).
     * worker_index -- [worker_index of the 1st eval, worker_index of the 2nd eval, ...]
 This file is used to consider the sampling time.
 after_sample is the latest cumtime immediately after the last sample and before_sample is before the last sample.
+
+7. mfhpo-simulator-info/*/sample_waiting.json
+    * worker1_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
+    * worker2_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
+    :
+    * workerN_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
+This file is used only if expensive_sampler=True.
 """
 from __future__ import annotations
 
@@ -104,6 +111,7 @@ def get_multiple_wrappers(
     allow_parallel_sampling: bool = False,
     config_tracking: bool = True,
     max_total_eval_time: float = np.inf,
+    expensive_sampler: bool = False,
 ) -> list[ObjectiveFuncWrapper]:
     """Return multiple wrapper instances.
 
@@ -177,6 +185,12 @@ def get_multiple_wrappers(
             For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time
             reaches 3600 seconds.
             It is useful to combine with a large n_evals and n_actual_evals_in_opt.
+        expensive_sampler (bool):
+            Whether the optimizer used by users is expensive or not for a function evaluation.
+            For example, if a function evaluation costs 1 hour and a sample takes several minutes,
+            we consider it expensive.
+            This argument may matter slightly for expensive samplers, but in most cases, this argument does not matter.
+            When using expensive_sampler=True, this may slightly slow down a simulation.
 
     Returns:
         wrappers (list[ObjectiveFuncWrapper]):
@@ -208,6 +222,7 @@ def get_multiple_wrappers(
         allow_parallel_sampling=allow_parallel_sampling,
         config_tracking=config_tracking,
         max_total_eval_time=max_total_eval_time,
+        expensive_sampler=expensive_sampler,
         _async_instantiations=False,
     )
     return [ObjectiveFuncWrapper(**wrapper_kwargs, worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
@@ -272,6 +287,7 @@ class ObjectiveFuncWrapper:
         config_tracking: bool = True,
         worker_index: int | None = None,
         max_total_eval_time: float = np.inf,
+        expensive_sampler: bool = False,
         careful_init: bool = False,
         _async_instantiations: bool = True,
     ):
@@ -369,6 +385,13 @@ class ObjectiveFuncWrapper:
                 For example, if max_total_eval_time=3600, the simulation evaluates until the simulated cumulative time
                 reaches 3600 seconds.
                 It is useful to combine with a large n_evals and n_actual_evals_in_opt.
+            expensive_sampler (bool):
+                Whether the optimizer used by users is expensive or not for a function evaluation.
+                For example, if a function evaluation costs 1 hour and a sample takes several minutes,
+                we consider it expensive.
+                This argument may matter slightly for expensive samplers, but in most cases,
+                this argument does not matter.
+                When using expensive_sampler=True, this may slightly slow down a simulation.
             careful_init (bool):
                 Whether doing initialization very carefully or not in the default setup (and only for the default).
                 If True, we try to match the initialization order using sleep.
@@ -396,6 +419,7 @@ class ObjectiveFuncWrapper:
             allow_parallel_sampling=allow_parallel_sampling,
             config_tracking=config_tracking,
             max_total_eval_time=max_total_eval_time,
+            expensive_sampler=expensive_sampler,
         )
 
         self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker

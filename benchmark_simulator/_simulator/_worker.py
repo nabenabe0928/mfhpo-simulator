@@ -6,6 +6,7 @@ from typing import Any
 
 from benchmark_simulator._constants import (
     INF,
+    NEGLIGIBLE_SEC,
     _SampledTimeDictType,
     _TIME_VALUES,
     _WorkerVars,
@@ -20,8 +21,10 @@ from benchmark_simulator._secure_proc import (
     _is_simulator_terminated,
     _record_cumtime,
     _record_result,
+    _record_sample_waiting,
     _record_sampled_time,
     _record_timestamp,
+    _start_sample_waiting,
     _start_timestamp,
     _start_worker_timer,
     _wait_all_workers,
@@ -76,6 +79,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         _init_simulator(dir_name=self.dir_name, worker_index=self._temp_worker_index)
         self._wait_till_init_simulator_finish()
         _start_worker_timer(path=self._paths.worker_cumtime, worker_id=worker_id, lock=self._lock)
+        if self._wrapper_vars.expensive_sampler:
+            _start_sample_waiting(path=self._paths.sample_waiting, worker_id=worker_id, lock=self._lock)
 
     def _wait_till_init_simulator_finish(self) -> None:
         n_files = len(self._paths)
@@ -153,6 +158,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             max_waiting_time=self._wrapper_vars.max_waiting_time,
             waiting_time=self._wrapper_vars.check_interval_time,
             lock=self._lock,
+            sample_waiting_path=self._paths.sample_waiting if self._wrapper_vars.expensive_sampler else None,
         )
 
     def _record_timestamp(self) -> None:
@@ -170,6 +176,15 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             cumtime=self._cumtime,
             lock=self._lock,
         )
+
+    def _record_sample_waiting(self, sample_start: float) -> None:
+        if self._wrapper_vars.expensive_sampler:
+            _record_sample_waiting(
+                path=self._paths.sample_waiting,
+                worker_id=self._worker_vars.worker_id,
+                sample_start=sample_start,
+                lock=self._lock,
+            )
 
     def _record_result(self) -> None:
         fixed = bool(not self._wrapper_vars.store_config)
@@ -257,10 +272,16 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         )
 
     def _post_proc(self) -> None:
+        # Not waiting for sample now.
+        # NOTE: must be _record_sample_waiting --> _record_cumtime due to the update in the other workers.
+        # More specifically, if large cumtime is taken as min_cumtime before the record happens, the run will fail.
+        self._record_sample_waiting(sample_start=-1)
         # First, record the simulated cumulative runtime after calling the objective
         self._record_cumtime()
         # Wait till the cumulative runtime (+ sampling waiting time) becomes the smallest
         self._wait_until_next()
+        # Start to wait for another sample.
+        self._record_sample_waiting(sample_start=time.time())
         # Record the results to the main database when the cumulative runtime is the smallest
         self._record_result()
         # Record the timestamp when this worker is freed up
@@ -273,16 +294,20 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         cumtimes = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)
         cumtime = cumtimes[self._worker_vars.worker_id]
 
-        sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
-        # Consider the sampling time overlap
-        is_init_sample = bool(cumtime < 1e-12)
-        self._cumtime = (
-            max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
-            if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
-            else cumtime
-        ) + sampling_time
-        if is_init_sample and any(1e-12 < ct < self._cumtime for ct in cumtimes.values()):
-            _raise_optimizer_init_error()
+        if self._wrapper_vars.expensive_sampler:
+            # In this case, sampling time already includes the idling time for the other workers.
+            self._cumtime = cumtime + sampling_time
+        else:
+            sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
+            # Consider the sampling time overlap
+            is_init_sample = bool(cumtime < NEGLIGIBLE_SEC)
+            self._cumtime = (
+                max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
+                if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
+                else cumtime
+            ) + sampling_time
+            if is_init_sample and any(NEGLIGIBLE_SEC < ct < self._cumtime for ct in cumtimes.values()):
+                _raise_optimizer_init_error()
 
     def _load_timestamps(self) -> None:
         worker_id = self._worker_vars.worker_id

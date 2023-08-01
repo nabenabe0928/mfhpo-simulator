@@ -11,6 +11,7 @@ import numpy as np
 
 DIR_NAME: Final[str] = "mfhpo-simulator-info/"
 INF: Final[float] = float(1 << 30)
+NEGLIGIBLE_SEC: Final[float] = 1e-12
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class _InfoPaths:
     timestamp: str
     sampled_time: str
     config_tracker: str
+    sample_waiting: str
 
     def __len__(self) -> int:
         return len(self.__dict__)
@@ -61,6 +63,7 @@ class _SharedDataFileNames(Enum):
     timestamp: str = "timestamp.json"
     sampled_time: str = "sampled_time.json"
     config_tracker: str = "config_tracker.json"
+    sample_waiting: str = "sample_waiting.json"
 
 
 @dataclass(frozen=True)
@@ -87,6 +90,7 @@ class _WrapperVars:
     store_config: bool
     allow_parallel_sampling: bool
     config_tracking: bool
+    expensive_sampler: bool
 
     def validate(self) -> None:
         if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:
@@ -97,6 +101,12 @@ class _WrapperVars:
                 f"Use n_actual_evals_in_opt >= {threshold} (= n_evals + n_workers) at least. "
                 "Note that our package cannot change your optimizer setting, so "
                 "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
+            )
+        if self.allow_parallel_sampling and self.expensive_sampler:
+            raise ValueError(
+                "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"
+                "Note that allow_parallel_sampling=True correctly handles expensive samplers"
+                " if sampling happens in parallel."
             )
 
 
