@@ -243,11 +243,6 @@ def _get_worker_id_to_idx(path: str, lock: _SecureLock) -> dict[str, int]:
     return result
 
 
-def _fetch_min_cumtime(path: str, lock: _SecureLock) -> float:
-    cumtimes = _fetch_cumtimes(path=path, lock=lock)
-    return min(cumtime for cumtime in cumtimes.values())
-
-
 def _is_min_cumtime(path: str, worker_id: str, lock: _SecureLock) -> bool:
     cumtimes = _fetch_cumtimes(path=path, lock=lock)
     proc_cumtime = cumtimes[worker_id]

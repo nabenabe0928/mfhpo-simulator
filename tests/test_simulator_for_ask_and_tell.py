@@ -94,7 +94,7 @@ class _DummyWithoutAnything:
 def test_error_no_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    with pytest.raises(ValueError, match="Objective function did not get keyword `fidels`*"):
+    with pytest.raises(ValueError, match=r"Objective function did not get keyword `fidels`*"):
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None, config_id=None)
 
 
@@ -108,7 +108,7 @@ def test_error_unneeded_fidel_in_call():
         eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None, config_id=None
     )
     # Objective function got keyword `fidels`
-    with pytest.raises(ValueError, match="Objective function got keyword `fidels`*"):
+    with pytest.raises(ValueError, match=r"Objective function got keyword `fidels`*"):
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 0}, worker_id=0, config_id=None)
 
 
@@ -116,7 +116,16 @@ def test_error_unneeded_fidel_in_call():
 def test_guarantee_no_hang():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_actual_evals_in_opt"] = 10
-    with pytest.raises(ValueError, match="Cannot guarantee that optimziers will not hang"):
+    with pytest.raises(ValueError, match=r"Cannot guarantee that optimziers will not hang*"):
+        ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
+
+
+@cleanup
+def test_no_expensive_parallel_sample():
+    kwargs = DEFAULT_KWARGS.copy()
+    kwargs["allow_parallel_sampling"] = True
+    kwargs["expensive_sampler"] = True
+    with pytest.raises(ValueError, match=r"expensive_sampler and allow_parallel_sampling cannot*"):
         ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
 
@@ -124,7 +133,7 @@ def test_guarantee_no_hang():
 def _validate_fidel_args(fidel_keys: list[str] | None):
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["fidel_keys"] = fidel_keys
-    with pytest.raises(ValueError, match="continual_max_fidel is valid only if fidel_keys has only one element*"):
+    with pytest.raises(ValueError, match=r"continual_max_fidel is valid only if fidel_keys has only one element*"):
         ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
 
@@ -136,7 +145,7 @@ def test_validate_fidel_args(fidel_keys: list[str] | None):
 @cleanup
 def test_fidel_must_have_only_one_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(ValueError, match="fidels must have only one element*"):
+    with pytest.raises(ValueError, match=r"fidels must have only one element*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
         worker._main_wrapper._proc_obj_func(
             eval_config=SIMPLE_CONFIG, fidels={"epoch": 1, "epoch2": 1}, worker_id=0, config_id=None
@@ -146,7 +155,7 @@ def test_fidel_must_have_only_one_for_continual():
 @cleanup
 def test_fidel_must_be_int_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(ValueError, match="Fidelity for continual evaluation must be integer*"):
+    with pytest.raises(ValueError, match=r"Fidelity for continual evaluation must be integer*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_constant_runtime, **kwargs)
         worker._main_wrapper._proc_obj_func(
             eval_config=SIMPLE_CONFIG, fidels={"epoch": 1.0}, worker_id=0, config_id=None
@@ -156,7 +165,7 @@ def test_fidel_must_be_int_for_continual():
 @cleanup
 def test_fidel_must_be_non_negative_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(ValueError, match="Fidelity for continual evaluation must be non-negative*"):
+    with pytest.raises(ValueError, match=r"Fidelity for continual evaluation must be non-negative*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_constant_runtime, **kwargs)
         worker._main_wrapper._proc_obj_func(
             eval_config=SIMPLE_CONFIG, fidels={"epoch": -1}, worker_id=0, config_id=None
@@ -167,7 +176,7 @@ def test_fidel_must_be_non_negative_for_continual():
 def test_fidel_keys_must_be_identical_using_weird_call():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.pop("continual_max_fidel")
-    with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
+    with pytest.raises(KeyError, match=r"The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
         worker._main_wrapper._proc_obj_func(
             eval_config=SIMPLE_CONFIG, fidels={"epoch": 1, "epoch2": 1}, worker_id=0, config_id=None
@@ -179,7 +188,7 @@ def test_fidel_keys_must_be_identical_using_weird_instance():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.pop("continual_max_fidel")
     kwargs["fidel_keys"] = ["dummy-fidel"]
-    with pytest.raises(KeyError, match="The keys in fidels must be identical to fidel_keys*"):
+    with pytest.raises(KeyError, match=r"The keys in fidels must be identical to fidel_keys*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func_with_constant_runtime, **kwargs)
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
@@ -187,7 +196,7 @@ def test_fidel_keys_must_be_identical_using_weird_instance():
 @cleanup
 def _weird_obj_keys(obj_keys: list[str]):
     kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(KeyError, match="The output of objective must be a superset*"):
+    with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, obj_keys=["dummy_loss"], **kwargs)
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
@@ -200,7 +209,7 @@ def test_weird_obj_keys(obj_keys: list[str]):
 @cleanup
 def test_weird_runtime_key():
     kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(KeyError, match="The output of objective must be a superset*"):
+    with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_func, runtime_key="dummy_runtime", **kwargs)
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
