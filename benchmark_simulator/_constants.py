@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -108,6 +109,10 @@ class _WrapperVars:
                 "Note that allow_parallel_sampling=True correctly handles expensive samplers"
                 " if sampling happens in parallel."
             )
+        if self.n_workers > os.cpu_count():
+            msg = f"n_workers larger than the number of CPU cores (={os.cpu_count()}) "
+            msg += "may cause hang or significant slow down."
+            warnings.warn(msg)
 
 
 @dataclass(frozen=True)
