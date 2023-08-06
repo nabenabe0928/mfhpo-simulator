@@ -92,6 +92,7 @@ class _WrapperVars:
     allow_parallel_sampling: bool
     config_tracking: bool
     expensive_sampler: bool
+    tmp_dir: str | None
 
     def validate(self) -> None:
         if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:

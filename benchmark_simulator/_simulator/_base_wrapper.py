@@ -27,7 +27,8 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         self._wrapper_vars = wrapper_vars
 
         self._lock = _SecureLock()
-        self._dir_name = os.path.join(DIR_NAME, wrapper_vars.save_dir_name)
+        tmp_dir = "" if wrapper_vars.tmp_dir is None else wrapper_vars.tmp_dir
+        self._dir_name = os.path.join(tmp_dir, DIR_NAME, wrapper_vars.save_dir_name)
         self._paths = _get_file_paths(self.dir_name)
         self._obj_keys, self._runtime_key = wrapper_vars.obj_keys, wrapper_vars.runtime_key
         self._fidel_keys = [] if wrapper_vars.fidel_keys is None else wrapper_vars.fidel_keys[:]

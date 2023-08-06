@@ -112,6 +112,7 @@ def get_multiple_wrappers(
     config_tracking: bool = True,
     max_total_eval_time: float = np.inf,
     expensive_sampler: bool = False,
+    tmp_dir: str | None = None,
 ) -> list[ObjectiveFuncWrapper]:
     """Return multiple wrapper instances.
 
@@ -191,6 +192,9 @@ def get_multiple_wrappers(
             we consider it expensive.
             This argument may matter slightly for expensive samplers, but in most cases, this argument does not matter.
             When using expensive_sampler=True, this may slightly slow down a simulation.
+        tmp_dir (str | None):
+            Temporal directory especially for cluster usage.
+            By using this argument, data will be stored in <tmp_dir>/mfhpo-simulator-info/...
 
     Returns:
         wrappers (list[ObjectiveFuncWrapper]):
@@ -200,7 +204,7 @@ def get_multiple_wrappers(
     curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
     save_dir_name = save_dir_name if save_dir_name is not None else f"data-{curtime}"
 
-    dir_name = os.path.join(DIR_NAME, save_dir_name)
+    dir_name = os.path.join("" if tmp_dir is None else tmp_dir, DIR_NAME, save_dir_name)
     if os.path.exists(dir_name):
         raise FileExistsError(f"The directory `{dir_name}` already exists. Remove it first.")
 
@@ -223,6 +227,7 @@ def get_multiple_wrappers(
         config_tracking=config_tracking,
         max_total_eval_time=max_total_eval_time,
         expensive_sampler=expensive_sampler,
+        tmp_dir=tmp_dir,
         _async_instantiations=False,
     )
     return [ObjectiveFuncWrapper(**wrapper_kwargs, worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
@@ -289,6 +294,7 @@ class ObjectiveFuncWrapper:
         max_total_eval_time: float = np.inf,
         expensive_sampler: bool = False,
         careful_init: bool = False,
+        tmp_dir: str | None = None,
         _async_instantiations: bool = True,
     ):
         """The initialization of a wrapper class.
@@ -396,6 +402,9 @@ class ObjectiveFuncWrapper:
                 Whether doing initialization very carefully or not in the default setup (and only for the default).
                 If True, we try to match the initialization order using sleep.
                 It is not necessary for normal usage, but if users expect perfect reproducibility, users want to use it.
+            tmp_dir (str | None):
+                Temporal directory especially for cluster usage.
+                By using this argument, data will be stored in <tmp_dir>/mfhpo-simulator-info/...
             _async_instantiations (bool):
                 Whether each worker is instantiated asynchrously.
                 In other words, whether to wait all workers' instantiations or not.
@@ -420,6 +429,7 @@ class ObjectiveFuncWrapper:
             config_tracking=config_tracking,
             max_total_eval_time=max_total_eval_time,
             expensive_sampler=expensive_sampler,
+            tmp_dir=tmp_dir,
         )
 
         self._main_wrapper: _AskTellWorkerManager | _CentralWorkerManager | _ObjectiveFuncWorker
