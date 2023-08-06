@@ -15,7 +15,7 @@ pkgs = [
 
 setuptools.setup(
     name="mfhpo-simulator",
-    version="1.2.8",
+    version="1.2.9",
     author="nabenabe0928",
     author_email="shuhei.watanabe.utokyo@gmail.com",
     url="https://github.com/nabenabe0928/mfhpo-simulator",

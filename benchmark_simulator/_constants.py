@@ -109,9 +109,10 @@ class _WrapperVars:
                 "Note that allow_parallel_sampling=True correctly handles expensive samplers"
                 " if sampling happens in parallel."
             )
-        if self.n_workers > os.cpu_count():
-            msg = f"n_workers larger than the number of CPU cores (={os.cpu_count()}) "
-            msg += "may cause hang or significant slow down."
+        n_cores = os.cpu_count()
+        if n_cores is not None and self.n_workers > n_cores:
+            msg = f"n_workers larger than the number of CPU cores (={n_cores}) may cause hang or significant slow down"
+            msg += " depending on parallel processing used in your optimizer."
             warnings.warn(msg)
 
 
