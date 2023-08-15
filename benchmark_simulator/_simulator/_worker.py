@@ -272,10 +272,6 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         )
 
     def _post_proc(self) -> None:
-        # Not waiting for sample now.
-        # NOTE: must be _record_sample_waiting --> _record_cumtime due to the update in the other workers.
-        # More specifically, if large cumtime is taken as min_cumtime before the record happens, the run will fail.
-        self._record_sample_waiting(sample_start=-1)
         # First, record the simulated cumulative runtime after calling the objective
         self._record_cumtime()
         # Wait till the cumulative runtime (+ sampling waiting time) becomes the smallest
@@ -310,6 +306,10 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
                 _raise_optimizer_init_error()
 
     def _load_timestamps(self) -> None:
+        # Not waiting for sample now. (and then the func call time will not be included in sampling time)
+        # NOTE: must be _record_sample_waiting --> _record_cumtime due to the update in the other workers.
+        # More specifically, if large cumtime is taken as min_cumtime before the record happens, the run will fail.
+        self._record_sample_waiting(sample_start=-1)
         worker_id = self._worker_vars.worker_id
         sampling_time = max(0.0, time.time() - _fetch_timestamps(self._paths.timestamp, lock=self._lock)[worker_id])
 
@@ -320,7 +320,6 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             worker_index=self._worker_vars.worker_index,
         )
         _record_sampled_time(path=self._paths.sampled_time, sampled_time=new_sampled_time, lock=self._lock)
-
         self._terminated = self._cumtime >= min(self._wrapper_vars.max_total_eval_time, _TIME_VALUES.terminated - 1e-5)
         self._crashed = self._cumtime >= _TIME_VALUES.crashed - 1e-5
 

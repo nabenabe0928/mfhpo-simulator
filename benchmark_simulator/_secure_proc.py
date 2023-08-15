@@ -423,7 +423,10 @@ def _wait_until_next(
         new_cumtimes = _fetch_cumtimes(path, lock=lock)
         new_sample_waiting = _fetch_sample_waiting(sample_waiting_path, lock=lock)
         if new_cumtimes == cumtimes and sample_waiting == new_sample_waiting:
-            cur_sampling_duration = 0.0 if sample_waiting_path is None else curtime - sample_start
+            if new_sample_waiting is not None and all(t < 0 for t in new_sample_waiting.values()):  # no sampling now
+                cur_sampling_duration, sample_start = 0.0, curtime
+            else:
+                cur_sampling_duration = 0.0 if sample_waiting_path is None else curtime - sample_start
         else:
             min_cumtime_confirmed, min_cumtime_waiting = _update_min_cumtimes(
                 old_min_cumtime_waiting=min_cumtime_waiting,

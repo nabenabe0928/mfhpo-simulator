@@ -36,11 +36,15 @@ class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
 
 
 @cleanup
-def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False):
+def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False, sleeping: float = 0.0):
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = 2 if latency or not IS_LOCAL else 4
-    target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout) if latency else OrderCheckConfigs(n_workers)
+    if latency:
+        target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout)
+    else:
+        target = OrderCheckConfigs(n_workers, sleeping=sleeping)
+
     n_evals = target._n_evals
     kwargs.update(n_workers=n_workers, n_evals=n_evals, allow_parallel_sampling=parallel_sampler)
     wrapper_cls = ObjectiveFuncWrapperWithSampleLatency if latency else ObjectiveFuncWrapper
@@ -68,13 +72,18 @@ def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False):
 
 
 @pytest.mark.parametrize("mode", ("normal", LATENCY))
+@pytest.mark.parametrize("sleeping", (0.0, UNIT_TIME * 200))
 @pytest.mark.parametrize("parallel_sampler", (True, False))
-def test_optimize_parallel(mode: str, parallel_sampler: bool):
+def test_optimize_parallel(mode: str, sleeping: float, parallel_sampler: bool):
     if mode == "normal" and parallel_sampler:
         # No test
         return
 
-    optimize_parallel(mode=mode, parallel_sampler=parallel_sampler)
+    if mode == LATENCY and sleeping > 0.0:
+        # No test
+        return
+
+    optimize_parallel(mode=mode, parallel_sampler=parallel_sampler, sleeping=sleeping)
 
 
 @cleanup

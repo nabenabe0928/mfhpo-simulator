@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import shutil
 import sys
+import time
 from contextlib import contextmanager
 from typing import Any
 
@@ -40,7 +41,7 @@ class OrderCheckConfigs:
               200 200 200 200 200 200 200 100
     """
 
-    def __init__(self, n_workers: int):
+    def __init__(self, n_workers: int, sleeping: float = 0.0):
         loss_vals = [i for i in range(20)]
         runtimes = {
             2: [1000, 300, 300, 300, 300, 100, 200, 600, 200, 200, 200, 300, 200, 200, 200, 600, 200, 200, 300, 400],
@@ -98,8 +99,10 @@ class OrderCheckConfigs:
             ),
         }[n_workers]
         self._n_evals = self._ans.size
+        self._sleeping = sleeping
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+        time.sleep(self._sleeping)
         results = self._results[eval_config["index"]]
         return results
 
