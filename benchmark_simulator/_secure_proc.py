@@ -47,7 +47,7 @@ def _allocate_proc_to_worker(path: str, pid: int, time_ns: int, lock: _SecureLoc
             alloc[pid_str] = time_ns
             alloc = {k: idx for idx, (k, _) in enumerate(sorted(alloc.items(), key=lambda x: x[1]))}
             f.seek(0)
-            json.dump(alloc, f, indent=4)
+            json.dump(alloc, f)
 
     return alloc[pid_str]
 
@@ -57,7 +57,7 @@ def _complete_proc_allocation(path: str, lock: _SecureLock) -> dict[int, int]:
         alloc = json.load(f)
         alloc = {int(k): idx for idx, (k, _) in enumerate(sorted(alloc.items(), key=lambda x: x[1]))}
         f.seek(0)
-        json.dump(alloc, f, indent=4)
+        json.dump(alloc, f)
 
     return alloc
 
@@ -72,7 +72,7 @@ def _record_sampled_time(path: str, sampled_time: _SampledTimeDictType, lock: _S
                 record[k].append(v)
 
         f.seek(0)
-        json.dump(record, f, indent=4)
+        json.dump(record, f)
 
 
 def _record_cumtime(path: str, worker_id: str, cumtime: float, lock: _SecureLock) -> None:
@@ -81,7 +81,7 @@ def _record_cumtime(path: str, worker_id: str, cumtime: float, lock: _SecureLock
         prev_cumtime = record.get(worker_id, 0.0)
         record[worker_id] = np.clip(cumtime, a_min=prev_cumtime, a_max=_TIME_VALUES.crashed)
         f.seek(0)
-        json.dump(record, f, indent=4)
+        json.dump(record, f)
 
 
 def _record_timestamp(path: str, worker_id: str, prev_timestamp: float, lock: _SecureLock) -> None:
@@ -89,7 +89,7 @@ def _record_timestamp(path: str, worker_id: str, prev_timestamp: float, lock: _S
         record = json.load(f)
         record[worker_id] = prev_timestamp
         f.seek(0)
-        json.dump(record, f, indent=4)
+        json.dump(record, f)
 
 
 def _record_existing_configs(path: str, config_id_str: str, config: dict[str, Any], lock: _SecureLock) -> None:
@@ -97,7 +97,7 @@ def _record_existing_configs(path: str, config_id_str: str, config: dict[str, An
         existing_configs = json.load(f)
         existing_configs[config_id_str] = config
         f.seek(0)
-        json.dump(existing_configs, f, indent=4)
+        json.dump(existing_configs, f)
 
 
 def _record_sample_waiting(path: str, worker_id: str, sample_start: float, lock: _SecureLock) -> None:
@@ -106,7 +106,7 @@ def _record_sample_waiting(path: str, worker_id: str, sample_start: float, lock:
         # Initially, every worker waits for a sample.
         record[worker_id] = sample_start
         f.seek(0)
-        json.dump(record, f, indent=4)
+        json.dump(record, f)
 
 
 def _cache_state(
@@ -124,7 +124,7 @@ def _cache_state(
             cache[config_hash_str].append(_new_state)
 
         f.seek(0)
-        json.dump(cache, f, indent=4)
+        json.dump(cache, f)
 
 
 def _delete_state(path: str, config_hash: int, index: int, lock: _SecureLock) -> None:
@@ -136,7 +136,7 @@ def _delete_state(path: str, config_hash: int, index: int, lock: _SecureLock) ->
             cache.pop(config_hash_str)
 
         f.seek(0)
-        json.dump(cache, f, indent=4)
+        json.dump(cache, f)
 
 
 def _fetch_cache_states(path: str, config_hash: int, lock: _SecureLock) -> list[_StateType]:
@@ -207,7 +207,7 @@ def _record_result(path: str, results: dict[str, float], lock: _SecureLock, fixe
                 record[key].append(val)
 
         f.seek(0)
-        json.dump(record, f, indent=4)
+        json.dump(record, f)
 
 
 def _is_simulator_terminated(path: str, max_evals: int, max_total_eval_time: float, lock: _SecureLock) -> bool:

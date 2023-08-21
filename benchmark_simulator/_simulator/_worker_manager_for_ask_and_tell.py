@@ -209,10 +209,10 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         cumtime = np.array(self._results["cumtime"])
         order = np.argsort(cumtime) if self._wrapper_vars.expensive_sampler else np.arange(cumtime.size)
         with open(self._paths.result, mode="w") as f:
-            json.dump({k: np.asarray(v)[order].tolist() for k, v in self._results.items()}, f, indent=4)
+            json.dump({k: np.asarray(v)[order].tolist() for k, v in self._results.items()}, f)
 
         with open(self._paths.sampled_time, mode="w") as f:
-            json.dump({k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}, f, indent=4)
+            json.dump({k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}, f)
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         _validate_opt_class(opt)
