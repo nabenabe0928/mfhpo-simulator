@@ -89,6 +89,7 @@ class _WrapperVars:
     max_waiting_time: float
     check_interval_time: float
     store_config: bool
+    store_actual_cumtime: bool
     allow_parallel_sampling: bool
     config_tracking: bool
     expensive_sampler: bool

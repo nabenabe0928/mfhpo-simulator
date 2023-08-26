@@ -69,6 +69,8 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             prev_timestamp=time.time(),
             lock=self._lock,
         )
+        if self._wrapper_vars.store_actual_cumtime:
+            self._start_time = min(_fetch_timestamps(path=self._paths.timestamp, lock=self._lock).values())
 
     def _init_worker(self, worker_id: str) -> None:
         os.makedirs(self.dir_name, exist_ok=True)
@@ -124,6 +126,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             use_fidel=self._wrapper_vars.fidel_keys is not None,
             stored_obj_keys=list(set(self.obj_keys + [self.runtime_key])),
         )
+        self._start_time: float  # type: ignore[no-redef]
         self._init_timestamp()
 
         # These variables change over time and must be either loaded from file system or updated.
@@ -187,6 +190,9 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
             )
 
     def _record_result(self) -> None:
+        if self._wrapper_vars.store_actual_cumtime:
+            self._data_to_store["actual_cumtime"] = time.time() - self._start_time
+
         fixed = bool(not self._wrapper_vars.store_config)
         _record_result(self._paths.result, results=self._data_to_store, fixed=fixed, lock=self._lock)
         self._data_to_store = {}  # Make it empty

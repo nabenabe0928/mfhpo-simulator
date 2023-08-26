@@ -6,6 +6,8 @@ import unittest
 from benchmark_simulator._constants import AbstractAskTellOptimizer
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
 
+import numpy as np
+
 from tests.utils import (
     SIMPLE_CONFIG,
     SUBDIR_NAME,
@@ -262,6 +264,25 @@ def test_call_considering_state():
         if (i == 0 and j == 0) or (i == 9 and j == 0):
             ans = 1
         assert len(states[key]) == ans
+
+
+@cleanup
+def _store_actual_cumtime(store_config: bool) -> None:
+    kwargs = DEFAULT_KWARGS.copy()
+    kwargs.update(n_workers=4, n_actual_evals_in_opt=15)
+    worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=store_config, store_actual_cumtime=True, **kwargs)
+    worker.simulate(_DummyOpt())
+
+    results = worker.get_results()
+    assert "actual_cumtime" in results
+    actual_cumtimes = np.array(results["actual_cumtime"])
+    assert len(actual_cumtimes) == kwargs["n_evals"]
+    assert np.allclose(np.maximum.accumulate(actual_cumtimes), actual_cumtimes)
+
+
+@pytest.mark.parametrize("store_config", (True, False))
+def test_store_actual_cumtime(store_config: bool) -> None:
+    _store_actual_cumtime(store_config=store_config)
 
 
 @cleanup

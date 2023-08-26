@@ -309,6 +309,42 @@ def test_central_worker_manager():
 
 
 @cleanup
+def _store_actual_cumtime_without_error_seq(store_config: bool) -> None:
+    kwargs = DEFAULT_KWARGS.copy()
+    worker = get_worker_wrapper(obj_func=dummy_func, store_config=store_config, store_actual_cumtime=True, **kwargs)
+    worker(**dict(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}))
+
+
+@pytest.mark.parametrize("store_config", (True, False))
+def test_store_actual_cumtime_without_error_seq(store_config: bool) -> None:
+    _store_actual_cumtime_without_error_seq(store_config=store_config)
+
+
+@cleanup
+def _store_actual_cumtime_without_error_parallel(store_config: bool) -> None:
+    kwargs = DEFAULT_KWARGS.copy()
+    n_workers = get_n_workers()
+    kwargs.update(n_workers=n_workers, n_actual_evals_in_opt=15)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=store_config, store_actual_cumtime=True, **kwargs)
+
+    with get_pool(n_workers=n_workers) as pool:
+        res = get_results(pool=pool, func=wrapper, n_configs=15, epoch_func=lambda i: i + 1, x_func=lambda i: i)
+        for r in res.values():
+            r.get()
+
+    results = wrapper.get_results()
+    assert "actual_cumtime" in results
+    actual_cumtimes = np.array(results["actual_cumtime"])
+    assert len(actual_cumtimes) == len(results["loss"])
+    assert np.allclose(actual_cumtimes, np.maximum.accumulate(actual_cumtimes))
+
+
+@pytest.mark.parametrize("store_config", (True, False))
+def test_store_actual_cumtime_without_error_parallel(store_config: bool) -> None:
+    _store_actual_cumtime_without_error_parallel(store_config=store_config)
+
+
+@cleanup
 def test_store_config_without_error_seq():
     kwargs = DEFAULT_KWARGS.copy()
     worker = get_worker_wrapper(obj_func=dummy_func, store_config=True, **kwargs)

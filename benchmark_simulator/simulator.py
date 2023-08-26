@@ -108,6 +108,7 @@ def get_multiple_wrappers(
     max_waiting_time: float = np.inf,
     check_interval_time: float = 1e-4,
     store_config: bool = False,
+    store_actual_cumtime: bool = False,
     allow_parallel_sampling: bool = False,
     config_tracking: bool = True,
     max_total_eval_time: float = np.inf,
@@ -173,6 +174,8 @@ def get_multiple_wrappers(
             Whether to store all config/fidel information.
             The information is sorted chronologically.
             When you do large-scale experiments, this may incur too much storage consumption.
+        store_actual_cumtime (bool):
+            Whether to store actual cumulative time at each point.
         allow_parallel_sampling (bool):
             Whether sampling can happen in parallel.
             In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False.
@@ -223,6 +226,7 @@ def get_multiple_wrappers(
         max_waiting_time=max_waiting_time,
         check_interval_time=check_interval_time,
         store_config=store_config,
+        store_actual_cumtime=store_actual_cumtime,
         allow_parallel_sampling=allow_parallel_sampling,
         config_tracking=config_tracking,
         max_total_eval_time=max_total_eval_time,
@@ -288,6 +292,7 @@ class ObjectiveFuncWrapper:
         max_waiting_time: float = np.inf,
         check_interval_time: float = 1e-4,
         store_config: bool = False,
+        store_actual_cumtime: bool = False,
         allow_parallel_sampling: bool = False,
         config_tracking: bool = True,
         worker_index: int | None = None,
@@ -370,6 +375,8 @@ class ObjectiveFuncWrapper:
                 Whether to store all config/fidel information.
                 The information is sorted chronologically.
                 When you do large-scale experiments, this may incur too much storage consumption.
+            store_actual_cumtime (bool):
+                Whether to store actual cumulative time at each point.
             allow_parallel_sampling (bool):
                 Whether sampling can happen in parallel.
                 In many cases, sampler will not be run in parallel and then allow_parallel_sampling should be False.
@@ -425,6 +432,7 @@ class ObjectiveFuncWrapper:
             max_waiting_time=max_waiting_time,
             check_interval_time=check_interval_time,
             store_config=store_config,
+            store_actual_cumtime=store_actual_cumtime,
             allow_parallel_sampling=allow_parallel_sampling,
             config_tracking=config_tracking,
             max_total_eval_time=max_total_eval_time,

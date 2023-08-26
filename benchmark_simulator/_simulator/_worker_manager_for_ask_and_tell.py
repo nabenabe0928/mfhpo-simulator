@@ -45,6 +45,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self._wrapper_vars.validate()
         _validate_fidel_args(continual_eval=self._worker_vars.continual_eval, fidel_keys=self._fidel_keys)
 
+        self._start_time = time.time()
         self._timenow = 0.0
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
         self._worker_indices = np.arange(self._wrapper_vars.n_workers)
@@ -57,6 +58,8 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             self._results.update({k: [] for k in self._fidel_keys + ["seed"]})
             if self._wrapper_vars.continual_max_fidel is not None:
                 self._results["prev_fidel"] = []
+        if self._wrapper_vars.store_actual_cumtime:
+            self._results.update({"actual_cumtime": []})
 
     def _proc(
         self,
@@ -132,6 +135,9 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         self._results["cumtime"].append(result_data.cumtime)
         for k in self._obj_keys:
             self._results[k].append(result_data.results[k])
+
+        if self._wrapper_vars.store_actual_cumtime:
+            self._results["actual_cumtime"].append(time.time() - self._start_time)
 
         if not self._wrapper_vars.store_config:
             return
