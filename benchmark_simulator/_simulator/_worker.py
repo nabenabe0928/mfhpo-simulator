@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from typing import Any
 
 from benchmark_simulator._constants import (
@@ -221,7 +222,15 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
                 seed=seed,
             )
 
-        return self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed, **data_to_scatter)
+        start = time.time()
+        results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed, **data_to_scatter)
+        query_overhead = time.time() - start
+        if query_overhead > 1.0:
+            warnings.warn(
+                f"Simulation may not give correct results when query overhead is large (took {query_overhead=:.2f} sec)"
+            )
+
+        return results
 
     def _proc_output_from_scratch(
         self, eval_config: dict[str, Any], fidels: dict[str, int | float] | None, **data_to_scatter: Any
