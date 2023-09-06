@@ -353,6 +353,7 @@ def _update_min_cumtimes(
         (new_cumtimes[wid] for wid in new_cumtimes if new_sample_waiting[wid] > 0.0),
         default=min_cumtime_confirmed,
     )
+    # Take `max` for the cases where the new sampling target worker has a discontinued simulated runtime
     return min_cumtime_confirmed, max(old_min_cumtime_waiting + sampling_duration, min_cumtime_waiting)
 
 
@@ -381,6 +382,7 @@ def _get_initial_min_cumtimes(
     cumtimes: dict[str, float], sample_waiting: dict[str, float] | None, start: float
 ) -> tuple[float, float]:
     min_cumtime_confirmed = min(ct for ct in cumtimes.values())
+    # start - sample_waiting[wid]: the sampling waiting times for each worker by now
     min_cumtime_waiting = (
         min(
             (cumtimes[wid] + start - sample_waiting[wid] for wid in cumtimes if sample_waiting[wid] > 0.0),
