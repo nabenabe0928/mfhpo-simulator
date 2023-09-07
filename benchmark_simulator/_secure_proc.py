@@ -282,6 +282,7 @@ def _get_timeout_message(cause: str, path: str) -> str:
         f"(1) The path {dir_name} already existed before the execution of the program.",
         "(2) n_workers specified in your optimizer and that in the simulator might be different.",
         "(3) launch_multiple_wrappers_from_user_side is incorrectly set.",
+        "(4) Loading time of your benchmark dataset is too long (> 60 seconds).",
     ]
     return "\n".join(msg)
 
@@ -300,7 +301,7 @@ def _wait_proc_allocation(
 
 
 def _wait_all_workers(
-    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-4, time_limit: float = 10.0
+    path: str, n_workers: int, lock: _SecureLock, waiting_time: float = 1e-4, time_limit: float = 60.0
 ) -> dict[str, int]:
     start = time.time()
     waiting_time *= 1 + np.random.random()
