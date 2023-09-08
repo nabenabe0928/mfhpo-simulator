@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from typing import Any
 
 from benchmark_simulator._constants import (
@@ -173,13 +174,15 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
 
         is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
         if self._wrapper_vars.allow_parallel_sampling:
+            before_sample = self._cumtimes[worker_id]
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
         else:
-            self._timenow = max(self._timenow, self._cumtimes[worker_id]) + sampling_time
+            before_sample = max(self._timenow, self._cumtimes[worker_id])
+            self._timenow = before_sample + sampling_time
             self._cumtimes[worker_id] = self._timenow
 
         self._sampled_time["worker_index"].append(worker_id)
-        self._sampled_time["before_sample"].append(self._cumtimes[worker_id] - sampling_time)
+        self._sampled_time["before_sample"].append(before_sample)
         self._sampled_time["after_sample"].append(self._cumtimes[worker_id])
 
         if (
@@ -196,6 +199,8 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         if self._wrapper_vars.expensive_sampler:
             before_eval = self._sampled_time["after_sample"][-1]
             free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
+        else:
+            warnings.warn(f"Use expensive_sampler=True for {self.__class__.__name__} as it is more precise")
 
         for _worker_id in free_worker_idxs.astype(np.int32):
             result_data = self._pending_results[_worker_id]

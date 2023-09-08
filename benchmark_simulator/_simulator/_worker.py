@@ -225,9 +225,10 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         start = time.time()
         results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed, **data_to_scatter)
         query_overhead = time.time() - start
-        if query_overhead > 1.0:
+        if query_overhead > 1.0 and self._wrapper_vars.expensive_sampler:
             warnings.warn(
                 f"Simulation may not give correct results when query overhead is large (took {query_overhead=:.2f} sec)"
+                f" Consider using expensive_sampler=False."
             )
 
         return results
@@ -301,24 +302,27 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         if self._is_simulator_terminated():
             self._finish()
 
-    def _determine_cumtime(self, sampling_time: float) -> None:
+    def _determine_cumtime(self, sampling_time: float) -> float:
         cumtimes = _fetch_cumtimes(self._paths.worker_cumtime, lock=self._lock)
         cumtime = cumtimes[self._worker_vars.worker_id]
+        sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
+        is_init_sample = bool(cumtime < NEGLIGIBLE_SEC)
+        parallel_sampling = self._wrapper_vars.allow_parallel_sampling
+        before_sample = (
+            cumtime if parallel_sampling or is_init_sample else max(cumtime, np.max(sampled_time["after_sample"]))
+        )
 
         if self._wrapper_vars.expensive_sampler:
             # In this case, sampling time already includes the idling time for the other workers.
             self._cumtime = cumtime + sampling_time
+            before_sample = min(before_sample, self._cumtime)
         else:
-            sampled_time = _fetch_sampled_time(path=self._paths.sampled_time, lock=self._lock)
             # Consider the sampling time overlap
-            is_init_sample = bool(cumtime < NEGLIGIBLE_SEC)
-            self._cumtime = (
-                max(cumtime, np.max(sampled_time["after_sample"][sampled_time["before_sample"] <= cumtime]))
-                if not self._wrapper_vars.allow_parallel_sampling and not is_init_sample
-                else cumtime
-            ) + sampling_time
+            self._cumtime = before_sample + sampling_time
             if is_init_sample and any(NEGLIGIBLE_SEC < ct < self._cumtime for ct in cumtimes.values()):
                 _raise_optimizer_init_error()
+
+        return before_sample
 
     def _load_timestamps(self) -> None:
         # Not waiting for sample now. (and then the func call time will not be included in sampling time)
@@ -328,9 +332,9 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         worker_id = self._worker_vars.worker_id
         sampling_time = max(0.0, time.time() - _fetch_timestamps(self._paths.timestamp, lock=self._lock)[worker_id])
 
-        self._determine_cumtime(sampling_time=sampling_time)
+        before_sample = self._determine_cumtime(sampling_time=sampling_time)
         new_sampled_time = _SampledTimeDictType(
-            before_sample=self._cumtime - sampling_time,
+            before_sample=before_sample,  # after waiting for samplings for the other workers
             after_sample=self._cumtime,
             worker_index=self._worker_vars.worker_index,
         )
