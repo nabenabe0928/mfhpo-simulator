@@ -81,7 +81,6 @@ This file is used only if expensive_sampler=True.
 """
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime
 from typing import Any
@@ -92,6 +91,8 @@ from benchmark_simulator._simulator._worker_manager import _CentralWorkerManager
 from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import _AskTellWorkerManager
 
 import numpy as np
+
+import ujson as json  # type: ignore
 
 
 def get_multiple_wrappers(

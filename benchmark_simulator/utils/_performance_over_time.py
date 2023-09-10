@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 import os
 
 import numpy as np
+
+import ujson as json  # type: ignore
 
 
 def _validate_performance(
@@ -86,7 +87,7 @@ def get_performance_over_time(
                 The shape is (step, ).
             perf_vals (np.ndarray):
                 The cumulative best performance metric value up to the corresponding time point.
-                The shape is (step, ).
+                The shape is (n_seeds, step).
     """
     optimizer_overheads = [np.zeros_like(t) for t in cumtimes] if optimizer_overheads is None else optimizer_overheads
     loss_vals = _validate_performance(
@@ -129,7 +130,7 @@ def _sort_optimizer_overhead(
 
 def get_performance_over_time_from_paths(
     paths: list[str],
-    obj_key: str,
+    obj_key: str = "loss",
     step: int = 100,
     minimize: bool = True,
     log: bool = True,
@@ -168,7 +169,7 @@ def get_performance_over_time_from_paths(
                 The shape is (step, ).
             perf_vals (np.ndarray):
                 The cumulative best performance metric value up to the corresponding time point.
-                The shape is (step, ).
+                The shape is (n_seeds, step).
     """
     cumtimes, perf_vals = [], []
     optimizer_overheads: list[np.ndarray] | None = None if consider_optimizer_overhead else []
@@ -206,6 +207,16 @@ def get_performance_over_time_from_paths(
 
 
 def get_mean_and_standard_error(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the mean and standard error of an array x.
+
+    Args:
+        x (np.ndarray): The shape must be (n_seeds, n_samples).
+
+    Returns:
+        mean, ste (tuple[np.ndarray, np.ndarray]):
+            The mean and the standard error of x along axis=0.
+    """
     if not isinstance(x, np.ndarray):
         raise ValueError(f"The type of the input must be np.ndarray, but got {type(x)}")
     if len(x.shape) != 2:
