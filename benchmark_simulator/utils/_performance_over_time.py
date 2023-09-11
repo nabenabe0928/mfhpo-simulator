@@ -263,9 +263,12 @@ def get_average_rank(
             Whetehr to consider the optimizer overhead into the simulated time.
             If False, we will remove the optimizer overhead from the runtime.
         step_avg_rank (int):
-            TODO
+            The number of time step grids used for this computation.
         min_time_step_ratio (float):
-            TODO
+            The time step used for this computation becomes [min_time_step_ratio * tmax, tmax]
+            where tmax is the maximum runtime available among all the results.
+            It is valid only for log=True.
+            If log=False, min_time_step_ratio becomes zero.
 
     Returns:
         avg_rank (np.ndarray):

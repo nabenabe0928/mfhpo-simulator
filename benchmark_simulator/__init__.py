@@ -2,7 +2,7 @@ from benchmark_simulator._constants import AbstractAskTellOptimizer, ObjectiveFu
 from benchmark_simulator.simulator import ObjectiveFuncWrapper, get_multiple_wrappers
 
 
-__version__ = "1.4.2"
+__version__ = "1.4.3"
 __copyright__ = "Copyright (C) 2023 Shuhei Watanabe"
 __licence__ = "Apache-2.0 License"
 __author__ = "Shuhei Watanabe"
