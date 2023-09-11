@@ -1,6 +1,7 @@
 # For package
 ujson
 numpy
+scipy
 
 # SMAC3 <=== cannot use it with JAHS
 smac>=2.0.1

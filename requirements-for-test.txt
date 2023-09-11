@@ -1,5 +1,6 @@
 # For package
 ujson
 numpy
+scipy
 dehb==0.0.5  # only for tests
 mfhpo-benchmark-api>=2.0.0
