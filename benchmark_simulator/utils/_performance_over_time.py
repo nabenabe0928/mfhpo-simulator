@@ -4,6 +4,8 @@ import os
 
 import numpy as np
 
+from scipy.stats import rankdata
+
 import ujson as json  # type: ignore
 
 
@@ -225,3 +227,86 @@ def get_mean_and_standard_error(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     mean = np.nanmean(x, axis=0)
     ste = np.nanstd(x, axis=0) / np.sqrt(np.count_nonzero(~np.isnan(x), axis=0))
     return mean, ste
+
+
+def get_average_rank(
+    all_path_list: list[list[list[str]]],
+    obj_key: str = "loss",
+    step: int = 100,
+    minimize: bool = True,
+    log: bool = True,
+    consider_optimizer_overhead: bool = True,
+    step_avg_rank: int = 200,
+    min_time_step_ratio: float = 1e-5,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the average rank of a given path dict.
+
+    Args:
+        path_list (list[list[list[str]]]):
+            A list of the paths to the info files.
+            The shape is (n_setups, n_opts, n_seeds).
+            The average rank is computed over the first axis, i.e. w.r.t. optimizers.
+        obj_key (str):
+            The key of the performance metric in results.json.
+        step (int):
+            The number of time points to take.
+            The minimum/maximum time points are determined based on the provided cumtimes.
+                * minimum time points := np.min(cumtimes)
+                * maximum time points := np.max(cumtimes)
+        minimize (bool):
+            Whether the performance metric is better when it is smaller.
+            The returned perf_vals will be an increasing sequence if minimize=False.
+        log (bool):
+            Whether the time points should be taken on log-scale.
+        consider_optimizer_overhead (bool):
+            Whetehr to consider the optimizer overhead into the simulated time.
+            If False, we will remove the optimizer overhead from the runtime.
+        step_avg_rank (int):
+            TODO
+        min_time_step_ratio (float):
+            TODO
+
+    Returns:
+        avg_rank (np.ndarray):
+            The average rank of each optimizer over all the setups.
+            The shape is (n_opts, step_avg_rank).
+        dt (np.ndarray):
+            the time step ratio (time step / the max budget) used in average rank.
+            The shape is (step_avg_rank).
+    """
+    kwargs = dict(
+        obj_key=obj_key,
+        step=step,
+        minimize=minimize,
+        log=log,
+        consider_optimizer_overhead=consider_optimizer_overhead,
+    )
+    _results = []
+    for path_list in all_path_list:
+        dt_list: list[list[float]] = []
+        perf_list: list[list[float]] = []
+        for paths in path_list:
+            dt, perfs = get_performance_over_time_from_paths(paths=paths, **kwargs)
+            dt_list.append([0.0] + dt.tolist() + [np.inf])
+            meds = np.median(perfs, axis=0).tolist()
+            perf_list.append([np.inf if minimize else -np.inf] + meds + [meds[-1]])
+
+        dt_array, perf_array = map(np.asarray, [dt_list, perf_list])
+        t_max = np.max(dt_array[:, -2])
+        dt_for_this_setup = (
+            np.exp(np.linspace(np.log(t_max * min_time_step_ratio), np.log(t_max), step_avg_rank))
+            if log else np.linspace(0, t_max, step_avg_rank)
+        )
+        concat_perfs = np.array([
+            perfs[np.searchsorted(dt, dt_for_this_setup)] for dt, perfs in zip(dt_array, perf_array)
+        ])
+        _results.append(concat_perfs)
+
+    results = np.asarray(_results)
+    avg_rank = np.mean(rankdata(results, axis=1), axis=0)
+    frac = (
+        np.exp(np.linspace(np.log(min_time_step_ratio), np.log(1.0), step_avg_rank))
+        if log else np.linspace(0, 1.0, step_avg_rank)
+    )
+    return avg_rank, frac
