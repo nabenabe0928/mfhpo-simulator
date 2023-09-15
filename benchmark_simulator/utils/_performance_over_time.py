@@ -229,7 +229,7 @@ def get_mean_and_standard_error(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return mean, ste
 
 
-def get_perf_over_time_with_same_time_scale(
+def get_performance_over_time_with_same_time_scale(
     all_path_list: list[list[list[str]]],
     obj_key: str = "loss",
     step: int = 100,
@@ -363,7 +363,7 @@ def get_average_rank(
             The shape is (step_avg_rank).
     """
 
-    results, frac = get_perf_over_time_with_same_time_scale(
+    results, frac = get_performance_over_time_with_same_time_scale(
         all_path_list=all_path_list,
         obj_key=obj_key,
         step=step,
