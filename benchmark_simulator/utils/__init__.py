@@ -12,5 +12,5 @@ __all__ = [
     "get_mean_and_standard_error",
     "get_performance_over_time",
     "get_performance_over_time_from_paths",
-    "get_performance_over_time_with_same_time_scale"
+    "get_performance_over_time_with_same_time_scale",
 ]

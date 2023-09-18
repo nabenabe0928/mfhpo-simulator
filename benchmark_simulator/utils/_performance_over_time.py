@@ -238,7 +238,7 @@ def get_performance_over_time_with_same_time_scale(
     consider_optimizer_overhead: bool = True,
     step_avg_rank: int = 200,
     min_time_step_ratio: float = 1e-5,
-):
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute the performance over time with the same time scale over different setups.
 
@@ -290,7 +290,7 @@ def get_performance_over_time_with_same_time_scale(
         dt_list: list[list[float]] = []
         perf_list: list[list[float]] = []
         for paths in path_list:
-            dt, perfs = get_performance_over_time_from_paths(paths=paths, **kwargs)
+            dt, perfs = get_performance_over_time_from_paths(paths=paths, **kwargs)  # type: ignore[arg-type]
             dt_list.append([0.0] + dt.tolist() + [np.inf])
             meds = np.median(perfs, axis=0).tolist()
             perf_list.append([np.inf if minimize else -np.inf] + meds + [meds[-1]])
@@ -299,16 +299,18 @@ def get_performance_over_time_with_same_time_scale(
         t_max = np.max(dt_array[:, -2])
         dt_for_this_setup = (
             np.exp(np.linspace(np.log(t_max * min_time_step_ratio), np.log(t_max), step_avg_rank))
-            if log else np.linspace(0, t_max, step_avg_rank)
+            if log
+            else np.linspace(0, t_max, step_avg_rank)
         )
-        concat_perfs = np.array([
-            perfs[np.searchsorted(dt, dt_for_this_setup) - 1] for dt, perfs in zip(dt_array, perf_array)
-        ])
+        concat_perfs = np.array(
+            [perfs[np.searchsorted(dt, dt_for_this_setup) - 1] for dt, perfs in zip(dt_array, perf_array)]
+        )
         _results.append(concat_perfs)
 
     frac = (
         np.exp(np.linspace(np.log(min_time_step_ratio), np.log(1.0), step_avg_rank))
-        if log else np.linspace(0, 1.0, step_avg_rank)
+        if log
+        else np.linspace(0, 1.0, step_avg_rank)
     )
     return np.asarray(_results), frac
 
