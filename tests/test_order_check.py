@@ -51,14 +51,12 @@ def optimize_sync_parallel(mode: str, n_workers: int, sleeping: float = 0.0) -> 
     wrapper_cls = ObjectiveFuncWrapperWithSampleLatency if latency else ObjectiveFuncWrapper
     wrapper = wrapper_cls(obj_func=target, **kwargs)
 
-    res = [wrapper(eval_config=dict(index=min(index, n_evals - 1))) for index in range(n_evals + 1)]
-
+    [wrapper(eval_config=dict(index=min(index, n_evals - 1))) for index in range(n_evals + 1)]
     out = wrapper.get_results()["cumtime"][:n_evals]
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)
     buffer = UNIT_TIME * 100 if latency else 3
-    print(target._ans, out)
     assert np.all(diffs < buffer)
 
 

@@ -79,6 +79,7 @@ after_sample is the latest cumtime immediately after the last sample and before_
     * workerN_id -- timestamp when the latest sample started (use 0.0 when it is not waiting for sampling)
 This file is used only if expensive_sampler=True.
 """
+
 from __future__ import annotations
 
 import os
