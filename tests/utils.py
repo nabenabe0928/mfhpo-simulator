@@ -84,7 +84,7 @@ class OrderCheckConfigsForSyncWithSampleLatency:
         self._ans = {
             2: np.array([600, 900, 1200, 1700, 1800, 1900]),
             3: np.array([500, 600, 1200, 1600, 1700, 1800]),
-        }[n_workers]  * UNIT_TIME
+        }[n_workers] * UNIT_TIME
         loss_vals = [i for i in range(self._ans.size)]
         self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
         self._n_evals = self._ans.size
