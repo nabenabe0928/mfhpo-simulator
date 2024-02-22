@@ -62,6 +62,9 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         if self._wrapper_vars.store_actual_cumtime:
             self._results.update({"actual_cumtime": []})
 
+    def _is_simulator_terminated(self) -> bool:
+        raise NotImplementedError
+
     def _proc(
         self,
         eval_config: dict[str, Any],

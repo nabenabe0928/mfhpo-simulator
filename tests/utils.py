@@ -22,6 +22,42 @@ UNIT_TIME = 1e-3 if ON_UBUNTU else 5e-2
 DIR_PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 
 
+class OrderCheckConfigsForSync:
+    """
+    Both cases use batch size 3.
+
+    [1] 2 worker case
+    worker-0: -------------------|-----|---|---|
+              1000                300   200 200
+    worker-1: -------|-----      |-------  |
+              400     300         400
+
+    [2] 3 worker case.
+    worker-0: -------------------|-----|
+              1000                300
+    worker-1: -------            |-------|
+              400                 400
+    worker-2: -----              |---|   |---|
+              300                 200     200
+    """
+
+    def __init__(self, n_workers: int, sleeping: float = 0.0):
+        loss_vals = [i for i in range(7)]
+        runtimes = np.array([1000, 400, 300, 300, 400, 200, 200])
+        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._ans = {
+            2: np.array([400, 700, 1000, 1300, 1400, 1500, 1700]),
+            3: np.array([300, 400, 1000, 1200, 1300, 1400, 1600]),
+        }[n_workers]
+        self._n_evals = self._ans.size
+        self._sleeping = sleeping
+
+    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+        time.sleep(self._sleeping)
+        results = self._results[eval_config["index"]]
+        return results
+
+
 class OrderCheckConfigs:
     """
     [1] 2 worker case
@@ -102,6 +138,7 @@ class OrderCheckConfigs:
         self._sleeping = sleeping
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+        # Latency caused by benchmark function. We must be able to ignore it in the simulation.
         time.sleep(self._sleeping)
         results = self._results[eval_config["index"]]
         return results

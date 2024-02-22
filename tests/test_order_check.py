@@ -11,6 +11,7 @@ import numpy as np
 from tests.utils import (
     IS_LOCAL,
     OrderCheckConfigs,
+    OrderCheckConfigsForSync,
     OrderCheckConfigsWithSampleLatency,
     SUBDIR_NAME,
     UNIT_TIME,
@@ -36,7 +37,39 @@ class ObjectiveFuncWrapperWithSampleLatency(ObjectiveFuncWrapper):
 
 
 @cleanup
-def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False, sleeping: float = 0.0):
+def optimize_sync_parallel(mode: str, n_workers: int, sleeping: float = 0.0) -> None:
+    latency = mode == LATENCY
+    kwargs = DEFAULT_KWARGS.copy()
+    if latency:
+        # target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout)
+        pass
+    else:
+        target = OrderCheckConfigsForSync(n_workers, sleeping=sleeping)
+
+    n_evals = target._n_evals
+    kwargs.update(n_workers=n_workers, n_evals=7, n_actual_evals_in_opt=8, batch_size=3)
+    wrapper_cls = ObjectiveFuncWrapperWithSampleLatency if latency else ObjectiveFuncWrapper
+    wrapper = wrapper_cls(obj_func=target, **kwargs)
+
+    res = [wrapper(eval_config=dict(index=min(index, n_evals - 1))) for index in range(n_evals + 1)]
+
+    out = wrapper.get_results()["cumtime"][:n_evals]
+    diffs = out - np.maximum.accumulate(out)
+    assert np.allclose(diffs, 0.0)
+    diffs = np.abs(out - target._ans)
+    buffer = UNIT_TIME * 100 if latency else 3
+    print(target._ans, out)
+    assert np.all(diffs < buffer)
+
+
+@pytest.mark.parametrize("n_workers", (2, 3))
+@pytest.mark.parametrize("sleeping", (0.0, UNIT_TIME * 200))
+def test_optimize_sync_parallel(n_workers: int, sleeping: float):
+    optimize_sync_parallel(mode="normal", n_workers=n_workers, sleeping=sleeping)
+
+
+@cleanup
+def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False, sleeping: float = 0.0) -> None:
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
     n_workers = 2 if latency or not IS_LOCAL else 4
@@ -76,12 +109,10 @@ def optimize_parallel(mode: str, parallel_sampler: bool, timeout: bool = False, 
 @pytest.mark.parametrize("parallel_sampler", (True, False))
 def test_optimize_parallel(mode: str, sleeping: float, parallel_sampler: bool):
     if mode == "normal" and parallel_sampler:
-        # No test
-        return
+        pytest.skip("No need to consider parallel sampler for cheap benchmark.")
 
     if mode == LATENCY and sleeping > 0.0:
-        # No test
-        return
+        pytest.skip("If benchmark has overhead, we cannot handle expensive sampler.")
 
     optimize_parallel(mode=mode, parallel_sampler=parallel_sampler, sleeping=sleeping)
 

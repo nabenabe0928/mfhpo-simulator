@@ -51,6 +51,10 @@ class _BaseWrapperInterface(metaclass=ABCMeta):
         return self._fidel_keys[:]
 
     @abstractmethod
+    def _is_simulator_terminated(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     def _init_wrapper(self) -> None:
         raise NotImplementedError
 

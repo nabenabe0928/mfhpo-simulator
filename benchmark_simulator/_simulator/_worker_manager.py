@@ -56,6 +56,9 @@ class _CentralWorkerManager(_BaseWrapperInterface):
             # This line is actually covered, but it is not visible due to multiprocessing nature
             self._pid_to_index = _fetch_proc_alloc(path=path, lock=self._lock)  # pragma: no cover
 
+    def _is_simulator_terminated(self) -> bool:
+        return self._workers[0]._is_simulator_terminated()
+
     def __call__(
         self,
         eval_config: dict[str, Any],

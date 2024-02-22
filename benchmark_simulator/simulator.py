@@ -82,6 +82,7 @@ This file is used only if expensive_sampler=True.
 from __future__ import annotations
 
 import os
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -115,6 +116,7 @@ def get_multiple_wrappers(
     max_total_eval_time: float = np.inf,
     expensive_sampler: bool = False,
     tmp_dir: str | None = None,
+    batch_size: int | None = None,
 ) -> list[ObjectiveFuncWrapper]:
     """Return multiple wrapper instances.
 
@@ -199,6 +201,12 @@ def get_multiple_wrappers(
         tmp_dir (str | None):
             Temporal directory especially for cluster usage.
             By using this argument, data will be stored in <tmp_dir>/mfhpo-simulator-info/...
+        batch_size (int | None):
+            The batch size used for synchronous optimization.
+            If None, we simulate a normal asynchronous optimization.
+            If batch_size is not None, we use n_workers=1 to obtain the data
+            and then reproduce the exact order from the results by a post-hoc calibration.
+            Note that the post-hoc calibration is guaranteed to reproduce the exact order.
 
     Returns:
         wrappers (list[ObjectiveFuncWrapper]):
@@ -233,6 +241,7 @@ def get_multiple_wrappers(
         max_total_eval_time=max_total_eval_time,
         expensive_sampler=expensive_sampler,
         tmp_dir=tmp_dir,
+        batch_size=batch_size,
         _async_instantiations=False,
     )
     return [ObjectiveFuncWrapper(**wrapper_kwargs, worker_index=i) for i in range(n_workers)]  # type: ignore[arg-type]
@@ -301,6 +310,7 @@ class ObjectiveFuncWrapper:
         expensive_sampler: bool = False,
         careful_init: bool = False,
         tmp_dir: str | None = None,
+        batch_size: int | None = None,
         _async_instantiations: bool = True,
     ):
         """The initialization of a wrapper class.
@@ -413,12 +423,26 @@ class ObjectiveFuncWrapper:
             tmp_dir (str | None):
                 Temporal directory especially for cluster usage.
                 By using this argument, data will be stored in <tmp_dir>/mfhpo-simulator-info/...
+            batch_size (int | None):
+                The batch size used for synchronous optimization.
+                If None, we simulate a normal asynchronous optimization.
+                If batch_size is not None, we use n_workers=1 to obtain the data
+                and then reproduce the exact order from the results by a post-hoc calibration.
+                Note that the post-hoc calibration is guaranteed to reproduce the exact order.
             _async_instantiations (bool):
                 Whether each worker is instantiated asynchrously.
                 In other words, whether to wait all workers' instantiations or not.
                 This argument must not be touched by users.
         """
+        if batch_size is not None and n_workers != 1:
+            warnings.warn("When batch_size is given, the optimizer must NOT be run in parallel.")
+
         curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
+        self._n_workers = n_workers
+        self._batch_size = batch_size
+        self._finish_posthoc = False
+        # Use n_workers=1 for sync opt to obtain data for stability
+        n_workers = 1 if batch_size is not None else n_workers
         wrapper_vars = _WrapperVars(
             obj_func=obj_func,
             save_dir_name=save_dir_name if save_dir_name is not None else f"data-{curtime}",
@@ -451,7 +475,7 @@ class ObjectiveFuncWrapper:
         )
         if ask_and_tell:
             self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
-        elif launch_multiple_wrappers_from_user_side:
+        elif launch_multiple_wrappers_from_user_side or batch_size is not None:
             self._main_wrapper = _ObjectiveFuncWorker(
                 wrapper_vars, worker_index=worker_index, async_instantiations=_async_instantiations
             )
@@ -488,7 +512,7 @@ class ObjectiveFuncWrapper:
 
     @property
     def n_workers(self) -> int:
-        return self._main_wrapper._wrapper_vars.n_workers
+        return self._n_workers
 
     def get_results(self) -> dict[str, list[int | float | str | bool]]:
         with open(self.result_file_path, mode="r") as f:
@@ -510,6 +534,10 @@ class ObjectiveFuncWrapper:
         n_workers: int,
         worker_index: int | None,
     ) -> None:
+        cpu_count = os.cpu_count()
+        assert cpu_count is not None  # mypy redefinition
+        if cpu_count < n_workers:
+            warnings.warn(f"CPU count (={cpu_count}) in your env is smaller than {n_workers=} and it may cause a hang")
         if ask_and_tell and launch_multiple_wrappers_from_user_side:
             raise ValueError(
                 "ask_and_tell and launch_multiple_wrappers_from_user_side cannot be True at the same time."
@@ -570,7 +598,15 @@ class ObjectiveFuncWrapper:
                 It must have `objective metric` and `runtime` at least.
                 Otherwise, any other metrics are optional.
         """
-        return self._main_wrapper(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)
+        results = self._main_wrapper(eval_config=eval_config, fidels=fidels, config_id=config_id, **data_to_scatter)
+        if self._batch_size is None:
+            # No posthoc for async
+            pass
+        elif self._main_wrapper._is_simulator_terminated() and not self._finish_posthoc:
+            self._posthoc_for_sync()
+            self._finish_posthoc = True
+
+        return results
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         """
@@ -595,3 +631,54 @@ class ObjectiveFuncWrapper:
                         opt.tell(eval_config, results, fidels)
         """
         self._main_wrapper.simulate(opt)
+        self._posthoc_for_sync()
+
+    def _posthoc_proc(self, runtimes: np.ndarray) -> tuple[list[float], list[int]]:
+        batch_size, n_workers = self._batch_size, self._n_workers
+        assert isinstance(batch_size, int)  # mypy redefinition
+        cumtimes: list[float] = []
+        worker_indices: list[int] = []
+        head = 0
+        while head < runtimes.size:
+            last_time = max(cumtimes, default=0)
+            tail = head + batch_size
+            runtime_batch = runtimes[head:tail]  # noqa: ignore[E203]
+            cumtime_batch = []
+            cumtime_worker = np.zeros(n_workers)
+            for rt in runtime_batch:
+                worker_index = np.argmin(cumtime_worker)
+                worker_indices.append(worker_index)
+                cumtime_worker[worker_index] += rt
+                cumtime_batch.append(cumtime_worker[worker_index])
+                head += 1
+
+            cumtimes.extend(np.add(cumtime_batch, last_time).tolist())
+
+        order = np.argsort(cumtimes)
+        return np.asarray(cumtimes)[order].tolist(), np.asarray(worker_indices)[order].tolist()
+
+    def _posthoc_for_sampled_time(self, cumtimes: list[float], worker_indices: list[int]) -> None:
+        n_evals = len(cumtimes)
+        with open(self._main_wrapper._paths.sampled_time, mode="r") as f:
+            sampled_time = {k: v[:n_evals] for k, v in json.load(f).items()}
+
+        sampled_time["worker_index"] = worker_indices
+        sampling_times = np.subtract(sampled_time["after_sample"], sampled_time["before_sample"])
+        sampled_time["before_sample"] = [0.0] + cumtimes[:-1]
+        sampled_time["after_sample"] = np.add(sampled_time["before_sample"], sampling_times).tolist()
+        with open(self._main_wrapper._paths.sampled_time, mode="w") as f:
+            json.dump(sampled_time, f)
+
+    def _posthoc_for_sync(self) -> None:
+        if self._batch_size is None:
+            # No posthoc for async opt
+            return
+
+        # Modify cumtime and worker_index
+        results = self.get_results()
+        runtimes = np.array(results["cumtime"]) - np.insert(results["cumtime"], 0, 0.0)[:-1]
+        cumtimes, worker_indices = self._posthoc_proc(runtimes=runtimes)
+        results["cumtime"], results["worker_index"] = cumtimes, worker_indices  # type: ignore[assignment]
+        self._posthoc_for_sampled_time(cumtimes=cumtimes, worker_indices=worker_indices)
+        with open(self.result_file_path, mode="w") as f:
+            json.dump(results, f)
