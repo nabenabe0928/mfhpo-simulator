@@ -12,6 +12,7 @@ from tests.utils import (
     IS_LOCAL,
     OrderCheckConfigs,
     OrderCheckConfigsForSync,
+    OrderCheckConfigsForSyncWithSampleLatency,
     OrderCheckConfigsWithSampleLatency,
     SUBDIR_NAME,
     UNIT_TIME,
@@ -41,29 +42,38 @@ def optimize_sync_parallel(mode: str, n_workers: int, sleeping: float = 0.0) -> 
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
     if latency:
-        # target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout)
-        pass
+        target = OrderCheckConfigsForSyncWithSampleLatency(n_workers)
     else:
         target = OrderCheckConfigsForSync(n_workers, sleeping=sleeping)
 
     n_evals = target._n_evals
-    kwargs.update(n_workers=n_workers, n_evals=7, n_actual_evals_in_opt=8, batch_size=3)
-    wrapper_cls = ObjectiveFuncWrapperWithSampleLatency if latency else ObjectiveFuncWrapper
-    wrapper = wrapper_cls(obj_func=target, **kwargs)
+    batch_size = 3
+    kwargs.update(n_workers=n_workers, n_evals=7, n_actual_evals_in_opt=8, batch_size=batch_size)
+    wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
 
-    [wrapper(eval_config=dict(index=min(index, n_evals - 1))) for index in range(n_evals + 1)]
+    for index in range(n_evals + 1):
+        if index % batch_size == 0:
+            time.sleep(UNIT_TIME * 200)
+
+        wrapper(eval_config=dict(index=min(index, n_evals - 1)), config_id=index)
+
     out = wrapper.get_results()["cumtime"][:n_evals]
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)
+    print(out, target._ans)
     buffer = UNIT_TIME * 100 if latency else 3
     assert np.all(diffs < buffer)
 
 
+@pytest.mark.parametrize("mode", ("normal", LATENCY))
 @pytest.mark.parametrize("n_workers", (2, 3))
 @pytest.mark.parametrize("sleeping", (0.0, UNIT_TIME * 200))
-def test_optimize_sync_parallel(n_workers: int, sleeping: float):
-    optimize_sync_parallel(mode="normal", n_workers=n_workers, sleeping=sleeping)
+def test_optimize_sync_parallel(mode: str, n_workers: int, sleeping: float):
+    if mode == LATENCY and sleeping > 0.0:
+        pytest.skip("If benchmark has overhead, we cannot handle expensive sampler.")
+
+    optimize_sync_parallel(mode=mode, n_workers=n_workers, sleeping=sleeping)
 
 
 @cleanup

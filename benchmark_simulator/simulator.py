@@ -635,15 +635,21 @@ class ObjectiveFuncWrapper:
         self._posthoc_for_sync()
 
     def _posthoc_proc(self, runtimes: np.ndarray) -> tuple[list[float], list[int]]:
+        with open(self._main_wrapper._paths.sampled_time, mode="r") as f:
+            sampled_time = json.load(f)
+            sampling_times = np.subtract(sampled_time["after_sample"], sampled_time["before_sample"])
+
         batch_size, n_workers = self._batch_size, self._n_workers
         assert isinstance(batch_size, int)  # mypy redefinition
         cumtimes: list[float] = []
         worker_indices: list[int] = []
         head = 0
         while head < runtimes.size:
+            sampling_time = sampling_times[head]
             last_time = max(cumtimes, default=0)
             tail = head + batch_size
             runtime_batch = runtimes[head:tail]  # noqa: ignore[E203]
+            runtime_batch[0] -= sampling_time  # The first sample in each batch includes the sampling time.
             cumtime_batch = []
             cumtime_worker = np.zeros(n_workers)
             for rt in runtime_batch:
@@ -653,7 +659,7 @@ class ObjectiveFuncWrapper:
                 cumtime_batch.append(cumtime_worker[worker_index])
                 head += 1
 
-            cumtimes.extend(np.add(cumtime_batch, last_time).tolist())
+            cumtimes.extend(np.add(cumtime_batch, last_time + sampling_time).tolist())
 
         order = np.argsort(cumtimes)
         return np.asarray(cumtimes)[order].tolist(), np.asarray(worker_indices)[order].tolist()

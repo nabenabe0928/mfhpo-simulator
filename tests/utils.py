@@ -58,6 +58,42 @@ class OrderCheckConfigsForSync:
         return results
 
 
+class OrderCheckConfigsForSyncWithSampleLatency:
+    """
+    xxx means sampling time, ooo means waiting time for the sampling for the other worker, --- means waiting time.
+    Note that the first sample can be considered for Ask-and-Tell interface!
+    NOTE: I supported first sample consideration for the non ask-and-tell version as well.
+
+    [1] 2 worker case (sampling time is 200 ms)
+    worker-0: xxx|-------------------|xxx|-----|---|
+              200 1000                200 300   200
+    worker-1: xxx|-------|-----      |xxx|-------  |
+              200 400     300         200 400
+
+    [2] 3 worker case (sampling time is 200 ms)
+    worker-0: xxx|-------------------|xxx|-----|
+              200 1000                200 300
+    worker-1: xxx|-------            |xxx|-------|
+              200 400                 200 400
+    worker-2: xxx|-----              |xxx|---|
+              200 300                 200 200
+    """
+
+    def __init__(self, n_workers: int):
+        runtimes = np.array([1000, 400, 300, 300, 400, 200]) * UNIT_TIME
+        self._ans = {
+            2: np.array([600, 900, 1200, 1700, 1800, 1900]),
+            3: np.array([500, 600, 1200, 1600, 1700, 1800]),
+        }[n_workers]  * UNIT_TIME
+        loss_vals = [i for i in range(self._ans.size)]
+        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._n_evals = self._ans.size
+
+    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+        results = self._results[eval_config["index"]]
+        return results
+
+
 class OrderCheckConfigs:
     """
     [1] 2 worker case
