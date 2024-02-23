@@ -8,7 +8,15 @@ from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
 
 import numpy as np
 
-from tests.utils import OrderCheckConfigs, OrderCheckConfigsWithSampleLatency, SUBDIR_NAME, UNIT_TIME, cleanup
+from tests.utils import (
+    OrderCheckConfigs,
+    OrderCheckConfigsForSync,
+    OrderCheckConfigsForSyncWithSampleLatency,
+    OrderCheckConfigsWithSampleLatency,
+    SUBDIR_NAME,
+    UNIT_TIME,
+    cleanup,
+)
 
 
 N_EVALS = 20
@@ -23,19 +31,52 @@ DEFAULT_KWARGS = dict(
 
 
 class MyOptimizer(AbstractAskTellOptimizer):
-    def __init__(self, sleep: float = 0.0, max_count: int = N_EVALS):
+    def __init__(self, sleep: float = 0.0, max_count: int = N_EVALS, batch_size: int | None = None):
         self._count = 0
         self._max_count = max_count
         self._sleep = sleep
+        self._batch_size = batch_size
 
     def ask(self):
-        time.sleep(self._sleep)
+        if self._batch_size is None or self._count % self._batch_size == 0:
+            time.sleep(self._sleep)
+
         ret = dict(index=min(self._count, self._max_count - 1)), None, None
         self._count += 1
         return ret
 
     def tell(self, *args, **kwargs):
         pass
+
+
+@cleanup
+def optimize_sync_parallel(mode: str, n_workers: int):
+    latency = mode == LATENCY
+    kwargs = DEFAULT_KWARGS.copy()
+    target = OrderCheckConfigsForSyncWithSampleLatency(n_workers) if latency else OrderCheckConfigsForSync(n_workers)
+    n_evals = target._n_evals
+    kwargs.update(n_workers=n_workers, n_evals=n_evals, n_actual_evals_in_opt=n_evals + 3, batch_size=3)
+    wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
+    if latency:
+        wrapper.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals, batch_size=3))
+    else:
+        wrapper.simulate(MyOptimizer())
+
+    out = wrapper.get_results()["cumtime"][:n_evals]
+    diffs = np.abs(out - np.maximum.accumulate(out))
+    assert np.allclose(diffs, 0.0)
+    diffs = np.abs(out - target._ans)
+    buffer = UNIT_TIME * 100 if latency else 1
+    assert np.all(diffs < buffer)  # 1 is just a buffer.
+
+
+@pytest.mark.parametrize("mode", ("normal", LATENCY))
+@pytest.mark.parametrize("n_workers", (2, 3))
+def test_optimize_sync_parallel(mode: str, n_workers: int):
+    if mode == LATENCY:
+        optimize_sync_parallel(mode=mode, n_workers=n_workers)
+    else:
+        optimize_sync_parallel(mode=mode, n_workers=n_workers)
 
 
 @cleanup

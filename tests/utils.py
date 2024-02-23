@@ -54,7 +54,7 @@ class OrderCheckConfigsForSync:
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
         time.sleep(self._sleeping)
-        results = self._results[eval_config["index"]]
+        results = self._results[min(eval_config["index"], len(self._results) - 1)]
         return results
 
 
@@ -90,7 +90,7 @@ class OrderCheckConfigsForSyncWithSampleLatency:
         self._n_evals = self._ans.size
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
-        results = self._results[eval_config["index"]]
+        results = self._results[min(eval_config["index"], len(self._results) - 1)]
         return results
 
 
