@@ -3,13 +3,6 @@
 [![Build Status](https://github.com/nabenabe0928/mfhpo-simulator/workflows/Functionality%20test/badge.svg?branch=main)](https://github.com/nabenabe0928/mfhpo-simulator)
 [![codecov](https://codecov.io/gh/nabenabe0928/mfhpo-simulator/branch/main/graph/badge.svg?token=ZXWLF1HM2K)](https://codecov.io/gh/nabenabe0928/mfhpo-simulator)
 
-### Additional Documentations
-
-- [Usage and the Difference between with or without Our Wrapper](docs/usage.md)
-- [Tests Using Various Open Source Optimizers](docs/examples.md)
-- [Arguments Used for Our Wrapper/Attributes Provided for Users](docs/wrapper.md)
-- [Simulation Using Only the Main Process (Ask-and-Tell)](docs/ask-and-tell.md)
-
 ## Motivation
 
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
@@ -31,6 +24,13 @@ If the optimizer interface is the [ask-and-tell](https://optuna.readthedocs.io/e
     </tr>
 </table>
 
+> [!TIP]
+> For more details, please check out the following documents as well!
+> - [Usage and the Difference between with or without Our Wrapper](docs/usage.md)
+> - [Tests Using Various Open Source Optimizers](docs/examples.md)
+> - [Arguments Used for Our Wrapper/Attributes Provided for Users](docs/wrapper.md)
+> - [Simulation Using Only the Main Process (Ask-and-Tell)](docs/ask-and-tell.md)
+
 | Arguments | What Wrapper | Function Call | Requirements | Benefits | Downsides |
 |--|:--:|:--:|--|--|--|
 | Default | Function  | Parallel | Optimizer spawns child threads or processes (e.g. [DEHB](examples/dehb.py) and [SMAC3](examples/smac.py)) | No need to change the optimizer interface and reproduce exactly how optimizers run | Could be very slow, unstable, and memory-intensive with a large `n_workers` |
@@ -43,12 +43,11 @@ While users do not have to change the interface of optimizers for `ask_and_tell=
 In principle, `ask_and_tell=True` requires optimizers to be the ask-and-tell interface.
 In exchange for the strict constraint, it stabilizes the simulation.
 
-**NOTE**
-
-Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
-Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
-Furthermore, our package **cannot be run on Windows OS** because the Python module `fcntl` is not supported on Windows OS.
-Although our package supports MacOS, it is advisable to use Linux system.
+> [!NOTE]
+> Our wrapper assumes that none of the workers will not die and any additional workers will not be added after the initialization.
+> Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
+> Furthermore, our package **cannot be run on Windows OS** because the Python module `fcntl` is not supported on Windows OS.
+> Although our package supports MacOS, it is advisable to use Linux system.
 
 ## Setup
 
