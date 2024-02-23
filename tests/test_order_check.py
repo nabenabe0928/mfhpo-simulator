@@ -52,7 +52,8 @@ def optimize_sync_parallel(mode: str, n_workers: int, sleeping: float = 0.0) -> 
     wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
 
     for index in range(n_evals + 1):
-        if index % batch_size == 0:
+        if latency and index % batch_size == 0:
+            # Sampling Latency.
             time.sleep(UNIT_TIME * 200)
 
         wrapper(eval_config=dict(index=min(index, n_evals - 1)), config_id=index)
@@ -61,7 +62,6 @@ def optimize_sync_parallel(mode: str, n_workers: int, sleeping: float = 0.0) -> 
     diffs = out - np.maximum.accumulate(out)
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)
-    print(out, target._ans)
     buffer = UNIT_TIME * 100 if latency else 3
     assert np.all(diffs < buffer)
 
