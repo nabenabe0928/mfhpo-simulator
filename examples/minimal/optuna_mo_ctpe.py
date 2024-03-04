@@ -10,7 +10,7 @@ import optuna
 def objective(eval_config: dict[str, float], **kwargs) -> dict[str, float]:
     x0 = eval_config["x0"]
     x1 = eval_config["x1"]
-    f0 = x0 ** 2 + x1 ** 2
+    f0 = x0**2 + x1**2
     f1 = (x0 - 2) ** 2 + (x1 - 2) ** 2
     runtime = 50 - f0
     return {"f0": f0, "f1": f1, "constraint": x0 + x1, "runtime": runtime}
@@ -18,7 +18,7 @@ def objective(eval_config: dict[str, float], **kwargs) -> dict[str, float]:
 
 def constraint(trial: optuna.trial.FrozenTrial) -> tuple[float]:
     constraint_key = "constraint"
-    return (trial.user_attrs[constraint_key], )
+    return (trial.user_attrs[constraint_key],)
 
 
 class OptunaObjectiveFuncWrapper(ObjectiveFuncWrapper):

@@ -28,6 +28,7 @@ Each argument of `ObjectiveFuncWrapper` is the following:
 21. `expensive_sampler` (`bool`): Whether the optimizer used by users is expensive or not for a function evaluation. For example, if a function evaluation costs 1 hour and a sample takes several minutes, we consider it expensive. This argument may matter slightly for expensive samplers, but in most cases, this argument does not matter. When using expensive_sampler=True, this may slightly slow down a simulation,
 22. `tmp_dir` (`str | None`): Temporal directory especially for cluster usage. By using this argument, data will be stored in `<tmp_dir>/mfhpo-simulator-info/<save_dir_name>`,
 23. `careful_init` (`bool`): Whether doing initialization very carefully or not in the default setup (and only for the default). If True, we try to match the initialization order using sleep. It is not necessary for normal usage, but if users expect perfect reproducibility, users want to use it.
+24. `batch_size` (`int | None`): The batch size used for synchronous optimization. If None, we simulate a normal asynchronous optimization. If batch_size is not None, we use n_workers=1 to obtain the data and then reproduce the exact order from the results by a post-hoc calibration. Note that the post-hoc calibration is guaranteed to retain the exact order.
 
 ## Attributes Provided for Users
 
