@@ -3,6 +3,13 @@
 [![Build Status](https://github.com/nabenabe0928/mfhpo-simulator/workflows/Functionality%20test/badge.svg?branch=main)](https://github.com/nabenabe0928/mfhpo-simulator)
 [![codecov](https://codecov.io/gh/nabenabe0928/mfhpo-simulator/branch/main/graph/badge.svg?token=ZXWLF1HM2K)](https://codecov.io/gh/nabenabe0928/mfhpo-simulator)
 
+> [!TIP]
+> For more details, please check out the following documents as well!
+> - [Usage and the Difference between with or without Our Wrapper](docs/usage.md)
+> - [Tests Using Various Open Source Optimizers](docs/examples.md)
+> - [Arguments Used for Our Wrapper/Attributes Provided for Users](docs/wrapper.md)
+> - [Simulation Using Only the Main Process (Ask-and-Tell)](docs/ask-and-tell.md)
+
 ## Motivation
 
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
@@ -23,13 +30,6 @@ If the optimizer interface is the [ask-and-tell](https://optuna.readthedocs.io/e
         <td><img src="figs/api-conceptual.png" alt=""></td>
     </tr>
 </table>
-
-> [!TIP]
-> For more details, please check out the following documents as well!
-> - [Usage and the Difference between with or without Our Wrapper](docs/usage.md)
-> - [Tests Using Various Open Source Optimizers](docs/examples.md)
-> - [Arguments Used for Our Wrapper/Attributes Provided for Users](docs/wrapper.md)
-> - [Simulation Using Only the Main Process (Ask-and-Tell)](docs/ask-and-tell.md)
 
 | Arguments | What Wrapper | Function Call | Requirements | Benefits | Downsides |
 |--|:--:|:--:|--|--|--|
