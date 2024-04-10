@@ -95,6 +95,7 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
         old_state = _StateType(seed=seed) if old_state is None else old_state
 
         results[runtime_key] = max(0.0, results[runtime_key] - old_state.runtime)
+        # NOTE(nabenabe0928): We update here to prevent the re-use of the previous state.
         self._state_tracker.update_state(
             config_hash=config_hash,
             fidel=fidel,

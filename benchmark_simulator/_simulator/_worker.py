@@ -261,6 +261,7 @@ class _ObjectiveFuncWorker(_BaseWrapperInterface):
         total_runtime = results[self.runtime_key]
         actual_runtime = max(0.0, total_runtime - cached_state.runtime)
         self._cumtime += actual_runtime
+        # NOTE(nabenabe0928): We update here to prevent the re-use of the previous state.
         self._state_tracker.update_state(
             cumtime=self._cumtime,
             total_runtime=total_runtime,
