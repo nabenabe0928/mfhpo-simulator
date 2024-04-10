@@ -1,8 +1,8 @@
 # A Simulator for Multi-Fidelity or Parallel Optimization Using Tabular or Surrogate Benchmarks
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1O5EtSDJAKyQryVsZWTxdcZGAqZiMDQyl?usp=sharing)
 [![Build Status](https://github.com/nabenabe0928/mfhpo-simulator/workflows/Functionality%20test/badge.svg?branch=main)](https://github.com/nabenabe0928/mfhpo-simulator)
 [![codecov](https://codecov.io/gh/nabenabe0928/mfhpo-simulator/branch/main/graph/badge.svg?token=ZXWLF1HM2K)](https://codecov.io/gh/nabenabe0928/mfhpo-simulator)
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1O5EtSDJAKyQryVsZWTxdcZGAqZiMDQyl?usp=sharing)
 
 > [!TIP]
 > For more details, please check out the following documents as well!
@@ -68,13 +68,22 @@ Basic usage is available at [Usage and the Difference between with or without Ou
 
 ## Citation
 
-Please use the following format for the citation of this repository:
+Please use the following formats for the citation of this repository:
 
-```
+```bibtex
 @article{watanabe2023mfo-simulator,
   title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on {HPO} Benchmarks without Any Wait},
   author  = {S. Watanabe},
   journal = {arXiv:2305.17595},
   year    = {2023},
+}
+```
+
+```bibtex
+@article{watanabe2023mfo-simulator,
+  title   = {Fast Benchmarking of Asynchronous Multi-Fidelity Optimization on Zero-Cost Benchmarks},
+  author  = {S. Watanabe, N. Mallik, E. Bergman, F. Hutter},
+  journal = {arXiv:2403.01888},
+  year    = {2024},
 }
 ```
