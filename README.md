@@ -80,7 +80,7 @@ Please use the following formats for the citation of this repository:
 ```
 
 ```bibtex
-@article{watanabe2023mfo-simulator,
+@article{watanabe2024mfo-simulator,
   title   = {Fast Benchmarking of Asynchronous Multi-Fidelity Optimization on Zero-Cost Benchmarks},
   author  = {S. Watanabe, N. Mallik, E. Bergman, F. Hutter},
   journal = {arXiv:2403.01888},
