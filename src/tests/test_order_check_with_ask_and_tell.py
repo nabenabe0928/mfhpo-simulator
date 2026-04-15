@@ -17,7 +17,6 @@ N_EVALS = 20
 LATENCY = "latency"
 DEFAULT_KWARGS = dict(
     n_workers=2,
-    n_actual_evals_in_opt=N_EVALS + 5,
     n_evals=N_EVALS,
 )
 

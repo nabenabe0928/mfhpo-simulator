@@ -13,7 +13,6 @@ from src.tests.utils import SIMPLE_CONFIG
 
 DEFAULT_KWARGS = dict(
     n_workers=1,
-    n_actual_evals_in_opt=11,
     n_evals=10,
 )
 
@@ -52,13 +51,6 @@ def test_error_unneeded_fidel_in_call():
     )
 
 
-def test_guarantee_no_hang():
-    kwargs = DEFAULT_KWARGS.copy()
-    kwargs["n_actual_evals_in_opt"] = 10
-    with pytest.raises(ValueError, match=r"Cannot guarantee that optimziers will not hang*"):
-        ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-
-
 def test_no_expensive_parallel_sample():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["allow_parallel_sampling"] = True
@@ -88,7 +80,7 @@ def test_weird_runtime_key():
 
 def test_store_actual_cumtime() -> None:
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs.update(n_workers=4, n_actual_evals_in_opt=15)
+    kwargs.update(n_workers=4)
     worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, store_actual_cumtime=True, **kwargs)
     worker.simulate(_DummyOpt())
 

@@ -42,7 +42,6 @@ class _ResultData:
 class _WrapperVars:
     n_workers: int
     obj_func: ObjectiveFuncType
-    n_actual_evals_in_opt: int
     n_evals: int
     max_total_eval_time: float
     obj_keys: list[str]
@@ -52,14 +51,6 @@ class _WrapperVars:
     expensive_sampler: bool
 
     def validate(self) -> None:
-        if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:
-            threshold = self.n_workers + self.n_evals
-            raise ValueError(
-                "Cannot guarantee that optimziers will not hang. "
-                f"Use n_actual_evals_in_opt >= {threshold} (= n_evals + n_workers) at least. "
-                "Note that our package cannot change your optimizer setting, so "
-                "make sure that you changed your optimizer setting, but not only `n_actual_evals_in_opt`."
-            )
         if self.allow_parallel_sampling and self.expensive_sampler:
             raise ValueError(
                 "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"

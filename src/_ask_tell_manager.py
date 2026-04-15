@@ -10,7 +10,6 @@ from src._constants import _ResultData
 from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
-from src._validators import _raise_optimizer_init_error
 from src._validators import _validate_opt_class
 from src._validators import _validate_output
 
@@ -93,7 +92,11 @@ class _AskTellWorkerManager:
             and self._cumtimes[worker_id] > NEGLIGIBLE_SEC
             and self._cumtimes[worker_id] != np.min(positive_cumtimes)
         ):
-            _raise_optimizer_init_error()
+            raise TimeoutError(
+                "The initialization of the optimizer must be cheaper than one objective evuation.\n"
+                "In principle, n_workers is too large for the objective to simulate correctly.\n"
+                "Please set expensive_sampler=True or a smaller n_workers, or use a cheaper initialization.\n"
+            )
 
         return eval_config
 

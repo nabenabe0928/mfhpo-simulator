@@ -3,15 +3,6 @@ from __future__ import annotations
 from src._constants import AbstractAskTellOptimizer
 
 
-def _raise_optimizer_init_error() -> None:
-    msg = [
-        "The initialization of the optimizer must be cheaper than one objective evuation.",
-        "In principle, n_workers is too large for the objective to simulate correctly."
-        "Please set expensive_sampler=True or a smaller n_workers, or use a cheaper initialization.",
-    ]
-    raise TimeoutError("\n".join(msg))
-
-
 def _validate_opt_class(opt: AbstractAskTellOptimizer) -> None:
     if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
         opt_cls = AbstractAskTellOptimizer

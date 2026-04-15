@@ -25,8 +25,6 @@ class ObjectiveFuncWrapper:
             The objective names that will be collected in results.
         runtime_key (str):
             The runtime name used to define the runtime of the user objective function.
-        n_actual_evals_in_opt (int):
-            The number of configuration evaluations during the actual optimization.
         n_workers (int):
             The number of (simulated) workers used in the optimization.
 
@@ -39,7 +37,6 @@ class ObjectiveFuncWrapper:
         self,
         obj_func: ObjectiveFuncType,
         n_workers: int = 4,
-        n_actual_evals_in_opt: int = 105,
         n_evals: int = 100,
         obj_keys: list[str] | None = None,
         runtime_key: str = "runtime",
@@ -60,8 +57,6 @@ class ObjectiveFuncWrapper:
                         It must return `objective metric` and `runtime` at least.
             n_workers (int):
                 The number of simulated workers. In other words, how many parallel workers to simulate.
-            n_actual_evals_in_opt (int):
-                The number of evaluations that optimizers do. Must be >= n_evals + n_workers.
             n_evals (int):
                 How many configurations we would like to collect.
             obj_keys (list[str] | None):
@@ -81,7 +76,6 @@ class ObjectiveFuncWrapper:
         wrapper_vars = _WrapperVars(
             obj_func=obj_func,
             n_workers=n_workers,
-            n_actual_evals_in_opt=n_actual_evals_in_opt,
             n_evals=n_evals,
             obj_keys=obj_keys if obj_keys is not None else ["loss"],
             runtime_key=runtime_key,
@@ -100,10 +94,6 @@ class ObjectiveFuncWrapper:
     @property
     def runtime_key(self) -> str:
         return self._main_wrapper.runtime_key
-
-    @property
-    def n_actual_evals_in_opt(self) -> int:
-        return self._main_wrapper._wrapper_vars.n_actual_evals_in_opt
 
     @property
     def n_workers(self) -> int:

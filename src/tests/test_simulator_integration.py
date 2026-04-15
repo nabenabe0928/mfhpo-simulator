@@ -12,7 +12,6 @@ from src.tests.utils import simplest_dummy_func
 
 DEFAULT_KWARGS = dict(
     n_workers=1,
-    n_actual_evals_in_opt=11,
     n_evals=10,
 )
 
@@ -61,7 +60,6 @@ def test_wrapper_properties():
     wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
     assert wrapper.n_workers == kwargs["n_workers"]
-    assert wrapper.n_actual_evals_in_opt == kwargs["n_actual_evals_in_opt"]
     assert wrapper.obj_keys == ["loss"]
     assert wrapper.runtime_key == "runtime"
 
@@ -89,7 +87,6 @@ def test_results_sorted_by_cumtime_with_expensive_sampler():
     wrapper = ObjectiveFuncWrapper(
         obj_func=simplest_dummy_func,
         n_workers=4,
-        n_actual_evals_in_opt=n_evals + 5,
         n_evals=n_evals,
         expensive_sampler=True,
     )
@@ -116,7 +113,7 @@ def test_results_cumtime_monotonic_without_expensive_sampler():
 def test_tell_skips_none_pending_results():
     """_tell_pending_result should skip workers with None pending results."""
     kwargs = DEFAULT_KWARGS.copy()
-    kwargs.update(n_workers=2, n_actual_evals_in_opt=15)
+    kwargs.update(n_workers=2)
     wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     wrapper.simulate(_DummyOpt())
     results = wrapper.get_results()
@@ -131,7 +128,6 @@ def test_multi_worker_all_results_collected():
     wrapper = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
         n_workers=n_workers,
-        n_actual_evals_in_opt=n_evals + n_workers + 1,
         n_evals=n_evals,
     )
     wrapper.simulate(_DummyOpt())

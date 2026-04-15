@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 DEFAULT_KWARGS = dict(
     n_workers=10,
-    n_actual_evals_in_opt=411,
     n_evals=400,
 )
 
@@ -72,7 +71,7 @@ def fetch_randopt_wrapper(bench: MFBranin, discrete: bool = False) -> RandomOpti
 def optimize(n_evals: int = 400, discrete: bool = False, **obj_kwd):
     kwargs = DEFAULT_KWARGS.copy()
     if n_evals > 1000:
-        kwargs.update(n_workers=1000, n_actual_evals_in_opt=11001, n_evals=10000)
+        kwargs.update(n_workers=1000, n_evals=10000)
 
     bench = MFBranin()
     opt = fetch_randopt_wrapper(bench=bench, discrete=discrete)

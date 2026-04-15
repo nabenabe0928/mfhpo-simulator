@@ -49,7 +49,6 @@ def optimize(index: int, n_workers: int):
     wrapper = ObjectiveFuncWrapper(
         obj_func=simplest_dummy_func,
         n_workers=n_workers,
-        n_actual_evals_in_opt=configs.size + n_workers,
         n_evals=configs.size,
         expensive_sampler=True,
     )
