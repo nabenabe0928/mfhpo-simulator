@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from src._ask_tell_manager import _AskTellWorkerManager
 from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
@@ -36,7 +34,7 @@ class ObjectiveFuncWrapper:
         n_evals: int = 100,
         store_actual_cumtime: bool = False,
         allow_parallel_sampling: bool = False,
-        max_total_eval_time: float = np.inf,
+        max_total_eval_time: float = float("inf"),
         expensive_sampler: bool = False,
     ):
         """The initialization of a wrapper class for ask-and-tell optimization.

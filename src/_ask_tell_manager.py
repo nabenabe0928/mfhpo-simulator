@@ -10,7 +10,6 @@ from src._constants import _ResultData
 from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
-from src._validators import _validate_opt_class
 
 
 class _AskTellWorkerManager:
@@ -88,7 +87,7 @@ class _AskTellWorkerManager:
         else:
             warnings.warn(f"Use expensive_sampler=True for {self.__class__.__name__} as it is more precise")
 
-        for _worker_id in free_worker_idxs.astype(int):
+        for _worker_id in free_worker_idxs.astype(int).tolist():
             result_data = self._pending_results[_worker_id]
             if result_data is None:
                 continue
@@ -110,12 +109,22 @@ class _AskTellWorkerManager:
         return self._final_sampled_time
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
-        _validate_opt_class(opt)
+        if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
+            opt_cls = AbstractAskTellOptimizer
+            error_lines = [
+                "opt must have `ask` and `tell` methods.",
+                f"Inherit `{opt_cls.__name__}` and encapsulate your optimizer instance in the child class.",
+                "The description of `ask` method is as follows:",
+                f"\033[32m{opt_cls.ask.__doc__}\033[0m",
+                "The description of `tell` method is as follows:",
+                f"\033[32m{opt_cls.tell.__doc__}\033[0m",
+            ]
+            raise ValueError("\n".join(error_lines))
         worker_id = 0
         for i in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
             eval_config = self._ask_with_timer(opt=opt, worker_id=worker_id)
             self._proc_obj_func(eval_config=eval_config, worker_id=worker_id)
-            worker_id = np.argmin(self._cumtimes)
+            worker_id = np.argmin(self._cumtimes).item()
 
             if i + 1 >= self._wrapper_vars.n_workers:
                 # This `if` is needed for the compatibility with the other modes.
