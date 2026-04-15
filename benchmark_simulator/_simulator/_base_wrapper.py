@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from abc import ABCMeta
+from abc import abstractmethod
 import os
-from abc import ABCMeta, abstractmethod
 from typing import Any
 
-from benchmark_simulator._constants import AbstractAskTellOptimizer, DIR_NAME, _WrapperVars, _get_file_paths
+from benchmark_simulator._constants import _get_file_paths
+from benchmark_simulator._constants import _WrapperVars
+from benchmark_simulator._constants import AbstractAskTellOptimizer
+from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator._utils import _SecureLock
 
 

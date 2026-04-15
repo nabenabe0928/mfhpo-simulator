@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import multiprocessing
 import os
 import shutil
 import sys
 import time
-from contextlib import contextmanager
 from typing import Any
+
+import numpy as np
 
 from benchmark_simulator import ObjectiveFuncWrapper
 from benchmark_simulator._constants import DIR_NAME
-
-import numpy as np
 
 
 SUBDIR_NAME = "dummy"
@@ -279,6 +279,7 @@ def get_configs(index: int, unittime: float) -> np.ndarray:
     The random cases were visualized with the following code:
     ```python
     import numpy as np
+
 
     def func(seq: np.ndarray):
         workers = [0, 0, 0, 0]

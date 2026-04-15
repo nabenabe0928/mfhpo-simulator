@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import os
-import warnings
 from typing import Any
+import warnings
 
 import ConfigSpace as CS
-
-from benchmark_simulator import ObjectiveFuncWrapper
-
 import neps
-
 import numpy as np
 
-from examples.utils import get_bench_instance, get_save_dir_name, parse_args
+from benchmark_simulator import ObjectiveFuncWrapper
+from examples.utils import get_bench_instance
+from examples.utils import get_save_dir_name
+from examples.utils import parse_args
 
 
 class NEPSWorker(ObjectiveFuncWrapper):

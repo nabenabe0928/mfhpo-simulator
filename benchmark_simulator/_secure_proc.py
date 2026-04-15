@@ -3,20 +3,20 @@ from __future__ import annotations
 import fcntl
 import os
 import time
-import warnings
 from typing import Any
-
-from benchmark_simulator._constants import (
-    _SampledTimeDictType,
-    _SharedDataFileNames,
-    _StateType,
-    _TIME_VALUES,
-)
-from benchmark_simulator._utils import _SecureLock
+from typing import TYPE_CHECKING
+import warnings
 
 import numpy as np
-
 import ujson as json  # type: ignore
+
+from benchmark_simulator._constants import _SampledTimeDictType
+from benchmark_simulator._constants import _SharedDataFileNames
+from benchmark_simulator._constants import _StateType
+from benchmark_simulator._constants import _TIME_VALUES
+
+if TYPE_CHECKING:
+    from benchmark_simulator._utils import _SecureLock
 
 
 def _init_simulator(dir_name: str, worker_index: int | None) -> None:

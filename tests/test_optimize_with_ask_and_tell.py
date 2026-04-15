@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import shutil
-import unittest
 from typing import Any
+from typing import TYPE_CHECKING
+import unittest
 
 from benchmark_apis import MFBranin
-
-from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
-
-import ConfigSpace as CS
-
 import numpy as np
+
+from benchmark_simulator import AbstractAskTellOptimizer
+from benchmark_simulator import ObjectiveFuncWrapper
+
+
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 DEFAULT_KWARGS = dict(

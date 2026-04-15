@@ -1,4 +1,4 @@
-""" A collection of utilities for a simulation of multi-fidelity optimizations.
+"""A collection of utilities for a simulation of multi-fidelity optimizations.
 
 In multi-fidelity optimizations, as we often evaluate configs in parallel,
 it is essential to manage the order of config allocations to each worker.
@@ -82,19 +82,21 @@ This file is used only if expensive_sampler=True.
 
 from __future__ import annotations
 
-import os
-import warnings
 from datetime import datetime
+import os
 from typing import Any
+import warnings
 
-from benchmark_simulator._constants import AbstractAskTellOptimizer, DIR_NAME, ObjectiveFuncType, _WrapperVars
+import numpy as np
+import ujson as json  # type: ignore
+
+from benchmark_simulator._constants import _WrapperVars
+from benchmark_simulator._constants import AbstractAskTellOptimizer
+from benchmark_simulator._constants import DIR_NAME
+from benchmark_simulator._constants import ObjectiveFuncType
 from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
 from benchmark_simulator._simulator._worker_manager import _CentralWorkerManager
 from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import _AskTellWorkerManager
-
-import numpy as np
-
-import ujson as json  # type: ignore
 
 
 def get_multiple_wrappers(

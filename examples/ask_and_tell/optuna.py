@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
-
 import ConfigSpace as CS
-
-from examples.utils import get_bench_instance, get_save_dir_name, parse_args
-
 import optuna
+
+from benchmark_simulator import AbstractAskTellOptimizer
+from benchmark_simulator import ObjectiveFuncWrapper
+from examples.utils import get_bench_instance
+from examples.utils import get_save_dir_name
+from examples.utils import parse_args
 
 
 def get_distributions(config_space: CS.ConfigurationSpace) -> dict[str, optuna.distributions.BaseDistribution]:

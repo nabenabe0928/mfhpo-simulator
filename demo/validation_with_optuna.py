@@ -1,20 +1,18 @@
 from __future__ import annotations
 
+from argparse import ArgumentParser
 import json
 import os
 import time
-from argparse import ArgumentParser
 from typing import Any
 
 from benchmark_apis import MFHartmann
-
-from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
-
 import ConfigSpace as CS
-
 import numpy as np
-
 import optuna
+
+from benchmark_simulator import AbstractAskTellOptimizer
+from benchmark_simulator import ObjectiveFuncWrapper
 
 
 parser = ArgumentParser()

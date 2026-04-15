@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import TYPE_CHECKING
 
-from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
+from benchmark_simulator import AbstractAskTellOptimizer
+from benchmark_simulator import ObjectiveFuncWrapper
+from examples.utils import get_bench_instance
+from examples.utils import get_save_dir_name
+from examples.utils import parse_args
 
-import ConfigSpace as CS
 
-from examples.utils import get_bench_instance, get_save_dir_name, parse_args
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 class RandomOptimizer:

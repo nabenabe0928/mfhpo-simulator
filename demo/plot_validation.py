@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import json
 from argparse import ArgumentParser
-
-from benchmark_simulator.utils import get_mean_and_standard_error, get_performance_over_time
+import json
 
 import matplotlib.pyplot as plt
-
 import numpy as np
+
+from benchmark_simulator.utils import get_mean_and_standard_error
+from benchmark_simulator.utils import get_performance_over_time
 
 
 parser = ArgumentParser()

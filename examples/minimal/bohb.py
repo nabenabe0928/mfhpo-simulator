@@ -4,11 +4,13 @@ from contextlib import contextmanager
 from typing import Any
 
 from benchmark_apis.synthetic.branin import MFBranin
-from benchmark_simulator import ObjectiveFuncType, ObjectiveFuncWrapper, get_multiple_wrappers
-
 from hpbandster.core import nameserver as hpns
 from hpbandster.core.worker import Worker
 from hpbandster.optimizers import BOHB
+
+from benchmark_simulator import get_multiple_wrappers
+from benchmark_simulator import ObjectiveFuncType
+from benchmark_simulator import ObjectiveFuncWrapper
 
 
 bohb_run_id = "bohb-run"

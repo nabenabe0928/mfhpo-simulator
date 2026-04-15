@@ -1,12 +1,13 @@
+from contextlib import contextmanager
+from dataclasses import dataclass
 import fcntl
+from fnmatch import fnmatch
 import glob
 import hashlib
 import os
 import time
-from contextlib import contextmanager
-from dataclasses import dataclass
-from fnmatch import fnmatch
-from typing import Iterator, TextIO
+from typing import Iterator
+from typing import TextIO
 
 import numpy as np
 

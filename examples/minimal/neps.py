@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import os
-import warnings
 from argparse import ArgumentParser
+import os
 from typing import Any
-
-import ConfigSpace as CS
+import warnings
 
 from benchmark_apis.synthetic.branin import MFBranin
-from benchmark_simulator import ObjectiveFuncWrapper
-
+import ConfigSpace as CS
 import neps
+
+from benchmark_simulator import ObjectiveFuncWrapper
 
 
 class NEPSWorker(ObjectiveFuncWrapper):

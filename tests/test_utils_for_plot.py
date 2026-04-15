@@ -1,17 +1,15 @@
 import os
-import pytest
 import shutil
 import unittest
 
-from benchmark_simulator.simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
-from benchmark_simulator.utils._performance_over_time import (
-    get_mean_and_standard_error,
-    get_performance_over_time,
-    get_performance_over_time_from_paths,
-)
-
 import numpy as np
+import pytest
 
+from benchmark_simulator.simulator import AbstractAskTellOptimizer
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
+from benchmark_simulator.utils._performance_over_time import get_mean_and_standard_error
+from benchmark_simulator.utils._performance_over_time import get_performance_over_time
+from benchmark_simulator.utils._performance_over_time import get_performance_over_time_from_paths
 from tests.utils import dummy_no_fidel_func
 
 

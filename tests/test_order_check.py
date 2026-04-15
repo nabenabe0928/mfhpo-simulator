@@ -1,24 +1,21 @@
 from __future__ import annotations
 
-import pytest
 import time
 import unittest
 
-from benchmark_simulator import ObjectiveFuncWrapper
-
 import numpy as np
+import pytest
 
-from tests.utils import (
-    IS_LOCAL,
-    OrderCheckConfigs,
-    OrderCheckConfigsForSync,
-    OrderCheckConfigsForSyncWithSampleLatency,
-    OrderCheckConfigsWithSampleLatency,
-    SUBDIR_NAME,
-    UNIT_TIME,
-    cleanup,
-    get_pool,
-)
+from benchmark_simulator import ObjectiveFuncWrapper
+from tests.utils import cleanup
+from tests.utils import get_pool
+from tests.utils import IS_LOCAL
+from tests.utils import OrderCheckConfigs
+from tests.utils import OrderCheckConfigsForSync
+from tests.utils import OrderCheckConfigsForSyncWithSampleLatency
+from tests.utils import OrderCheckConfigsWithSampleLatency
+from tests.utils import SUBDIR_NAME
+from tests.utils import UNIT_TIME
 
 
 N_EVALS = 20

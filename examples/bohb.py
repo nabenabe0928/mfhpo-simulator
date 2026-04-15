@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import os
 from typing import Any
-
-import ConfigSpace as CS
-
-from benchmark_simulator import ObjectiveFuncWrapper, get_multiple_wrappers
+from typing import TYPE_CHECKING
 
 from hpbandster.core import nameserver as hpns
 from hpbandster.core.worker import Worker
 from hpbandster.optimizers import BOHB
-
 import numpy as np
 
-from examples.utils import get_bench_instance, get_save_dir_name, parse_args
+from benchmark_simulator import get_multiple_wrappers
+from benchmark_simulator import ObjectiveFuncWrapper
+from examples.utils import get_bench_instance
+from examples.utils import get_save_dir_name
+from examples.utils import parse_args
+
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 class BOHBWorker(Worker):

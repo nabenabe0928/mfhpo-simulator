@@ -1,13 +1,57 @@
 from __future__ import annotations
 
-import os
-import warnings
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
+from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Final, Protocol
+import os
+from typing import Any
+from typing import Final
+from typing import Protocol
+from typing import TYPE_CHECKING
+import warnings
 
-import numpy as np
+if TYPE_CHECKING:
+    from typing import Any
+    from typing import Protocol
+    from typing import Final
+    import numpy as np
+
+    class ObjectiveFuncType(Protocol):
+        def __call__(
+            self,
+            eval_config: dict[str, Any],
+            *,
+            fidels: dict[str, int | float] | None = None,
+            seed: int | None = None,
+            **data_to_scatter: Any,
+        ) -> dict[str, float]:
+            """The prototype of the objective function.
+
+            Args:
+                eval_config (dict[str, Any]):
+                    The configuration to be used in the objective function.
+                fidels (dict[str, Union[float, int] | None):
+                    The fidelities to be used in the objective function. Typically training epoch in deep learning.
+                    If None, we assume that no fidelity is used.
+                seed (int | None):
+                    The random seed to be used in the objective function.
+                **data_to_scatter (Any):
+                    Data to scatter across workers.
+                    For example, when the objective function instance has a large file,
+                    Dask, which is a typical module for parallel optimization, must serialize/deserialize
+                    the objective function instances. It causes a significant bottleneck.
+                    By using dask.scatter, we can avoid this problem and this kwargs serves for this purpose.
+                    Note that since the handling of parallel workers vary depending on packages,
+                    users must adapt by themselves.
+
+            Returns:
+                results (dict[str, float]):
+                    The results of the objective function given the inputs.
+                    It must have `objective metric` and `runtime` at least.
+                    Otherwise, any other metrics are optional.
+            """
+            raise NotImplementedError
 
 
 DIR_NAME: Final[str] = "mfhpo-simulator-info/"
@@ -190,43 +234,6 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
 
         Returns:
             None
-        """
-        raise NotImplementedError
-
-
-class ObjectiveFuncType(Protocol):
-    def __call__(
-        self,
-        eval_config: dict[str, Any],
-        *,
-        fidels: dict[str, int | float] | None = None,
-        seed: int | None = None,
-        **data_to_scatter: Any,
-    ) -> dict[str, float]:
-        """The prototype of the objective function.
-
-        Args:
-            eval_config (dict[str, Any]):
-                The configuration to be used in the objective function.
-            fidels (dict[str, Union[float, int] | None):
-                The fidelities to be used in the objective function. Typically training epoch in deep learning.
-                If None, we assume that no fidelity is used.
-            seed (int | None):
-                The random seed to be used in the objective function.
-            **data_to_scatter (Any):
-                Data to scatter across workers.
-                For example, when the objective function instance has a large file,
-                Dask, which is a typical module for parallel optimization, must serialize/deserialize
-                the objective function instances. It causes a significant bottleneck.
-                By using dask.scatter, we can avoid this problem and this kwargs serves for this purpose.
-                Note that since the handling of parallel workers vary depending on packages,
-                users must adapt by themselves.
-
-        Returns:
-            results (dict[str, float]):
-                The results of the objective function given the inputs.
-                It must have `objective metric` and `runtime` at least.
-                Otherwise, any other metrics are optional.
         """
         raise NotImplementedError
 

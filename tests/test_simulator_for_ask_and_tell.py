@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-import pytest
 import unittest
+
+import numpy as np
+import pytest
 
 from benchmark_simulator._constants import AbstractAskTellOptimizer
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
-
-import numpy as np
-
-from tests.utils import (
-    SIMPLE_CONFIG,
-    SUBDIR_NAME,
-    cleanup,
-    dummy_func,
-    dummy_func_with_constant_runtime,
-    dummy_func_with_many_fidelities,
-    dummy_no_fidel_func,
-)
+from tests.utils import cleanup
+from tests.utils import dummy_func
+from tests.utils import dummy_func_with_constant_runtime
+from tests.utils import dummy_func_with_many_fidelities
+from tests.utils import dummy_no_fidel_func
+from tests.utils import SIMPLE_CONFIG
+from tests.utils import SUBDIR_NAME
 
 
 DEFAULT_KWARGS = dict(

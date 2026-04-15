@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from typing import Any
-
-from benchmark_simulator._secure_proc import _fetch_existing_configs, _record_existing_configs
-from benchmark_simulator._utils import _SecureLock
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+from benchmark_simulator._secure_proc import _fetch_existing_configs
+from benchmark_simulator._secure_proc import _record_existing_configs
+
+if TYPE_CHECKING:
+    from benchmark_simulator._utils import _SecureLock
 
 
 def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:

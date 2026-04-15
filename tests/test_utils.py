@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import os
-import pytest
-import time
-import unittest
 from contextlib import contextmanager
+import os
+import time
 from typing import Any
+import unittest
 
+import pytest
 import ujson as json
 
 from benchmark_simulator._utils import _SecureLock
-
 from tests.utils import get_pool
 
 

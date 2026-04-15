@@ -1,8 +1,9 @@
 import os
 
-from benchmark_simulator.utils import get_mean_and_standard_error, get_performance_over_time_from_paths
-
 import matplotlib.pyplot as plt
+
+from benchmark_simulator.utils import get_mean_and_standard_error
+from benchmark_simulator.utils import get_performance_over_time_from_paths
 
 
 plt.rcParams["font.family"] = "Times New Roman"

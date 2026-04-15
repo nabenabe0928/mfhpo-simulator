@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 import os
-import pytest
 import shutil
-import unittest
 from typing import Any
+import unittest
+
+import ConfigSpace as CS
+from dehb import DEHB
+import numpy as np
+import pytest
 
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
-
-import ConfigSpace as CS
-
-from dehb import DEHB
-
-import numpy as np
-
 from tests.utils import IS_LOCAL
 
 

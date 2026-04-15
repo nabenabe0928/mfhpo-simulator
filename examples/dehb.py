@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import os
 from typing import Any
-
-import ConfigSpace as CS
-
-from benchmark_simulator import ObjectiveFuncWrapper
+from typing import TYPE_CHECKING
 
 from dehb import DEHB
-
 import numpy as np
 
-from examples.utils import get_bench_instance, get_save_dir_name, parse_args
+from benchmark_simulator import ObjectiveFuncWrapper
+from examples.utils import get_bench_instance
+from examples.utils import get_save_dir_name
+from examples.utils import parse_args
+
+
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):

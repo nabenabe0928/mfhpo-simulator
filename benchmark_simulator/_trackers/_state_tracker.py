@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from benchmark_simulator._constants import _StateType
-from benchmark_simulator._secure_proc import (
-    _cache_state,
-    _delete_state,
-    _fetch_cache_states,
-)
-from benchmark_simulator._utils import _SecureLock
+from benchmark_simulator._secure_proc import _cache_state
+from benchmark_simulator._secure_proc import _delete_state
+from benchmark_simulator._secure_proc import _fetch_cache_states
 
-import numpy as np
+if TYPE_CHECKING:
+    import numpy as np
+    from benchmark_simulator._utils import _SecureLock
 
 
 def _validate_continual_max_fidel(continual_max_fidel: int | None, cls_name: str) -> None:

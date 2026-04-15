@@ -2,31 +2,26 @@ from __future__ import annotations
 
 import os
 import time
-import warnings
 from typing import Any
-
-from benchmark_simulator._constants import (
-    AbstractAskTellOptimizer,
-    NEGLIGIBLE_SEC,
-    _ResultData,
-    _StateType,
-    _WorkerVars,
-)
-from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
-from benchmark_simulator._simulator._utils import (
-    _raise_optimizer_init_error,
-    _validate_fidel_args,
-    _validate_fidels,
-    _validate_fidels_continual,
-    _validate_opt_class,
-    _validate_output,
-)
-from benchmark_simulator._trackers._config_tracker import _AskTellConfigIDTracker
-from benchmark_simulator._trackers._state_tracker import _AskTellStateTracker
+import warnings
 
 import numpy as np
-
 import ujson as json  # type: ignore
+
+from benchmark_simulator._constants import _ResultData
+from benchmark_simulator._constants import _StateType
+from benchmark_simulator._constants import _WorkerVars
+from benchmark_simulator._constants import AbstractAskTellOptimizer
+from benchmark_simulator._constants import NEGLIGIBLE_SEC
+from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
+from benchmark_simulator._simulator._utils import _raise_optimizer_init_error
+from benchmark_simulator._simulator._utils import _validate_fidel_args
+from benchmark_simulator._simulator._utils import _validate_fidels
+from benchmark_simulator._simulator._utils import _validate_fidels_continual
+from benchmark_simulator._simulator._utils import _validate_opt_class
+from benchmark_simulator._simulator._utils import _validate_output
+from benchmark_simulator._trackers._config_tracker import _AskTellConfigIDTracker
+from benchmark_simulator._trackers._state_tracker import _AskTellStateTracker
 
 
 class _AskTellWorkerManager(_BaseWrapperInterface):

@@ -4,11 +4,16 @@ import os
 import threading
 import time
 from typing import Any
+from typing import TYPE_CHECKING
 
-from benchmark_simulator._constants import _WrapperVars
-from benchmark_simulator._secure_proc import _allocate_proc_to_worker, _fetch_proc_alloc, _is_allocation_ready
+from benchmark_simulator._secure_proc import _allocate_proc_to_worker
+from benchmark_simulator._secure_proc import _fetch_proc_alloc
+from benchmark_simulator._secure_proc import _is_allocation_ready
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
 from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
+
+if TYPE_CHECKING:
+    from benchmark_simulator._constants import _WrapperVars
 
 
 class _CentralWorkerManager(_BaseWrapperInterface):

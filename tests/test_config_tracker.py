@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import pytest
 import unittest
 
-from benchmark_simulator import AbstractAskTellOptimizer, ObjectiveFuncWrapper
-from benchmark_simulator._trackers._config_tracker import _two_dicts_almost_equal
+import pytest
 
-from tests.utils import dummy_func, cleanup, SUBDIR_NAME
+from benchmark_simulator import AbstractAskTellOptimizer
+from benchmark_simulator import ObjectiveFuncWrapper
+from benchmark_simulator._trackers._config_tracker import _two_dicts_almost_equal
+from tests.utils import cleanup
+from tests.utils import dummy_func
+from tests.utils import SUBDIR_NAME
 
 
 class Optimizer(AbstractAskTellOptimizer):

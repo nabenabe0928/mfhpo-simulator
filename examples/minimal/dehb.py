@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-import ConfigSpace as CS
+from typing import TYPE_CHECKING
 
 from benchmark_apis.synthetic.branin import MFBranin
+from dehb import DEHB
+
 from benchmark_simulator import ObjectiveFuncWrapper
 
-from dehb import DEHB
+
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 class DEHBObjectiveFuncWrapper(ObjectiveFuncWrapper):

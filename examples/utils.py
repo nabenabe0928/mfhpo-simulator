@@ -4,7 +4,11 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from typing import Any
 
-from benchmark_apis import HPOLib, JAHSBench201, LCBench, MFBranin, MFHartmann
+from benchmark_apis import HPOLib
+from benchmark_apis import JAHSBench201
+from benchmark_apis import LCBench
+from benchmark_apis import MFBranin
+from benchmark_apis import MFHartmann
 
 
 BENCH_CHOICES = dict(lc=LCBench, hpolib=HPOLib, jahs=JAHSBench201, branin=MFBranin, hartmann=MFHartmann)

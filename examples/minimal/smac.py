@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import TYPE_CHECKING
 
-import ConfigSpace as CS
-
+from benchmark_apis.synthetic.branin import MFBranin
 from smac import MultiFidelityFacade as MFFacade
 from smac import Scenario
 from smac.intensifier.hyperband import Hyperband
 
-from benchmark_apis.synthetic.branin import MFBranin
 from benchmark_simulator import ObjectiveFuncWrapper
+
+
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 class SMACObjectiveFuncWrapper(ObjectiveFuncWrapper):

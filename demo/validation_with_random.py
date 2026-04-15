@@ -1,20 +1,20 @@
 from __future__ import annotations
 
+from argparse import ArgumentParser
 import json
 import multiprocessing
 import os
 import time
-from argparse import ArgumentParser
 
 from benchmark_apis import MFHartmann
-
-from benchmark_simulator import ObjectiveFuncType, ObjectiveFuncWrapper
-
 import ConfigSpace as CS
-
 import numpy as np
 
+from benchmark_simulator import ObjectiveFuncType
+from benchmark_simulator import ObjectiveFuncWrapper
 
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 parser = ArgumentParser()
 parser.add_argument("--n_evals", type=int, default=100)
 parser.add_argument("--n_workers", type=int, default=8)

@@ -2,36 +2,33 @@ from __future__ import annotations
 
 import multiprocessing
 import os
-import pytest
 import time
-import unittest
 from typing import Any
+import unittest
 
 from benchmark_apis import MFBranin
-
-from benchmark_simulator._constants import _SharedDataFileNames, _TIME_VALUES
-from benchmark_simulator.simulator import ObjectiveFuncWrapper, get_multiple_wrappers
-
 import numpy as np
-
+import pytest
 import ujson as json
 
-from tests.utils import (
-    DIR_PATH,
-    ON_UBUNTU,
-    SIMPLE_CONFIG,
-    SUBDIR_NAME,
-    cleanup,
-    dummy_func,
-    dummy_func_with_constant_runtime,
-    dummy_func_with_many_fidelities,
-    dummy_no_fidel_func,
-    get_n_workers,
-    get_pool,
-    get_results,
-    get_worker_wrapper,
-    remove_tree,
-)
+from benchmark_simulator._constants import _SharedDataFileNames
+from benchmark_simulator._constants import _TIME_VALUES
+from benchmark_simulator.simulator import get_multiple_wrappers
+from benchmark_simulator.simulator import ObjectiveFuncWrapper
+from tests.utils import cleanup
+from tests.utils import DIR_PATH
+from tests.utils import dummy_func
+from tests.utils import dummy_func_with_constant_runtime
+from tests.utils import dummy_func_with_many_fidelities
+from tests.utils import dummy_no_fidel_func
+from tests.utils import get_n_workers
+from tests.utils import get_pool
+from tests.utils import get_results
+from tests.utils import get_worker_wrapper
+from tests.utils import ON_UBUNTU
+from tests.utils import remove_tree
+from tests.utils import SIMPLE_CONFIG
+from tests.utils import SUBDIR_NAME
 
 
 DEFAULT_KWARGS = dict(

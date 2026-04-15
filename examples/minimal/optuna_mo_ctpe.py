@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+import optuna
 
 from benchmark_simulator import ObjectiveFuncWrapper
-
-import optuna
 
 
 def objective(eval_config: dict[str, float], **kwargs) -> dict[str, float]:

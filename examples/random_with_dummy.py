@@ -3,9 +3,9 @@ from __future__ import annotations
 import multiprocessing
 from typing import Any
 
-from benchmark_simulator import ObjectiveFuncWrapper
-
 import numpy as np
+
+from benchmark_simulator import ObjectiveFuncWrapper
 
 
 class RandomOptimizer:

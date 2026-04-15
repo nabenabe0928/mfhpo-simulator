@@ -44,9 +44,38 @@ ipython = "^8.13.2"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-target-version = ['py38']
-include = '\.pyi?$'
-extend-exclude = '''
-'''
+target-version = "py39"
+exclude = [
+  ".eggs",
+  ".git",
+  ".hg",
+  ".ruff_cache",
+  ".mypy_cache",
+  ".venv",
+  "venv",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "docs",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["benchmark_simulator", "tests"]
+lines-after-imports = 2
+force-single-line = true
+force-sort-within-sections = true
+order-by-type = false
+
+[tool.ruff.format]
+docstring-code-format = true

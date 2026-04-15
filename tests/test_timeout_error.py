@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import os
-import pytest
 import sys
 import time
-import unittest
 from typing import Any
+import unittest
+
+import pytest
+import ujson as json
 
 from benchmark_simulator._secure_proc import _wait_until_next
 from benchmark_simulator._utils import _SecureLock
 from benchmark_simulator.simulator import ObjectiveFuncWrapper
-
-import ujson as json
-
-from tests.utils import SUBDIR_NAME, cleanup, get_n_workers, get_pool, get_results
+from tests.utils import cleanup
+from tests.utils import get_n_workers
+from tests.utils import get_pool
+from tests.utils import get_results
+from tests.utils import SUBDIR_NAME
 
 
 DEFAULT_KWARGS = dict(
@@ -82,7 +85,7 @@ def test_timeout_error_in_wait_until_next():
 
 
 def runtime_error(n_workers: int, i: int, e):
-    raise RuntimeError(f"The first {n_workers} run must be timeout, but the {i+1}-th run failed with {e}")
+    raise RuntimeError(f"The first {n_workers} run must be timeout, but the {i + 1}-th run failed with {e}")
 
 
 @cleanup

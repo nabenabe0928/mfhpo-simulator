@@ -1,16 +1,22 @@
 from __future__ import annotations
 
-import pytest
+from concurrent.futures import FIRST_COMPLETED
+from concurrent.futures import Future
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import wait
 import time
-import unittest
-from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
 from typing import Any
-
-from benchmark_simulator import ObjectiveFuncWrapper
+import unittest
 
 import numpy as np
+import pytest
 
-from tests.utils import ON_UBUNTU, SUBDIR_NAME, cleanup, get_configs, simplest_dummy_func
+from benchmark_simulator import ObjectiveFuncWrapper
+from tests.utils import cleanup
+from tests.utils import get_configs
+from tests.utils import ON_UBUNTU
+from tests.utils import simplest_dummy_func
+from tests.utils import SUBDIR_NAME
 
 
 class DummyOptimizer:

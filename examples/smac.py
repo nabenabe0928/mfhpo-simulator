@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import os
 from typing import Any
-
-import ConfigSpace as CS
+from typing import TYPE_CHECKING
 
 from smac import MultiFidelityFacade as MFFacade
 from smac import Scenario
 from smac.intensifier.hyperband import Hyperband
 
 from benchmark_simulator import ObjectiveFuncWrapper
+from examples.utils import get_bench_instance
+from examples.utils import get_save_dir_name
+from examples.utils import parse_args
 
-from examples.utils import get_bench_instance, get_save_dir_name, parse_args
+
+if TYPE_CHECKING:
+    import ConfigSpace as CS
 
 
 class SMACObjectiveFuncWrapper(ObjectiveFuncWrapper):

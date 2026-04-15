@@ -2,48 +2,42 @@ from __future__ import annotations
 
 import os
 import time
-import warnings
 from typing import Any
+import warnings
 
-from benchmark_simulator._constants import (
-    INF,
-    NEGLIGIBLE_SEC,
-    _SampledTimeDictType,
-    _TIME_VALUES,
-    _WorkerVars,
-    _WrapperVars,
-)
-from benchmark_simulator._secure_proc import (
-    _fetch_cumtimes,
-    _fetch_sampled_time,
-    _fetch_timestamps,
-    _finish_worker_timer,
-    _init_simulator,
-    _is_simulator_terminated,
-    _record_cumtime,
-    _record_result,
-    _record_sample_waiting,
-    _record_sampled_time,
-    _record_timestamp,
-    _start_sample_waiting,
-    _start_timestamp,
-    _start_worker_timer,
-    _wait_all_workers,
-    _wait_until_next,
-)
+import numpy as np
+
+from benchmark_simulator._constants import _SampledTimeDictType
+from benchmark_simulator._constants import _TIME_VALUES
+from benchmark_simulator._constants import _WorkerVars
+from benchmark_simulator._constants import _WrapperVars
+from benchmark_simulator._constants import INF
+from benchmark_simulator._constants import NEGLIGIBLE_SEC
+from benchmark_simulator._secure_proc import _fetch_cumtimes
+from benchmark_simulator._secure_proc import _fetch_sampled_time
+from benchmark_simulator._secure_proc import _fetch_timestamps
+from benchmark_simulator._secure_proc import _finish_worker_timer
+from benchmark_simulator._secure_proc import _init_simulator
+from benchmark_simulator._secure_proc import _is_simulator_terminated
+from benchmark_simulator._secure_proc import _record_cumtime
+from benchmark_simulator._secure_proc import _record_result
+from benchmark_simulator._secure_proc import _record_sample_waiting
+from benchmark_simulator._secure_proc import _record_sampled_time
+from benchmark_simulator._secure_proc import _record_timestamp
+from benchmark_simulator._secure_proc import _start_sample_waiting
+from benchmark_simulator._secure_proc import _start_timestamp
+from benchmark_simulator._secure_proc import _start_worker_timer
+from benchmark_simulator._secure_proc import _wait_all_workers
+from benchmark_simulator._secure_proc import _wait_until_next
 from benchmark_simulator._simulator._base_wrapper import _BaseWrapperInterface
-from benchmark_simulator._simulator._utils import (
-    _raise_optimizer_init_error,
-    _validate_fidel_args,
-    _validate_fidels,
-    _validate_fidels_continual,
-    _validate_output,
-)
+from benchmark_simulator._simulator._utils import _raise_optimizer_init_error
+from benchmark_simulator._simulator._utils import _validate_fidel_args
+from benchmark_simulator._simulator._utils import _validate_fidels
+from benchmark_simulator._simulator._utils import _validate_fidels_continual
+from benchmark_simulator._simulator._utils import _validate_output
 from benchmark_simulator._trackers._config_tracker import _ConfigIDTracker
 from benchmark_simulator._trackers._state_tracker import _StateTracker
 from benchmark_simulator._utils import _generate_time_hash
-
-import numpy as np
 
 
 class _ObjectiveFuncWorker(_BaseWrapperInterface):
