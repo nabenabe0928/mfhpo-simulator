@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ._ask_tell_manager import AsyncOptBenchmarkSimulator
+from .async_opt_simulator import AsyncOptBenchmarkSimulator
 
 
 __all__ = ["AsyncOptBenchmarkSimulator"]
