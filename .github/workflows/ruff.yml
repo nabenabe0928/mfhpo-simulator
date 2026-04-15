@@ -1,4 +1,4 @@
-name: Black
+name: Ruff
 
 on: [push, pull_request]
 
@@ -11,5 +11,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
       - name: Set up Python 3.10
         run: uv python install 3.10
-      - name: Run black
-        run: uvx black --check .
+      - name: Run ruff check
+        run: uvx ruff check .
+      - name: Run ruff format check
+        run: uvx ruff format --check .
