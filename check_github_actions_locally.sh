@@ -12,5 +12,6 @@ target="benchmark_simulator"  # target must be modified accordingly
 export MFHPO_SIMULATOR_TEST="True"
 run_check "pre-commit" "pre-commit run --all-files"
 run_check "pytest" "python -m pytest -W ignore --cov-report term-missing --cov=$target --cov-config=.coveragerc"
-run_check "black" "black tests/ $target/ examples"
+run_check "ruff check" "ruff check ."
+run_check "ruff format" "ruff format --check ."
 rm .coverage.*
