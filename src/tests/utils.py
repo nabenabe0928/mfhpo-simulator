@@ -5,12 +5,76 @@ import time
 from typing import Any
 
 import numpy as np
+import optuna
 
 
 SUBDIR_NAME = "dummy"
 SIMPLE_CONFIG = {"x": 0}
 ON_UBUNTU = sys.platform == "linux"
 UNIT_TIME = 1e-3 if ON_UBUNTU else 5e-2
+
+
+class TestProblem:
+    """Wraps old-style obj_func(eval_config) -> [objectives..., runtime] to the new BaseProblem API."""
+
+    def __init__(self, obj_func: Any, search_space: dict[str, optuna.distributions.BaseDistribution]):
+        self.search_space = search_space
+        self._obj_func = obj_func
+
+    def __call__(self, trial: optuna.Trial) -> float | list[float]:
+        eval_config = dict(trial.params)
+        results = self._obj_func(eval_config=eval_config)
+        trial.set_user_attr("runtime", results[-1])
+        objectives = [float(v) for v in results[:-1]]
+        return objectives[0] if len(objectives) == 1 else objectives
+
+
+class CounterSampler(optuna.samplers.BaseSampler):
+    """A sampler that returns trial.number (clamped to max_count-1) for each parameter."""
+
+    def __init__(self, sleep: float = 0.0, max_count: int | None = None):
+        self._sleep = sleep
+        self._max_count = max_count
+
+    def infer_relative_search_space(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> dict:
+        return {}
+
+    def sample_relative(self, study: optuna.Study, trial: optuna.trial.FrozenTrial, search_space: dict) -> dict:
+        return {}
+
+    def sample_independent(
+        self,
+        study: optuna.Study,
+        trial: optuna.trial.FrozenTrial,
+        param_name: str,
+        param_distribution: optuna.distributions.BaseDistribution,
+    ) -> Any:
+        time.sleep(self._sleep)
+        n = trial.number
+        if self._max_count is not None:
+            n = min(n, self._max_count - 1)
+        return n
+
+
+def get_results_from_study(study: optuna.Study) -> dict[str, list]:
+    """Extract results from completed trials, sorted by cumtime."""
+    completed = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+    sorted_trials = sorted(completed, key=lambda t: t.user_attrs["cumtime"])
+    return {
+        "cumtime": [t.user_attrs["cumtime"] for t in sorted_trials],
+        "objectives": [list(t.values) for t in sorted_trials],
+        "worker_index": [t.user_attrs["worker_id"] for t in sorted_trials],
+    }
+
+
+def get_overhead_from_study(study: optuna.Study) -> dict[str, list[float]]:
+    """Extract optimizer overhead (sampling time) from all trials."""
+    trials = sorted(study.trials, key=lambda t: t.number)
+    return {
+        "before_sample": [t.user_attrs["before_sample"] for t in trials],
+        "after_sample": [t.user_attrs["after_sample"] for t in trials],
+        "worker_index": [t.user_attrs["worker_index"] for t in trials],
+    }
 
 
 class OrderCheckConfigsForSync:

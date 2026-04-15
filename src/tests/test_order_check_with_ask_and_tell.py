@@ -1,55 +1,45 @@
 from __future__ import annotations
 
-import time
 import unittest
 
 import numpy as np
+import optuna
 import pytest
 
-from src import AbstractAskTellOptimizer
-from src import ObjectiveFuncWrapper
+from src import AsyncOptBenchmarkSimulator
+from src.tests.utils import CounterSampler
+from src.tests.utils import get_results_from_study
 from src.tests.utils import OrderCheckConfigs
 from src.tests.utils import OrderCheckConfigsWithSampleLatency
+from src.tests.utils import TestProblem
 from src.tests.utils import UNIT_TIME
 
 
 N_EVALS = 20
 LATENCY = "latency"
-DEFAULT_KWARGS = dict(
-    n_workers=2,
-    n_evals=N_EVALS,
-)
-
-
-class MyOptimizer(AbstractAskTellOptimizer):
-    def __init__(self, sleep: float = 0.0, max_count: int = N_EVALS):
-        self._count = 0
-        self._max_count = max_count
-        self._sleep = sleep
-
-    def ask(self):
-        time.sleep(self._sleep)
-        ret = dict(index=min(self._count, self._max_count - 1))
-        self._count += 1
-        return ret
-
-    def tell(self, *args, **kwargs):
-        pass
 
 
 def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False, timeout: bool = False):
     latency = mode == LATENCY
-    kwargs = DEFAULT_KWARGS.copy()
     target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout) if latency else OrderCheckConfigs(n_workers)
     n_evals = target._n_evals
-    kwargs.update(n_workers=n_workers, n_evals=n_evals, allow_parallel_sampling=parallel_sampler)
-    wrapper = ObjectiveFuncWrapper(obj_func=target, **kwargs)
-    if latency:
-        wrapper.simulate(MyOptimizer(UNIT_TIME * 200, max_count=n_evals))
-    else:
-        wrapper.simulate(MyOptimizer())
 
-    out = wrapper.get_results()["cumtime"][:n_evals]
+    if latency:
+        sampler = CounterSampler(sleep=UNIT_TIME * 200, max_count=n_evals)
+    else:
+        sampler = CounterSampler(max_count=n_evals)
+
+    search_space = {"index": optuna.distributions.IntDistribution(0, max(n_evals - 1, 0))}
+    problem = TestProblem(obj_func=target, search_space=search_space)
+    study = optuna.create_study(sampler=sampler)
+    simulator = AsyncOptBenchmarkSimulator(
+        n_workers=n_workers,
+        expensive_sampler=False,
+        allow_parallel_sampling=parallel_sampler,
+    )
+    simulator.optimize(study, problem, n_trials=n_evals)
+
+    out = np.array(get_results_from_study(study)["cumtime"])[:n_evals]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     diffs = np.abs(out - target._ans)

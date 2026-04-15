@@ -5,61 +5,63 @@ from typing import Any
 import unittest
 
 import numpy as np
+import optuna
 import pytest
 
-from src import AbstractAskTellOptimizer
-from src import ObjectiveFuncWrapper
+from src import AsyncOptBenchmarkSimulator
 from src.tests.utils import get_configs
+from src.tests.utils import get_results_from_study
 from src.tests.utils import ON_UBUNTU
 from src.tests.utils import simplest_dummy_func
+from src.tests.utils import TestProblem
 
 
-class DummyOptimizer(AbstractAskTellOptimizer):
-    def __init__(
-        self,
-        configs: np.ndarray,
-        obj_func: ObjectiveFuncWrapper,
-        n_workers: int,
-        unittime: float,
-    ):
-        self._n_workers = n_workers
-        self._n_evals = configs.size + self._n_workers
-        self._obj_func = obj_func
-        self._observations: list[dict[str, Any]] = []
+class ExpensiveSampler(optuna.samplers.BaseSampler):
+    """A sampler that sleeps proportionally to completed trials, returning values from a list."""
+
+    def __init__(self, values: list[float], unittime: float):
+        self._values = values
         self._unittime = unittime
-        self._configs = configs[::-1].tolist()
 
-    def ask(self) -> dict[str, Any]:
-        waiting_time = (len(self._observations) + 1) * self._unittime
-        if len(self._configs):
-            time.sleep(waiting_time)
-            return {"x": self._configs.pop()}
+    def infer_relative_search_space(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> dict:
+        return {}
+
+    def sample_relative(self, study: optuna.Study, trial: optuna.trial.FrozenTrial, search_space: dict) -> dict:
+        return {}
+
+    def sample_independent(
+        self,
+        study: optuna.Study,
+        trial: optuna.trial.FrozenTrial,
+        param_name: str,
+        param_distribution: optuna.distributions.BaseDistribution,
+    ) -> Any:
+        n_completed = len(study.get_trials(states=[optuna.trial.TrialState.COMPLETE]))
+        if trial.number < len(self._values):
+            time.sleep((n_completed + 1) * self._unittime)
+            return self._values[trial.number]
         else:
-            return {"x": 10**5}
-
-    def tell(self, eval_config: dict[str, Any], results: list[float], *args, **kwargs) -> None:
-        eval_config["loss"] = results[0]
-        self._observations.append(eval_config.copy())
+            return float(10**5)
 
 
 def optimize(index: int, n_workers: int):
     unittime = 1e-1 if ON_UBUNTU else 1.0
     configs, ans = get_configs(index=index, unittime=unittime)
     n_evals = configs.size
-    wrapper = ObjectiveFuncWrapper(
-        obj_func=simplest_dummy_func,
+
+    sampler = ExpensiveSampler(values=configs.tolist(), unittime=unittime)
+    search_space = {"x": optuna.distributions.FloatDistribution(0.0, float(10**6))}
+    problem = TestProblem(obj_func=simplest_dummy_func, search_space=search_space)
+    study = optuna.create_study(sampler=sampler)
+    simulator = AsyncOptBenchmarkSimulator(
         n_workers=n_workers,
-        n_evals=configs.size,
         expensive_sampler=True,
+        allow_parallel_sampling=False,
     )
-    opt = DummyOptimizer(
-        configs=configs,
-        n_workers=wrapper.n_workers,
-        obj_func=wrapper,
-        unittime=unittime,
-    )
-    wrapper.simulate(opt)
-    diff = np.abs(np.array(wrapper.get_results()["cumtime"])[:n_evals] - ans)
+    simulator.optimize(study, problem, n_trials=n_evals)
+
+    results = get_results_from_study(study)
+    diff = np.abs(np.array(results["cumtime"])[:n_evals] - ans)
     assert np.all(diff < unittime * 1.5)
 
 

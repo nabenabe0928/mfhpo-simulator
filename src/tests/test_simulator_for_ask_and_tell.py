@@ -3,85 +3,76 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import optuna
 import pytest
 
-from src._constants import AbstractAskTellOptimizer
-from src.simulator import ObjectiveFuncWrapper
+from src import AsyncOptBenchmarkSimulator
+from src.tests.utils import CounterSampler
 from src.tests.utils import dummy_no_fidel_func
-from src.tests.utils import SIMPLE_CONFIG
+from src.tests.utils import get_results_from_study
+from src.tests.utils import TestProblem
 
 
 DEFAULT_KWARGS = dict(
     n_workers=1,
-    n_evals=10,
+    n_trials=10,
 )
 
-
-class _DummyOpt(AbstractAskTellOptimizer):
-    def __init__(self):
-        self._n_calls = -1
-
-    def ask(self):
-        self._n_calls += 1
-        return {"x": self._n_calls}
-
-    def tell(self, *args, **kwargs):
-        pass
+DUMMY_SEARCH_SPACE = {"x": optuna.distributions.IntDistribution(0, 99)}
 
 
-class _DummyWithoutAsk:
-    def tell(self, *args, **kwargs):
-        pass
+def _create_study() -> optuna.Study:
+    return optuna.create_study(sampler=CounterSampler())
 
 
-class _DummyWithoutTell:
-    def ask(self, *args, **kwargs):
-        pass
+def _create_problem() -> TestProblem:
+    return TestProblem(obj_func=dummy_no_fidel_func, search_space=DUMMY_SEARCH_SPACE)
 
 
-class _DummyWithoutAnything:
-    pass
-
-
-def test_error_unneeded_fidel_in_call():
-    kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    worker._main_wrapper._proc_obj_func(  # no error without fidel!
-        eval_config=SIMPLE_CONFIG, worker_id=0
-    )
+def test_proc_obj_func_works():
+    """_proc_obj_func works without fidels."""
+    simulator = AsyncOptBenchmarkSimulator(n_workers=1, expensive_sampler=False, allow_parallel_sampling=False)
+    study = _create_study()
+    problem = _create_problem()
+    trial = study.ask(problem.search_space)
+    simulator._proc_obj_func(trial=trial, problem=problem, worker_id=0)
 
 
 def test_no_expensive_parallel_sample():
-    kwargs = DEFAULT_KWARGS.copy()
-    kwargs["allow_parallel_sampling"] = True
-    kwargs["expensive_sampler"] = True
     with pytest.raises(ValueError, match=r"expensive_sampler and allow_parallel_sampling cannot*"):
-        ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
+        AsyncOptBenchmarkSimulator(n_workers=1, allow_parallel_sampling=True, expensive_sampler=True)
 
 
-def test_store_actual_cumtime() -> None:
-    kwargs = DEFAULT_KWARGS.copy()
-    kwargs.update(n_workers=4)
-    worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    worker.simulate(_DummyOpt())
+def test_results_monotonically_ordered() -> None:
+    """Results should be reported in non-decreasing cumtime order."""
+    n_workers = 4
+    n_trials = 10
+    simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, expensive_sampler=False, allow_parallel_sampling=False)
+    study = _create_study()
+    problem = _create_problem()
+    simulator.optimize(study, problem, n_trials=n_trials)
 
-    results = worker.get_results()
-    assert "actual_cumtime" in results
-    actual_cumtimes = np.array(results["actual_cumtime"])
-    assert len(actual_cumtimes) == kwargs["n_evals"]
-    if np.size(actual_cumtimes) != 0:
-        assert np.allclose(np.maximum.accumulate(actual_cumtimes), actual_cumtimes)
+    results = get_results_from_study(study)
+    cumtimes = np.array(results["cumtime"])
+    assert len(cumtimes) == n_trials
+    assert np.allclose(np.maximum.accumulate(cumtimes), cumtimes)
 
 
-def test_error_in_opt():
-    kwargs = DEFAULT_KWARGS.copy()
-    worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):
-        worker.simulate(_DummyWithoutAsk())
-    with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):
-        worker.simulate(_DummyWithoutTell())
-    with pytest.raises(ValueError, match=r"opt must have `ask` and `tell`"):
-        worker.simulate(_DummyWithoutAnything())
+def test_error_missing_runtime():
+    """Problem must set runtime user_attr."""
+    simulator = AsyncOptBenchmarkSimulator(n_workers=1, expensive_sampler=False, allow_parallel_sampling=False)
+    study = optuna.create_study(sampler=CounterSampler())
+
+    class BadProblem:
+        search_space = {"x": optuna.distributions.IntDistribution(0, 9)}
+
+        def __call__(self, trial: optuna.Trial) -> float:
+            return 0.0
+
+    problem = BadProblem()
+    trial = study.ask(problem.search_space)
+    with pytest.raises(KeyError, match="runtime"):
+        simulator._proc_obj_func(trial=trial, problem=problem, worker_id=0)
 
 
 if __name__ == "__main__":
