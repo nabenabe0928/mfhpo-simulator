@@ -1,4 +1,0 @@
-# For package
-ujson
-numpy
-scipy
