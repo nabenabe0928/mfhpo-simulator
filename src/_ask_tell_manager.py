@@ -65,9 +65,8 @@ class _AskTellWorkerManager:
         if (
             not self._wrapper_vars.expensive_sampler
             and is_first_sample
-            and (positive_cumtimes := self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC]).size > 0
             and self._cumtimes[worker_id] > NEGLIGIBLE_SEC
-            and self._cumtimes[worker_id] != np.min(positive_cumtimes)
+            and self._cumtimes[worker_id] != np.min(self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC])
         ):
             raise TimeoutError(
                 "The initialization of the optimizer must be cheaper than one objective evuation.\n"
