@@ -9,11 +9,9 @@ import pytest
 
 from src import AbstractAskTellOptimizer
 from src import ObjectiveFuncWrapper
-from src.tests.utils import cleanup
 from src.tests.utils import get_configs
 from src.tests.utils import ON_UBUNTU
 from src.tests.utils import simplest_dummy_func
-from src.tests.utils import SUBDIR_NAME
 
 
 class DummyOptimizer(AbstractAskTellOptimizer):
@@ -44,7 +42,6 @@ class DummyOptimizer(AbstractAskTellOptimizer):
         self._observations.append(eval_config.copy())
 
 
-@cleanup
 def optimize(index: int, n_workers: int):
     unittime = 1e-1 if ON_UBUNTU else 1.0
     configs, ans = get_configs(index=index, unittime=unittime)
@@ -55,7 +52,6 @@ def optimize(index: int, n_workers: int):
         n_actual_evals_in_opt=configs.size + n_workers,
         n_evals=configs.size,
         expensive_sampler=True,
-        save_dir_name=SUBDIR_NAME,
     )
     opt = DummyOptimizer(
         configs=configs,

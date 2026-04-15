@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
-import ujson as json  # type: ignore
 
 from src._ask_tell_manager import _AskTellWorkerManager
 from src._constants import _WrapperVars
@@ -23,8 +21,6 @@ class ObjectiveFuncWrapper:
     instead, cumulative runtimes are simulated internally per worker.
 
     Attributes:
-        dir_name (str):
-            The relative path where results will be stored.
         obj_keys (list[str]):
             The objective names that will be collected in results.
         runtime_key (str):
@@ -44,7 +40,6 @@ class ObjectiveFuncWrapper:
     def __init__(
         self,
         obj_func: ObjectiveFuncType,
-        save_dir_name: str | None = None,
         n_workers: int = 4,
         n_actual_evals_in_opt: int = 105,
         n_evals: int = 100,
@@ -59,7 +54,6 @@ class ObjectiveFuncWrapper:
         config_tracking: bool = True,
         max_total_eval_time: float = np.inf,
         expensive_sampler: bool = False,
-        tmp_dir: str | None = None,
     ):
         """The initialization of a wrapper class for ask-and-tell optimization.
 
@@ -74,8 +68,6 @@ class ObjectiveFuncWrapper:
                 Returns:
                     results: dict[str, float]
                         It must return `objective metric` and `runtime` at least.
-            save_dir_name (str | None):
-                The subdirectory name to store all running information.
             n_workers (int):
                 The number of simulated workers. In other words, how many parallel workers to simulate.
             n_actual_evals_in_opt (int):
@@ -106,14 +98,10 @@ class ObjectiveFuncWrapper:
                 The maximum total evaluation time for the optimization.
             expensive_sampler (bool):
                 Whether the optimizer is expensive relative to a function evaluation.
-            tmp_dir (str | None):
-                Temporal directory especially for cluster usage.
         """
-        curtime = datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f")
         self._n_workers = n_workers
         wrapper_vars = _WrapperVars(
             obj_func=obj_func,
-            save_dir_name=save_dir_name if save_dir_name is not None else f"data-{curtime}",
             n_workers=n_workers,
             n_actual_evals_in_opt=n_actual_evals_in_opt,
             n_evals=n_evals,
@@ -128,22 +116,9 @@ class ObjectiveFuncWrapper:
             allow_parallel_sampling=allow_parallel_sampling,
             config_tracking=config_tracking,
             expensive_sampler=expensive_sampler,
-            tmp_dir=tmp_dir,
         )
 
         self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
-
-    @property
-    def dir_name(self) -> str:
-        return self._main_wrapper.dir_name
-
-    @property
-    def result_file_path(self) -> str:
-        return self._main_wrapper._paths.result
-
-    @property
-    def optimizer_overhead_file_path(self) -> str:
-        return self._main_wrapper._paths.sampled_time
 
     @property
     def obj_keys(self) -> list[str]:
@@ -166,16 +141,10 @@ class ObjectiveFuncWrapper:
         return self._n_workers
 
     def get_results(self) -> dict[str, list[int | float | str | bool]]:
-        with open(self.result_file_path, mode="r") as f:
-            results = json.load(f)
-
-        return results
+        return self._main_wrapper.get_results()
 
     def get_optimizer_overhead(self) -> dict[str, list[float]]:
-        with open(self.optimizer_overhead_file_path, mode="r") as f:
-            results = json.load(f)
-
-        return results
+        return self._main_wrapper.get_optimizer_overhead()
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         """

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from typing import Any
 from typing import TYPE_CHECKING
 import unittest
@@ -17,7 +16,6 @@ if TYPE_CHECKING:
 
 
 DEFAULT_KWARGS = dict(
-    save_dir_name="test-mfbranin-ask-and-tell",
     n_workers=10,
     n_actual_evals_in_opt=411,
     n_evals=400,
@@ -99,7 +97,6 @@ def optimize(n_evals: int = 400, discrete: bool = False, very_random: bool = Fal
     worker = ObjectiveFuncWrapper(obj_func=bench, fidel_keys=bench.fidel_keys, **kwargs, **obj_kwd)
     worker.simulate(opt)
     out = worker.get_results()
-    shutil.rmtree(worker.dir_name)
     if "max_total_eval_time" not in obj_kwd:
         assert len(out["cumtime"]) >= worker._main_wrapper._wrapper_vars.n_evals
 

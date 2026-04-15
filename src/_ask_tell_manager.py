@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import os
 import time
 from typing import Any
 import warnings
 
 import numpy as np
-import ujson as json  # type: ignore
 
 from src._base_wrapper import _BaseWrapperInterface
 from src._config_tracker import _AskTellConfigIDTracker
@@ -26,7 +24,6 @@ from src._validators import _validate_output
 
 class _AskTellWorkerManager(_BaseWrapperInterface):
     def _init_wrapper(self) -> None:
-        os.makedirs(self.dir_name, exist_ok=True)
         self._worker_vars = _WorkerVars(
             continual_eval=self._wrapper_vars.continual_max_fidel is not None,
             use_fidel=self._wrapper_vars.fidel_keys is not None,
@@ -215,14 +212,17 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             )
             self._pending_results[_worker_id] = None
 
-    def _save_results(self) -> None:
+    def _finalize_results(self) -> None:
         cumtime = np.array(self._results["cumtime"])
         order = np.argsort(cumtime) if self._wrapper_vars.expensive_sampler else np.arange(cumtime.size)
-        with open(self._paths.result, mode="w") as f:
-            json.dump({k: np.asarray(v)[order].tolist() for k, v in self._results.items()}, f)
+        self._final_results = {k: np.asarray(v)[order].tolist() for k, v in self._results.items()}
+        self._final_sampled_time = {k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}
 
-        with open(self._paths.sampled_time, mode="w") as f:
-            json.dump({k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}, f)
+    def get_results(self) -> dict[str, list[int | float | str | bool]]:
+        return self._final_results
+
+    def get_optimizer_overhead(self) -> dict[str, list[float]]:
+        return self._final_sampled_time
 
     def simulate(self, opt: AbstractAskTellOptimizer) -> None:
         _validate_opt_class(opt)
@@ -240,4 +240,4 @@ class _AskTellWorkerManager(_BaseWrapperInterface):
             if self._cumtimes[worker_id] > self._wrapper_vars.max_total_eval_time:  # exceed time limit
                 break
 
-        self._save_results()
+        self._finalize_results()

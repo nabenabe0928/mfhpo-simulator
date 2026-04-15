@@ -7,17 +7,14 @@ import pytest
 
 from src._constants import AbstractAskTellOptimizer
 from src.simulator import ObjectiveFuncWrapper
-from src.tests.utils import cleanup
 from src.tests.utils import dummy_func
 from src.tests.utils import dummy_func_with_constant_runtime
 from src.tests.utils import dummy_func_with_many_fidelities
 from src.tests.utils import dummy_no_fidel_func
 from src.tests.utils import SIMPLE_CONFIG
-from src.tests.utils import SUBDIR_NAME
 
 
 DEFAULT_KWARGS = dict(
-    save_dir_name=SUBDIR_NAME,
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
@@ -88,7 +85,6 @@ class _DummyWithoutAnything:
     pass
 
 
-@cleanup
 def test_error_no_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
@@ -96,7 +92,6 @@ def test_error_no_fidel_in_call():
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, fidels=None, config_id=None)
 
 
-@cleanup
 def test_error_unneeded_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.pop("continual_max_fidel")
@@ -110,7 +105,6 @@ def test_error_unneeded_fidel_in_call():
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 0}, worker_id=0, config_id=None)
 
 
-@cleanup
 def test_guarantee_no_hang():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["n_actual_evals_in_opt"] = 10
@@ -118,7 +112,6 @@ def test_guarantee_no_hang():
         ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
 
-@cleanup
 def test_no_expensive_parallel_sample():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["allow_parallel_sampling"] = True
@@ -127,7 +120,6 @@ def test_no_expensive_parallel_sample():
         ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
 
-@cleanup
 def _validate_fidel_args(fidel_keys: list[str] | None):
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["fidel_keys"] = fidel_keys
@@ -140,7 +132,6 @@ def test_validate_fidel_args(fidel_keys: list[str] | None):
     _validate_fidel_args(fidel_keys=fidel_keys)
 
 
-@cleanup
 def test_fidel_must_have_only_one_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(ValueError, match=r"fidels must have only one element*"):
@@ -150,7 +141,6 @@ def test_fidel_must_have_only_one_for_continual():
         )
 
 
-@cleanup
 def test_fidel_must_be_int_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(ValueError, match=r"Fidelity for continual evaluation must be integer*"):
@@ -160,7 +150,6 @@ def test_fidel_must_be_int_for_continual():
         )
 
 
-@cleanup
 def test_fidel_must_be_non_negative_for_continual():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(ValueError, match=r"Fidelity for continual evaluation must be non-negative*"):
@@ -170,7 +159,6 @@ def test_fidel_must_be_non_negative_for_continual():
         )
 
 
-@cleanup
 def test_fidel_keys_must_be_identical_using_weird_call():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.pop("continual_max_fidel")
@@ -181,7 +169,6 @@ def test_fidel_keys_must_be_identical_using_weird_call():
         )
 
 
-@cleanup
 def test_fidel_keys_must_be_identical_using_weird_instance():
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.pop("continual_max_fidel")
@@ -191,7 +178,6 @@ def test_fidel_keys_must_be_identical_using_weird_instance():
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
 
-@cleanup
 def _weird_obj_keys(obj_keys: list[str]):
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
@@ -204,7 +190,6 @@ def test_weird_obj_keys(obj_keys: list[str]):
     _weird_obj_keys(obj_keys=obj_keys)
 
 
-@cleanup
 def test_weird_runtime_key():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
@@ -212,7 +197,6 @@ def test_weird_runtime_key():
         worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, fidels={"epoch": 1}, worker_id=0, config_id=None)
 
 
-@cleanup
 def test_call_with_many_fidelities():
     n_evals = 10
     kwargs = DEFAULT_KWARGS.copy()
@@ -227,7 +211,6 @@ def test_call_with_many_fidelities():
         )
 
 
-@cleanup
 def test_call_considering_state():
     n_evals = 21
     kwargs = DEFAULT_KWARGS.copy()
@@ -262,7 +245,6 @@ def test_call_considering_state():
         assert len(states[key]) == ans
 
 
-@cleanup
 def _store_actual_cumtime(store_config: bool) -> None:
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_workers=4, n_actual_evals_in_opt=15)
@@ -282,7 +264,6 @@ def test_store_actual_cumtime(store_config: bool) -> None:
     _store_actual_cumtime(store_config=store_config)
 
 
-@cleanup
 def _store_config(opt):
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_workers=4, n_actual_evals_in_opt=15)
@@ -304,7 +285,6 @@ def test_store_config(opt):
     _store_config(opt=opt)
 
 
-@cleanup
 def test_error_in_opt():
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(obj_func=dummy_func, store_config=True, **kwargs)

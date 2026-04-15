@@ -1,21 +1,16 @@
 from __future__ import annotations
 
-import os
-import shutil
 import sys
 import time
 from typing import Any
 
 import numpy as np
 
-from src._constants import DIR_NAME
-
 
 SUBDIR_NAME = "dummy"
 SIMPLE_CONFIG = {"x": 0}
 ON_UBUNTU = sys.platform == "linux"
 UNIT_TIME = 1e-3 if ON_UBUNTU else 5e-2
-DIR_PATH = os.path.join(DIR_NAME, SUBDIR_NAME)
 
 
 class OrderCheckConfigsForSync:
@@ -384,17 +379,3 @@ def dummy_func_with_many_fidelities(
     return dict(loss=eval_config["x"], runtime=runtime)
 
 
-def cleanup(test_func) -> None:
-    def _inner_func(**kwargs):
-        remove_tree()
-        test_func(**kwargs)
-        remove_tree()
-
-    return _inner_func
-
-
-def remove_tree():
-    try:
-        shutil.rmtree(DIR_PATH)
-    except FileNotFoundError:
-        pass

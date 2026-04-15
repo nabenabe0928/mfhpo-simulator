@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABCMeta
 from abc import abstractmethod
 from dataclasses import dataclass
-import os
 from typing import Any
 from typing import Final
 from typing import TYPE_CHECKING
@@ -45,7 +44,6 @@ if TYPE_CHECKING:
             raise NotImplementedError
 
 
-DIR_NAME: Final[str] = "mfhpo-simulator-info/"
 NEGLIGIBLE_SEC: Final[float] = 1e-12
 
 
@@ -55,12 +53,6 @@ class _StateType:
     cumtime: float = 0.0
     fidel: int = 0
     seed: int | None = None
-
-
-@dataclass(frozen=True)
-class _InfoPaths:
-    result: str
-    sampled_time: str
 
 
 @dataclass(frozen=True)
@@ -76,7 +68,6 @@ class _ResultData:
 
 @dataclass(frozen=True)
 class _WrapperVars:
-    save_dir_name: str
     n_workers: int
     obj_func: ObjectiveFuncType
     n_actual_evals_in_opt: int
@@ -92,7 +83,6 @@ class _WrapperVars:
     allow_parallel_sampling: bool
     config_tracking: bool
     expensive_sampler: bool
-    tmp_dir: str | None
 
     def validate(self) -> None:
         if self.n_actual_evals_in_opt < self.n_workers + self.n_evals:
@@ -165,8 +155,3 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-def _get_file_paths(dir_name: str) -> _InfoPaths:
-    return _InfoPaths(
-        result=os.path.join(dir_name, "results.json"),
-        sampled_time=os.path.join(dir_name, "sampled_time.json"),
-    )

@@ -7,9 +7,7 @@ import pytest
 from src import AbstractAskTellOptimizer
 from src import ObjectiveFuncWrapper
 from src._config_tracker import _two_dicts_almost_equal
-from src.tests.utils import cleanup
 from src.tests.utils import dummy_func
-from src.tests.utils import SUBDIR_NAME
 
 
 class Optimizer(AbstractAskTellOptimizer):
@@ -52,12 +50,10 @@ def test_two_dicts_almost_equal():
     assert d1 != d2
 
 
-@cleanup
 def optimize(valid: bool):
     opt = Optimizer(valid=valid)
     wrapper = ObjectiveFuncWrapper(
         obj_func=dummy_func,
-        save_dir_name=SUBDIR_NAME,
         n_workers=1,
         continual_max_fidel=10,
         fidel_keys=["epoch"],

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import unittest
 
 import numpy as np
@@ -8,15 +7,12 @@ import pytest
 
 from src._constants import AbstractAskTellOptimizer
 from src.simulator import ObjectiveFuncWrapper
-from src.tests.utils import cleanup
 from src.tests.utils import dummy_func
 from src.tests.utils import dummy_no_fidel_func
 from src.tests.utils import simplest_dummy_func
-from src.tests.utils import SUBDIR_NAME
 
 
 DEFAULT_KWARGS = dict(
-    save_dir_name=SUBDIR_NAME,
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
@@ -93,7 +89,6 @@ class _DummyOptNoFidelWithConfigId(AbstractAskTellOptimizer):
 # --- config_tracking=False tests ---
 
 
-@cleanup
 def test_config_tracking_disabled_skips_validation():
     """When config_tracking=False, duplicated config_id with different configs should NOT raise."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -105,7 +100,6 @@ def test_config_tracking_disabled_skips_validation():
     assert len(results["cumtime"]) == kwargs["n_evals"]
 
 
-@cleanup
 def test_config_tracking_enabled_catches_invalid():
     """When config_tracking=True (default), duplicated config_id with different configs should raise."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -114,7 +108,6 @@ def test_config_tracking_enabled_catches_invalid():
         wrapper.simulate(_DummyOptWithConfigId(valid=False))
 
 
-@cleanup
 def test_config_tracking_enabled_valid():
     """When config_tracking=True, consistent config_id should pass without errors."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -124,11 +117,9 @@ def test_config_tracking_enabled_valid():
     assert len(results["cumtime"]) == kwargs["n_evals"]
 
 
-@cleanup
 def test_config_tracking_non_continual_valid():
     """Config tracking works in non-continual mode."""
     kwargs = dict(
-        save_dir_name=SUBDIR_NAME,
         n_workers=1,
         n_actual_evals_in_opt=11,
         n_evals=10,
@@ -139,11 +130,9 @@ def test_config_tracking_non_continual_valid():
     assert len(results["cumtime"]) == kwargs["n_evals"]
 
 
-@cleanup
 def test_config_tracking_non_continual_invalid():
     """Config tracking catches duplicated config_id in non-continual mode."""
     kwargs = dict(
-        save_dir_name=SUBDIR_NAME,
         n_workers=1,
         n_actual_evals_in_opt=11,
         n_evals=10,
@@ -156,7 +145,6 @@ def test_config_tracking_non_continual_invalid():
 # --- get_optimizer_overhead tests ---
 
 
-@cleanup
 def test_get_optimizer_overhead():
     """get_optimizer_overhead should return sampling time data with correct structure."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -177,24 +165,9 @@ def test_get_optimizer_overhead():
         assert after >= before
 
 
-# --- result file path tests ---
-
-
-@cleanup
-def test_result_file_paths_exist():
-    """result_file_path and optimizer_overhead_file_path should point to existing files after simulate."""
-    kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
-    wrapper.simulate(_DummyOpt())
-
-    assert os.path.isfile(wrapper.result_file_path)
-    assert os.path.isfile(wrapper.optimizer_overhead_file_path)
-
-
 # --- property tests ---
 
 
-@cleanup
 def test_wrapper_properties():
     """Public properties should return expected values."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -205,7 +178,6 @@ def test_wrapper_properties():
     assert wrapper.obj_keys == ["loss"]
     assert wrapper.runtime_key == "runtime"
     assert wrapper.fidel_keys == kwargs["fidel_keys"]
-    assert SUBDIR_NAME in wrapper.dir_name
 
 
 # --- result ordering with expensive_sampler=True ---
@@ -225,13 +197,11 @@ class _MultiWorkerOpt(AbstractAskTellOptimizer):
         pass
 
 
-@cleanup
 def test_results_sorted_by_cumtime_with_expensive_sampler():
     """With expensive_sampler=True, get_results() should have cumtimes in non-decreasing order."""
     n_evals = 8
     wrapper = ObjectiveFuncWrapper(
         obj_func=simplest_dummy_func,
-        save_dir_name=SUBDIR_NAME,
         n_workers=4,
         n_actual_evals_in_opt=n_evals + 5,
         n_evals=n_evals,
@@ -244,7 +214,6 @@ def test_results_sorted_by_cumtime_with_expensive_sampler():
     assert np.all(cumtimes[:-1] <= cumtimes[1:])
 
 
-@cleanup
 def test_results_cumtime_monotonic_without_expensive_sampler():
     """Without expensive_sampler, get_results() cumtimes should also be non-decreasing."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -258,7 +227,6 @@ def test_results_cumtime_monotonic_without_expensive_sampler():
 # --- tell_pending_result edge cases ---
 
 
-@cleanup
 def test_tell_skips_none_pending_results():
     """_tell_pending_result should skip workers with None pending results."""
     kwargs = DEFAULT_KWARGS.copy()
@@ -270,14 +238,12 @@ def test_tell_skips_none_pending_results():
     assert len(results["cumtime"]) == kwargs["n_evals"]
 
 
-@cleanup
 def test_multi_worker_all_results_collected():
     """With multiple workers, all n_evals results should be collected."""
     n_workers = 4
     n_evals = 12
     wrapper = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
-        save_dir_name=SUBDIR_NAME,
         n_workers=n_workers,
         n_actual_evals_in_opt=n_evals + n_workers + 1,
         n_evals=n_evals,
@@ -292,13 +258,11 @@ def test_multi_worker_all_results_collected():
 # --- no fidel mode ---
 
 
-@cleanup
 def test_no_fidel_mode():
     """Simulation without fidelities should work correctly."""
     n_evals = 5
     wrapper = ObjectiveFuncWrapper(
         obj_func=dummy_no_fidel_func,
-        save_dir_name=SUBDIR_NAME,
         n_workers=2,
         n_actual_evals_in_opt=n_evals + 3,
         n_evals=n_evals,

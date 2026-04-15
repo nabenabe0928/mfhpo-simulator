@@ -8,17 +8,14 @@ import pytest
 
 from src import AbstractAskTellOptimizer
 from src import ObjectiveFuncWrapper
-from src.tests.utils import cleanup
 from src.tests.utils import OrderCheckConfigs
 from src.tests.utils import OrderCheckConfigsWithSampleLatency
-from src.tests.utils import SUBDIR_NAME
 from src.tests.utils import UNIT_TIME
 
 
 N_EVALS = 20
 LATENCY = "latency"
 DEFAULT_KWARGS = dict(
-    save_dir_name=SUBDIR_NAME,
     n_workers=2,
     n_actual_evals_in_opt=N_EVALS + 5,
     n_evals=N_EVALS,
@@ -41,7 +38,6 @@ class MyOptimizer(AbstractAskTellOptimizer):
         pass
 
 
-@cleanup
 def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False, timeout: bool = False):
     latency = mode == LATENCY
     kwargs = DEFAULT_KWARGS.copy()
