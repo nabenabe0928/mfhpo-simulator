@@ -18,8 +18,6 @@ class _AskTellWorkerManager:
         self._init_wrapper()
 
     def _init_wrapper(self) -> None:
-        self._wrapper_vars.validate()
-
         self._start_time = time.time()
         self._timenow = 0.0
         self._cumtimes = np.zeros(self._wrapper_vars.n_workers, dtype=float)

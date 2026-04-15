@@ -47,14 +47,6 @@ class _WrapperVars:
     allow_parallel_sampling: bool
     expensive_sampler: bool
 
-    def validate(self) -> None:
-        if self.allow_parallel_sampling and self.expensive_sampler:
-            raise ValueError(
-                "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"
-                "Note that allow_parallel_sampling=True correctly handles expensive samplers"
-                " if sampling happens in parallel."
-            )
-
 
 class AbstractAskTellOptimizer(metaclass=ABCMeta):
     @abstractmethod

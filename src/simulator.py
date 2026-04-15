@@ -58,6 +58,12 @@ class ObjectiveFuncWrapper:
             expensive_sampler (bool):
                 Whether the optimizer is expensive relative to a function evaluation.
         """
+        if allow_parallel_sampling and expensive_sampler:
+            raise ValueError(
+                "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"
+                "Note that allow_parallel_sampling=True correctly handles expensive samplers"
+                " if sampling happens in parallel."
+            )
         self._n_workers = n_workers
         wrapper_vars = _WrapperVars(
             obj_func=obj_func,
