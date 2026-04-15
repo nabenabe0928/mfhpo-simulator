@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from benchmark_simulator._constants import _StateType
 from benchmark_simulator._secure_proc import _cache_state
 from benchmark_simulator._secure_proc import _delete_state
 from benchmark_simulator._secure_proc import _fetch_cache_states
 
+
 if TYPE_CHECKING:
     import numpy as np
+
     from benchmark_simulator._utils import _SecureLock
 
 

@@ -5,6 +5,7 @@ import json
 import multiprocessing
 import os
 import time
+from typing import TYPE_CHECKING
 
 from benchmark_apis import MFHartmann
 import ConfigSpace as CS
@@ -12,6 +13,7 @@ import numpy as np
 
 from benchmark_simulator import ObjectiveFuncType
 from benchmark_simulator import ObjectiveFuncWrapper
+
 
 if TYPE_CHECKING:
     import ConfigSpace as CS

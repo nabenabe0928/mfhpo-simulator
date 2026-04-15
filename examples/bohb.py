@@ -15,6 +15,7 @@ from examples.utils import get_bench_instance
 from examples.utils import get_save_dir_name
 from examples.utils import parse_args
 
+
 if TYPE_CHECKING:
     import ConfigSpace as CS
 

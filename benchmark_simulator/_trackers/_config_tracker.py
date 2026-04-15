@@ -8,6 +8,7 @@ import numpy as np
 from benchmark_simulator._secure_proc import _fetch_existing_configs
 from benchmark_simulator._secure_proc import _record_existing_configs
 
+
 if TYPE_CHECKING:
     from benchmark_simulator._utils import _SecureLock
 

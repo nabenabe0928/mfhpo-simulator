@@ -59,6 +59,7 @@ exclude = [
   ".eggs",
   ".git",
   ".hg",
+  ".claude",
   ".ruff_cache",
   ".mypy_cache",
   ".venv",

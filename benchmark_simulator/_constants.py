@@ -11,10 +11,12 @@ from typing import Protocol
 from typing import TYPE_CHECKING
 import warnings
 
+
 if TYPE_CHECKING:
     from typing import Any
-    from typing import Protocol
     from typing import Final
+    from typing import Protocol
+
     import numpy as np
 
     class ObjectiveFuncType(Protocol):

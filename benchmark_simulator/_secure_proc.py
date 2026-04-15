@@ -15,6 +15,7 @@ from benchmark_simulator._constants import _SharedDataFileNames
 from benchmark_simulator._constants import _StateType
 from benchmark_simulator._constants import _TIME_VALUES
 
+
 if TYPE_CHECKING:
     from benchmark_simulator._utils import _SecureLock
 
