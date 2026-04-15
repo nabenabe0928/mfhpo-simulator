@@ -62,7 +62,7 @@ def test_no_expensive_parallel_sample():
 def test_store_actual_cumtime() -> None:
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_workers=4)
-    worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, store_actual_cumtime=True, **kwargs)
+    worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     worker.simulate(_DummyOpt())
 
     results = worker.get_results()

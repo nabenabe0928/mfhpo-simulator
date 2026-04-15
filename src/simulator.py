@@ -32,7 +32,6 @@ class ObjectiveFuncWrapper:
         obj_func: ObjectiveFuncType,
         n_workers: int = 4,
         n_evals: int = 100,
-        store_actual_cumtime: bool = False,
         allow_parallel_sampling: bool = False,
         max_total_eval_time: float = float("inf"),
         expensive_sampler: bool = False,
@@ -52,8 +51,6 @@ class ObjectiveFuncWrapper:
                 The number of simulated workers. In other words, how many parallel workers to simulate.
             n_evals (int):
                 How many configurations we would like to collect.
-            store_actual_cumtime (bool):
-                Whether to store actual cumulative time at each point.
             allow_parallel_sampling (bool):
                 Whether sampling can happen in parallel.
             max_total_eval_time (float):
@@ -67,11 +64,9 @@ class ObjectiveFuncWrapper:
             n_workers=n_workers,
             n_evals=n_evals,
             max_total_eval_time=max_total_eval_time,
-            store_actual_cumtime=store_actual_cumtime,
             allow_parallel_sampling=allow_parallel_sampling,
             expensive_sampler=expensive_sampler,
         )
-
         self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
 
     @property

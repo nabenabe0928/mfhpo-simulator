@@ -22,13 +22,16 @@ class _AskTellWorkerManager:
 
         self._start_time = time.time()
         self._timenow = 0.0
-        self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=float)
+        self._cumtimes = np.zeros(self._wrapper_vars.n_workers, dtype=float)
         self._worker_indices = np.arange(self._wrapper_vars.n_workers)
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
         self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": [], "worker_index": []}
-        self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": [], "objectives": []}
-        if self._wrapper_vars.store_actual_cumtime:
-            self._results.update({"actual_cumtime": []})
+        self._results: dict[str, list[Any]] = {
+            "worker_index": [],
+            "cumtime": [],
+            "objectives": [],
+            "actual_cumtime": [],
+        }
 
     def _proc_obj_func(self, eval_config: dict[str, Any], worker_id: int) -> None:
         results = self._wrapper_vars.obj_func(eval_config=eval_config)
@@ -41,15 +44,12 @@ class _AskTellWorkerManager:
         self._results["worker_index"].append(worker_id)
         self._results["cumtime"].append(result_data.cumtime)
         self._results["objectives"].append(result_data.results[:-1])
-
-        if self._wrapper_vars.store_actual_cumtime:
-            self._results["actual_cumtime"].append(time.time() - self._start_time)
+        self._results["actual_cumtime"].append(time.time() - self._start_time)
 
     def _ask_with_timer(self, opt: AbstractAskTellOptimizer, worker_id: int) -> dict[str, Any]:
         start = time.time()
         eval_config = opt.ask()
         sampling_time = time.time() - start
-
         is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
         if self._wrapper_vars.allow_parallel_sampling:
             before_sample = self._cumtimes[worker_id]
@@ -62,12 +62,10 @@ class _AskTellWorkerManager:
         self._sampled_time["worker_index"].append(worker_id)
         self._sampled_time["before_sample"].append(before_sample)
         self._sampled_time["after_sample"].append(self._cumtimes[worker_id])
-
-        positive_cumtimes = self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC]
         if (
             not self._wrapper_vars.expensive_sampler
             and is_first_sample
-            and positive_cumtimes.size > 0
+            and (positive_cumtimes := self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC]).size > 0
             and self._cumtimes[worker_id] > NEGLIGIBLE_SEC
             and self._cumtimes[worker_id] != np.min(positive_cumtimes)
         ):
@@ -76,7 +74,6 @@ class _AskTellWorkerManager:
                 "In principle, n_workers is too large for the objective to simulate correctly.\n"
                 "Please set expensive_sampler=True or a smaller n_workers, or use a cheaper initialization.\n"
             )
-
         return eval_config
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:

@@ -44,7 +44,6 @@ class _WrapperVars:
     obj_func: ObjectiveFuncType
     n_evals: int
     max_total_eval_time: float
-    store_actual_cumtime: bool
     allow_parallel_sampling: bool
     expensive_sampler: bool
 
