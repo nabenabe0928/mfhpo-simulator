@@ -59,25 +59,6 @@ def test_no_expensive_parallel_sample():
         ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
 
-def _weird_obj_keys(obj_keys: list[str]):
-    kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
-        worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, obj_keys=["dummy_loss"], **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0)
-
-
-@pytest.mark.parametrize("obj_keys", (["dummy_loss"], ["dummy_loss", "loss"]))
-def test_weird_obj_keys(obj_keys: list[str]):
-    _weird_obj_keys(obj_keys=obj_keys)
-
-
-def test_weird_runtime_key():
-    kwargs = DEFAULT_KWARGS.copy()
-    with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
-        worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, runtime_key="dummy_runtime", **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0)
-
-
 def test_store_actual_cumtime() -> None:
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_workers=4)

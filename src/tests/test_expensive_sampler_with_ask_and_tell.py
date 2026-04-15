@@ -25,7 +25,7 @@ class DummyOptimizer(AbstractAskTellOptimizer):
         self._n_workers = n_workers
         self._n_evals = configs.size + self._n_workers
         self._obj_func = obj_func
-        self._observations: list[dict[str, float]] = []
+        self._observations: list[dict[str, Any]] = []
         self._unittime = unittime
         self._configs = configs[::-1].tolist()
 
@@ -37,8 +37,8 @@ class DummyOptimizer(AbstractAskTellOptimizer):
         else:
             return {"x": 10**5}
 
-    def tell(self, eval_config: dict[str, Any], results: dict[str, float], *args, **kwargs) -> None:
-        eval_config["loss"] = results["loss"]
+    def tell(self, eval_config: dict[str, Any], results: list[float], *args, **kwargs) -> None:
+        eval_config["loss"] = results[0]
         self._observations.append(eval_config.copy())
 
 

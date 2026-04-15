@@ -11,48 +11,29 @@ from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
 from src._validators import _validate_opt_class
-from src._validators import _validate_output
 
 
 class _AskTellWorkerManager:
     def __init__(self, wrapper_vars: _WrapperVars):
         self._wrapper_vars = wrapper_vars
-        self._obj_keys, self._runtime_key = wrapper_vars.obj_keys, wrapper_vars.runtime_key
         self._init_wrapper()
 
-    @property
-    def obj_keys(self) -> list[str]:
-        return self._obj_keys[:]
-
-    @property
-    def runtime_key(self) -> str:
-        return self._runtime_key
-
     def _init_wrapper(self) -> None:
-        self._stored_obj_keys = list(set(self.obj_keys + [self.runtime_key]))
-
         self._wrapper_vars.validate()
 
         self._start_time = time.time()
         self._timenow = 0.0
-        self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
+        self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=float)
         self._worker_indices = np.arange(self._wrapper_vars.n_workers)
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
         self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": [], "worker_index": []}
-        self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
-        self._results.update({k: [] for k in self._obj_keys})
+        self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": [], "objectives": []}
         if self._wrapper_vars.store_actual_cumtime:
             self._results.update({"actual_cumtime": []})
 
-    def _proc(self, eval_config: dict[str, Any]) -> dict[str, float]:
-        results = self._wrapper_vars.obj_func(eval_config=eval_config)
-        _validate_output(results, stored_obj_keys=self._stored_obj_keys)
-        return results
-
     def _proc_obj_func(self, eval_config: dict[str, Any], worker_id: int) -> None:
-        results = self._proc(eval_config=eval_config)
-        runtime_key = self._wrapper_vars.runtime_key
-        self._cumtimes[worker_id] += results[runtime_key]
+        results = self._wrapper_vars.obj_func(eval_config=eval_config)
+        self._cumtimes[worker_id] += results[-1]
         self._pending_results[worker_id] = _ResultData(
             cumtime=self._cumtimes[worker_id], eval_config=eval_config, results=results
         )
@@ -60,8 +41,7 @@ class _AskTellWorkerManager:
     def _record_result_data(self, result_data: _ResultData, worker_id: int) -> None:
         self._results["worker_index"].append(worker_id)
         self._results["cumtime"].append(result_data.cumtime)
-        for k in self._obj_keys:
-            self._results[k].append(result_data.results[k])
+        self._results["objectives"].append(result_data.results[:-1])
 
         if self._wrapper_vars.store_actual_cumtime:
             self._results["actual_cumtime"].append(time.time() - self._start_time)
@@ -101,14 +81,14 @@ class _AskTellWorkerManager:
         return eval_config
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
-        free_worker_idxs = np.array([worker_id], dtype=np.int32)
+        free_worker_idxs = np.array([worker_id], dtype=int)
         if self._wrapper_vars.expensive_sampler:
             before_eval = self._sampled_time["after_sample"][-1]
             free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
         else:
             warnings.warn(f"Use expensive_sampler=True for {self.__class__.__name__} as it is more precise")
 
-        for _worker_id in free_worker_idxs.astype(np.int32):
+        for _worker_id in free_worker_idxs.astype(int):
             result_data = self._pending_results[_worker_id]
             if result_data is None:
                 continue

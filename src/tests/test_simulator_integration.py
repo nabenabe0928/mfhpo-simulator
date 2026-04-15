@@ -60,8 +60,6 @@ def test_wrapper_properties():
     wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
     assert wrapper.n_workers == kwargs["n_workers"]
-    assert wrapper.obj_keys == ["loss"]
-    assert wrapper.runtime_key == "runtime"
 
 
 # --- result ordering with expensive_sampler=True ---
@@ -133,7 +131,7 @@ def test_multi_worker_all_results_collected():
     wrapper.simulate(_DummyOpt())
     results = wrapper.get_results()
     assert len(results["cumtime"]) == n_evals
-    assert len(results["loss"]) == n_evals
+    assert len(results["objectives"]) == n_evals
     assert len(results["worker_index"]) == n_evals
 
 

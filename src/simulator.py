@@ -21,10 +21,6 @@ class ObjectiveFuncWrapper:
     instead, cumulative runtimes are simulated internally per worker.
 
     Attributes:
-        obj_keys (list[str]):
-            The objective names that will be collected in results.
-        runtime_key (str):
-            The runtime name used to define the runtime of the user objective function.
         n_workers (int):
             The number of (simulated) workers used in the optimization.
 
@@ -38,8 +34,6 @@ class ObjectiveFuncWrapper:
         obj_func: ObjectiveFuncType,
         n_workers: int = 4,
         n_evals: int = 100,
-        obj_keys: list[str] | None = None,
-        runtime_key: str = "runtime",
         store_actual_cumtime: bool = False,
         allow_parallel_sampling: bool = False,
         max_total_eval_time: float = np.inf,
@@ -53,16 +47,13 @@ class ObjectiveFuncWrapper:
                 Args:
                     eval_config: dict[str, Any]
                 Returns:
-                    results: dict[str, float]
-                        It must return `objective metric` and `runtime` at least.
+                    results: list[float]
+                        The last element must be the runtime.
+                        All preceding elements are objective metrics.
             n_workers (int):
                 The number of simulated workers. In other words, how many parallel workers to simulate.
             n_evals (int):
                 How many configurations we would like to collect.
-            obj_keys (list[str] | None):
-                The keys of the objective metrics used in `results` returned by func.
-            runtime_key (str):
-                The key of the runtime metric used in `results` returned by func.
             store_actual_cumtime (bool):
                 Whether to store actual cumulative time at each point.
             allow_parallel_sampling (bool):
@@ -77,8 +68,6 @@ class ObjectiveFuncWrapper:
             obj_func=obj_func,
             n_workers=n_workers,
             n_evals=n_evals,
-            obj_keys=obj_keys if obj_keys is not None else ["loss"],
-            runtime_key=runtime_key,
             max_total_eval_time=max_total_eval_time,
             store_actual_cumtime=store_actual_cumtime,
             allow_parallel_sampling=allow_parallel_sampling,
@@ -86,14 +75,6 @@ class ObjectiveFuncWrapper:
         )
 
         self._main_wrapper = _AskTellWorkerManager(wrapper_vars)
-
-    @property
-    def obj_keys(self) -> list[str]:
-        return self._main_wrapper.obj_keys
-
-    @property
-    def runtime_key(self) -> str:
-        return self._main_wrapper.runtime_key
 
     @property
     def n_workers(self) -> int:

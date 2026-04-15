@@ -35,7 +35,7 @@ class OrderCheckConfigsForSync:
     def __init__(self, n_workers: int, sleeping: float = 0.0):
         loss_vals = [i for i in range(7)]
         runtimes = np.array([1000, 400, 300, 300, 400, 200, 200])
-        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
         self._ans = {
             2: np.array([400, 700, 1000, 1300, 1400, 1500, 1700]),
             3: np.array([300, 400, 1000, 1200, 1300, 1400, 1600]),
@@ -43,7 +43,7 @@ class OrderCheckConfigsForSync:
         self._n_evals = self._ans.size
         self._sleeping = sleeping
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
         time.sleep(self._sleeping)
         results = self._results[min(eval_config["index"], len(self._results) - 1)]
         return results
@@ -77,10 +77,10 @@ class OrderCheckConfigsForSyncWithSampleLatency:
             3: np.array([500, 600, 1200, 1600, 1700, 1800]),
         }[n_workers] * UNIT_TIME
         loss_vals = [i for i in range(self._ans.size)]
-        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
         self._n_evals = self._ans.size
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
         results = self._results[min(eval_config["index"], len(self._results) - 1)]
         return results
 
@@ -110,7 +110,7 @@ class OrderCheckConfigs:
             2: [1000, 300, 300, 300, 300, 100, 200, 600, 200, 200, 200, 300, 200, 200, 200, 600, 200, 200, 300, 400],
             4: [1000, 400, 300, 200, 200, 300, 400, 200, 200, 300, 200, 400, 300, 200, 300, 200, 300, 400, 300, 100],
         }[n_workers]
-        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
         self._ans = {
             2: np.array(
                 [
@@ -164,7 +164,7 @@ class OrderCheckConfigs:
         self._n_evals = self._ans.size
         self._sleeping = sleeping
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
         # Latency caused by benchmark function. We must be able to ignore it in the simulation.
         time.sleep(self._sleeping)
         results = self._results[eval_config["index"]]
@@ -211,10 +211,10 @@ class OrderCheckConfigsWithSampleLatency:
             self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
 
         loss_vals = [i for i in range(self._ans.size)]
-        self._results = [dict(loss=loss, runtime=runtime) for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
         self._n_evals = self._ans.size
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> dict[str, float]:
+    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
         results = self._results[eval_config["index"]]
         return results
 
@@ -339,11 +339,11 @@ def get_configs(index: int, unittime: float) -> np.ndarray:
 
 def simplest_dummy_func(
     eval_config: dict[str, Any],
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=eval_config["x"])
+) -> list[float]:
+    return [eval_config["x"], eval_config["x"]]
 
 
 def dummy_no_fidel_func(
     eval_config: dict[str, Any],
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=10)
+) -> list[float]:
+    return [eval_config["x"], 10]

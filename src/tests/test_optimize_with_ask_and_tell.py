@@ -45,7 +45,7 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
     def tell(
         self,
         eval_config: dict[str, Any],
-        results: dict[str, float],
+        results: list[float],
     ) -> None:
         pass
 
@@ -53,8 +53,9 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
 def _wrap_bench(bench: MFBranin):
     max_fidels = bench.max_fidels
 
-    def wrapped(eval_config: dict[str, Any], **kwargs: Any) -> dict[str, float]:
-        return bench(eval_config, fidels=max_fidels)
+    def wrapped(eval_config: dict[str, Any], **kwargs: Any) -> list[float]:
+        out = bench(eval_config, fidels=max_fidels)
+        return [out["loss"], out["runtime"]]
 
     return wrapped
 

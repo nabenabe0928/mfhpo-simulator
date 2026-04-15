@@ -15,13 +15,3 @@ def _validate_opt_class(opt: AbstractAskTellOptimizer) -> None:
             f"\033[32m{opt_cls.tell.__doc__}\033[0m",
         ]
         raise ValueError("\n".join(error_lines))
-
-
-def _validate_output(results: dict[str, float], stored_obj_keys: list[str]) -> None:
-    keys_in_output = set(results.keys())
-    keys = set(stored_obj_keys)
-    if keys_in_output.intersection(keys) != keys:
-        raise KeyError(
-            f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
-            f"but got {results=}"
-        )

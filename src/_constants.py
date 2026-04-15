@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing import Protocol
 
     class ObjectiveFuncType(Protocol):
-        def __call__(self, eval_config: dict[str, Any]) -> dict[str, float]:
+        def __call__(self, eval_config: dict[str, Any]) -> list[float]:
             """The prototype of the objective function.
 
             Args:
@@ -20,10 +20,10 @@ if TYPE_CHECKING:
                     The configuration to be used in the objective function.
 
             Returns:
-                results (dict[str, float]):
+                results (list[float]):
                     The results of the objective function given the inputs.
-                    It must have `objective metric` and `runtime` at least.
-                    Otherwise, any other metrics are optional.
+                    The last element must be the runtime.
+                    All preceding elements are objective metrics.
             """
             raise NotImplementedError
 
@@ -35,7 +35,7 @@ NEGLIGIBLE_SEC: Final[float] = 1e-12
 class _ResultData:
     cumtime: float
     eval_config: dict[str, Any]
-    results: dict[str, float]
+    results: list[float]
 
 
 @dataclass(frozen=True)
@@ -44,8 +44,6 @@ class _WrapperVars:
     obj_func: ObjectiveFuncType
     n_evals: int
     max_total_eval_time: float
-    obj_keys: list[str]
-    runtime_key: str
     store_actual_cumtime: bool
     allow_parallel_sampling: bool
     expensive_sampler: bool
@@ -72,14 +70,15 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def tell(self, eval_config: dict[str, Any], results: dict[str, float]) -> None:
+    def tell(self, eval_config: dict[str, Any], results: list[float]) -> None:
         """
         The tell method to register a tuple of configuration and results to an optimizer.
 
         Args:
             eval_config (dict[str, Any]):
                 The configuration to be used in the objective function.
-            results (dict[str, float]):
-                The dict of the return values from the objective function.
+            results (list[float]):
+                The return values from the objective function.
+                The last element is the runtime, and the rest are objective metrics.
         """
         raise NotImplementedError
