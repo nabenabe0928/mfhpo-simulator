@@ -7,7 +7,6 @@ import pytest
 
 from src._constants import AbstractAskTellOptimizer
 from src.simulator import ObjectiveFuncWrapper
-from src.tests.utils import dummy_func
 from src.tests.utils import dummy_no_fidel_func
 from src.tests.utils import simplest_dummy_func
 
@@ -16,7 +15,6 @@ DEFAULT_KWARGS = dict(
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
-    fidel_keys=["epoch"],
 )
 
 
@@ -26,7 +24,7 @@ class _DummyOpt(AbstractAskTellOptimizer):
 
     def ask(self):
         self._n_calls += 1
-        return {"x": self._n_calls}, {"epoch": self._n_calls + 1}, None
+        return {"x": self._n_calls}, None
 
     def tell(self, *args, **kwargs):
         pass
@@ -44,29 +42,17 @@ class _DummyOptWithConfigId(AbstractAskTellOptimizer):
         if self._valid:
             # Same config_id=0 always maps to same config {"x": 0}
             config_id = 0 if self._n_calls % 2 == 0 else 1
-            return {"x": config_id}, {"epoch": self._n_calls + 1}, config_id
+            return {"x": config_id}, config_id
         else:
             # Invalid: config_id=0 with different configs
-            return {"x": self._n_calls}, {"epoch": self._n_calls + 1}, 0
+            return {"x": self._n_calls}, 0
 
     def tell(self, *args, **kwargs):
         pass
 
 
-class _DummyOptNoFidel(AbstractAskTellOptimizer):
-    def __init__(self):
-        self._n_calls = -1
-
-    def ask(self):
-        self._n_calls += 1
-        return {"x": self._n_calls}, None, None
-
-    def tell(self, *args, **kwargs):
-        pass
-
-
-class _DummyOptNoFidelWithConfigId(AbstractAskTellOptimizer):
-    """Optimizer that returns config_id but is used in non-continual mode."""
+class _DummyOptWithConfigIdNoFidel(AbstractAskTellOptimizer):
+    """Optimizer that returns config_id."""
 
     def __init__(self, valid: bool = True):
         self._n_calls = -1
@@ -76,10 +62,10 @@ class _DummyOptNoFidelWithConfigId(AbstractAskTellOptimizer):
         self._n_calls += 1
         if self._valid:
             config_id = self._n_calls % 3
-            return {"x": config_id}, None, config_id
+            return {"x": config_id}, config_id
         else:
             # config_id=0 with different configs
-            return {"x": self._n_calls}, None, 0
+            return {"x": self._n_calls}, 0
 
     def tell(self, *args, **kwargs):
         pass
@@ -92,7 +78,7 @@ def test_config_tracking_disabled_skips_validation():
     """When config_tracking=False, duplicated config_id with different configs should NOT raise."""
     kwargs = DEFAULT_KWARGS.copy()
     kwargs["config_tracking"] = False
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     # This optimizer gives config_id=0 to different configs — would fail with config_tracking=True
     wrapper.simulate(_DummyOptWithConfigId(valid=False))
     results = wrapper.get_results()
@@ -102,7 +88,7 @@ def test_config_tracking_disabled_skips_validation():
 def test_config_tracking_enabled_catches_invalid():
     """When config_tracking=True (default), duplicated config_id with different configs should raise."""
     kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     with pytest.raises(ValueError, match=r".*got the duplicated config_id.*"):
         wrapper.simulate(_DummyOptWithConfigId(valid=False))
 
@@ -110,35 +96,27 @@ def test_config_tracking_enabled_catches_invalid():
 def test_config_tracking_enabled_valid():
     """When config_tracking=True, consistent config_id should pass without errors."""
     kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     wrapper.simulate(_DummyOptWithConfigId(valid=True))
     results = wrapper.get_results()
     assert len(results["cumtime"]) == kwargs["n_evals"]
 
 
-def test_config_tracking_non_continual_valid():
-    """Config tracking works in non-continual mode."""
-    kwargs = dict(
-        n_workers=1,
-        n_actual_evals_in_opt=11,
-        n_evals=10,
-    )
+def test_config_tracking_valid():
+    """Config tracking works correctly."""
+    kwargs = DEFAULT_KWARGS.copy()
     wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, config_tracking=True, **kwargs)
-    wrapper.simulate(_DummyOptNoFidelWithConfigId(valid=True))
+    wrapper.simulate(_DummyOptWithConfigIdNoFidel(valid=True))
     results = wrapper.get_results()
     assert len(results["cumtime"]) == kwargs["n_evals"]
 
 
-def test_config_tracking_non_continual_invalid():
-    """Config tracking catches duplicated config_id in non-continual mode."""
-    kwargs = dict(
-        n_workers=1,
-        n_actual_evals_in_opt=11,
-        n_evals=10,
-    )
+def test_config_tracking_invalid():
+    """Config tracking catches duplicated config_id."""
+    kwargs = DEFAULT_KWARGS.copy()
     wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, config_tracking=True, **kwargs)
     with pytest.raises(ValueError, match=r".*got the duplicated config_id.*"):
-        wrapper.simulate(_DummyOptNoFidelWithConfigId(valid=False))
+        wrapper.simulate(_DummyOptWithConfigIdNoFidel(valid=False))
 
 
 # --- get_optimizer_overhead tests ---
@@ -147,7 +125,7 @@ def test_config_tracking_non_continual_invalid():
 def test_get_optimizer_overhead():
     """get_optimizer_overhead should return sampling time data with correct structure."""
     kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     wrapper.simulate(_DummyOpt())
 
     overhead = wrapper.get_optimizer_overhead()
@@ -170,13 +148,12 @@ def test_get_optimizer_overhead():
 def test_wrapper_properties():
     """Public properties should return expected values."""
     kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
 
     assert wrapper.n_workers == kwargs["n_workers"]
     assert wrapper.n_actual_evals_in_opt == kwargs["n_actual_evals_in_opt"]
     assert wrapper.obj_keys == ["loss"]
     assert wrapper.runtime_key == "runtime"
-    assert wrapper.fidel_keys == kwargs["fidel_keys"]
 
 
 # --- result ordering with expensive_sampler=True ---
@@ -190,7 +167,7 @@ class _MultiWorkerOpt(AbstractAskTellOptimizer):
 
     def ask(self):
         self._n_calls += 1
-        return {"x": self._n_calls}, None, None
+        return {"x": self._n_calls}, None
 
     def tell(self, *args, **kwargs):
         pass
@@ -216,7 +193,7 @@ def test_results_sorted_by_cumtime_with_expensive_sampler():
 def test_results_cumtime_monotonic_without_expensive_sampler():
     """Without expensive_sampler, get_results() cumtimes should also be non-decreasing."""
     kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     wrapper.simulate(_DummyOpt())
     results = wrapper.get_results()
     cumtimes = np.array(results["cumtime"])
@@ -230,7 +207,7 @@ def test_tell_skips_none_pending_results():
     """_tell_pending_result should skip workers with None pending results."""
     kwargs = DEFAULT_KWARGS.copy()
     kwargs.update(n_workers=2, n_actual_evals_in_opt=15)
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_func, **kwargs)
+    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     wrapper.simulate(_DummyOpt())
     results = wrapper.get_results()
     # Should complete without errors and have the expected number of results
@@ -247,30 +224,11 @@ def test_multi_worker_all_results_collected():
         n_actual_evals_in_opt=n_evals + n_workers + 1,
         n_evals=n_evals,
     )
-    wrapper.simulate(_DummyOptNoFidel())
+    wrapper.simulate(_DummyOpt())
     results = wrapper.get_results()
     assert len(results["cumtime"]) == n_evals
     assert len(results["loss"]) == n_evals
     assert len(results["worker_index"]) == n_evals
-
-
-# --- no fidel mode ---
-
-
-def test_no_fidel_mode():
-    """Simulation without fidelities should work correctly."""
-    n_evals = 5
-    wrapper = ObjectiveFuncWrapper(
-        obj_func=dummy_no_fidel_func,
-        n_workers=2,
-        n_actual_evals_in_opt=n_evals + 3,
-        n_evals=n_evals,
-    )
-    wrapper.simulate(_DummyOptNoFidel())
-    results = wrapper.get_results()
-    assert len(results["cumtime"]) == n_evals
-    cumtimes = np.array(results["cumtime"])
-    assert np.all(cumtimes[:-1] <= cumtimes[1:])
 
 
 if __name__ == "__main__":

@@ -29,13 +29,13 @@ class DummyOptimizer(AbstractAskTellOptimizer):
         self._unittime = unittime
         self._configs = configs[::-1].tolist()
 
-    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
+    def ask(self) -> tuple[dict[str, Any], int | None]:
         waiting_time = (len(self._observations) + 1) * self._unittime
         if len(self._configs):
             time.sleep(waiting_time)
-            return {"x": self._configs.pop()}, None, None
+            return {"x": self._configs.pop()}, None
         else:
-            return {"x": 10**5}, None, None
+            return {"x": 10**5}, None
 
     def tell(self, eval_config: dict[str, Any], results: dict[str, float], *args, **kwargs) -> None:
         eval_config["loss"] = results["loss"]

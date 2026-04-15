@@ -27,15 +27,9 @@ class RandomOptimizer:
     def __init__(
         self,
         config_space: CS.ConfigurationSpace,
-        fidel_keys: list[str],
-        min_fidels: dict[str, int | float],
-        max_fidels: dict[str, int | float],
         discrete: bool,
     ):
         self._config_space = config_space
-        self._fidel_keys = fidel_keys
-        self._min_fidels = min_fidels
-        self._max_fidels = max_fidels
         self._discrete = discrete
 
     def ask(self) -> dict[str, Any]:
@@ -44,58 +38,49 @@ class RandomOptimizer:
 
 
 class RandomOptimizerWrapper(AbstractAskTellOptimizer):
-    def __init__(self, opt: RandomOptimizer, very_random: bool):
+    def __init__(self, opt: RandomOptimizer):
         self._opt = opt
-        self._fidel_keys = self._opt._fidel_keys
-        self._min_fidels = self._opt._min_fidels
-        self._max_fidels = self._opt._max_fidels
-        self._rng = np.random.RandomState(0)
-        self._very_random = very_random
 
-    def ask(self) -> tuple[dict[str, Any], dict[str, int | float] | None]:
+    def ask(self) -> tuple[dict[str, Any], int | None]:
         eval_config = self._opt.ask()
-        fidels = (
-            {
-                k: self._rng.randint(self._max_fidels[k] - self._min_fidels[k]) + self._min_fidels[k]
-                for k in self._fidel_keys
-            }
-            if self._very_random
-            else self._opt._max_fidels
-        )
-        return eval_config, fidels, None
+        return eval_config, None
 
     def tell(
         self,
         eval_config: dict[str, Any],
         results: dict[str, float],
         *,
-        fidels: dict[str, int | float] | None,
         config_id: int | None,
     ) -> None:
         pass
 
 
-def fetch_randopt_wrapper(bench: MFBranin, discrete: bool = False, very_random: bool = False) -> RandomOptimizerWrapper:
+def _wrap_bench(bench: MFBranin):
+    max_fidels = bench.max_fidels
+
+    def wrapped(eval_config: dict[str, Any], seed: int | None = None, **kwargs: Any) -> dict[str, float]:
+        return bench(eval_config, fidels=max_fidels, seed=seed)
+
+    return wrapped
+
+
+def fetch_randopt_wrapper(bench: MFBranin, discrete: bool = False) -> RandomOptimizerWrapper:
     return RandomOptimizerWrapper(
         RandomOptimizer(
             config_space=bench.config_space,
-            fidel_keys=bench.fidel_keys,
-            min_fidels=bench.min_fidels,
-            max_fidels=bench.max_fidels,
             discrete=discrete,
         ),
-        very_random=very_random,
     )
 
 
-def optimize(n_evals: int = 400, discrete: bool = False, very_random: bool = False, **obj_kwd):
+def optimize(n_evals: int = 400, discrete: bool = False, **obj_kwd):
     kwargs = DEFAULT_KWARGS.copy()
     if n_evals > 1000:
         kwargs.update(n_workers=1000, n_actual_evals_in_opt=11001, n_evals=10000)
 
     bench = MFBranin()
-    opt = fetch_randopt_wrapper(bench=bench, discrete=discrete, very_random=very_random)
-    worker = ObjectiveFuncWrapper(obj_func=bench, fidel_keys=bench.fidel_keys, **kwargs, **obj_kwd)
+    opt = fetch_randopt_wrapper(bench=bench, discrete=discrete)
+    worker = ObjectiveFuncWrapper(obj_func=_wrap_bench(bench), **kwargs, **obj_kwd)
     worker.simulate(opt)
     out = worker.get_results()
     if "max_total_eval_time" not in obj_kwd:

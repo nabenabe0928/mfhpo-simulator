@@ -337,43 +337,15 @@ def get_configs(index: int, unittime: float) -> np.ndarray:
     return configs * unittime, ans * unittime
 
 
-def dummy_func(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=fidels["epoch"])
-
-
 def simplest_dummy_func(
     eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None = None,
     seed: int | None = None,
 ) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=eval_config["x"])
 
 
-def dummy_func_with_constant_runtime(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-) -> dict[str, float]:
-    return dict(loss=eval_config["x"], runtime=1)
-
-
 def dummy_no_fidel_func(
     eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None = None,
     seed: int | None = None,
 ) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=10)
-
-
-def dummy_func_with_many_fidelities(
-    eval_config: dict[str, Any],
-    fidels: dict[str, int | float] | None,
-    seed: int | None,
-    **data_to_scatter: Any,
-) -> dict[str, float]:
-    runtime = fidels["z1"] + fidels["z2"] + fidels["z3"]
-    return dict(loss=eval_config["x"], runtime=runtime)

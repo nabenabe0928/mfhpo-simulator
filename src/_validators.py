@@ -34,22 +34,3 @@ def _validate_output(results: dict[str, float], stored_obj_keys: list[str]) -> N
             f"The output of objective must be a superset of {list(keys)} specified in obj_keys and runtime_key, "
             f"but got {results=}"
         )
-
-
-def _validate_fidels(
-    fidels: dict[str, int | float] | None,
-    fidel_keys: list[str],
-    use_fidel: bool,
-) -> None:
-    if not use_fidel and fidels is not None:
-        raise ValueError(
-            "Objective function got keyword `fidels`, but fidel_keys was not provided in worker instantiation."
-        )
-    if use_fidel and fidels is None:
-        raise ValueError(
-            "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
-        )
-
-    fidel_key_set = set(({} if fidels is None else fidels).keys())
-    if use_fidel and fidel_key_set != set(fidel_keys):
-        raise KeyError(f"The keys in fidels must be identical to {fidel_keys=}, but got {fidels=}")

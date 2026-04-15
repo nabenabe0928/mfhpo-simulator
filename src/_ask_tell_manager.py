@@ -12,7 +12,6 @@ from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
 from src._validators import _raise_optimizer_init_error
-from src._validators import _validate_fidels
 from src._validators import _validate_opt_class
 from src._validators import _validate_output
 
@@ -37,7 +36,6 @@ class _AskTellWorkerManager:
     def __init__(self, wrapper_vars: _WrapperVars):
         self._wrapper_vars = wrapper_vars
         self._obj_keys, self._runtime_key = wrapper_vars.obj_keys, wrapper_vars.runtime_key
-        self._fidel_keys = [] if wrapper_vars.fidel_keys is None else wrapper_vars.fidel_keys[:]
         self._init_wrapper()
 
     @property
@@ -48,13 +46,8 @@ class _AskTellWorkerManager:
     def runtime_key(self) -> str:
         return self._runtime_key
 
-    @property
-    def fidel_keys(self) -> list[str]:
-        return self._fidel_keys[:]
-
     def _init_wrapper(self) -> None:
         self._worker_vars = _WorkerVars(
-            use_fidel=self._wrapper_vars.fidel_keys is not None,
             rng=np.random.RandomState(self._wrapper_vars.seed),
             stored_obj_keys=list(set(self.obj_keys + [self.runtime_key])),
             worker_id="",
@@ -90,10 +83,9 @@ class _AskTellWorkerManager:
     def _proc(
         self,
         eval_config: dict[str, Any],
-        fidels: dict[str, int | float] | None,
     ) -> tuple[dict[str, float], int]:
         seed = self._worker_vars.rng.randint(1 << 30)
-        results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
+        results = self._wrapper_vars.obj_func(eval_config=eval_config, seed=seed)
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
         return results, seed
 
@@ -101,22 +93,15 @@ class _AskTellWorkerManager:
         self,
         eval_config: dict[str, Any],
         worker_id: int,
-        fidels: dict[str, int | float] | None,
         config_id: int | None,
     ) -> None:
-        _validate_fidels(
-            fidels=fidels,
-            fidel_keys=self._fidel_keys,
-            use_fidel=self._worker_vars.use_fidel,
-        )
-        results, seed = self._proc(eval_config=eval_config, fidels=fidels)
+        results, seed = self._proc(eval_config=eval_config)
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]
         self._pending_results[worker_id] = _ResultData(
             cumtime=self._cumtimes[worker_id],
             eval_config=eval_config,
             results=results,
-            fidels=fidels if fidels is not None else {},
             seed=seed,
             config_id=config_id,
         )
@@ -134,9 +119,9 @@ class _AskTellWorkerManager:
         self,
         opt: AbstractAskTellOptimizer,
         worker_id: int,
-    ) -> tuple[dict[str, Any], dict[str, int | float] | None, int | None]:
+    ) -> tuple[dict[str, Any], int | None]:
         start = time.time()
-        eval_config, fidels, config_id = opt.ask()
+        eval_config, config_id = opt.ask()
         sampling_time = time.time() - start
         config_tracking = config_id is not None and self._wrapper_vars.config_tracking
         if config_tracking:  # validate the config_id to ensure the user implementation is correct
@@ -166,7 +151,7 @@ class _AskTellWorkerManager:
         ):
             _raise_optimizer_init_error()
 
-        return eval_config, fidels, config_id
+        return eval_config, config_id
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
         free_worker_idxs = np.array([worker_id], dtype=np.int32)
@@ -185,7 +170,6 @@ class _AskTellWorkerManager:
             opt.tell(
                 eval_config=result_data.eval_config,
                 results=result_data.results,
-                fidels=result_data.fidels,
                 config_id=result_data.config_id,
             )
             self._pending_results[_worker_id] = None
@@ -206,8 +190,8 @@ class _AskTellWorkerManager:
         _validate_opt_class(opt)
         worker_id = 0
         for i in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
-            eval_config, fidels, config_id = self._ask_with_timer(opt=opt, worker_id=worker_id)
-            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id)
+            eval_config, config_id = self._ask_with_timer(opt=opt, worker_id=worker_id)
+            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, config_id=config_id)
             worker_id = np.argmin(self._cumtimes)
 
             if i + 1 >= self._wrapper_vars.n_workers:

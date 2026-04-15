@@ -25,8 +25,6 @@ class ObjectiveFuncWrapper:
             The objective names that will be collected in results.
         runtime_key (str):
             The runtime name used to define the runtime of the user objective function.
-        fidel_keys (list[str]):
-            The fidelity names used in the objective function.
         n_actual_evals_in_opt (int):
             The number of configuration evaluations during the actual optimization.
         n_workers (int):
@@ -43,7 +41,6 @@ class ObjectiveFuncWrapper:
         n_workers: int = 4,
         n_actual_evals_in_opt: int = 105,
         n_evals: int = 100,
-        fidel_keys: list[str] | None = None,
         obj_keys: list[str] | None = None,
         runtime_key: str = "runtime",
         seed: int | None = None,
@@ -60,7 +57,6 @@ class ObjectiveFuncWrapper:
                 A callable object that serves as the objective function.
                 Args:
                     eval_config: dict[str, Any]
-                    fidels: dict[str, int | float] | None
                     seed: int | None
                     **data_to_scatter: Any
                 Returns:
@@ -72,9 +68,6 @@ class ObjectiveFuncWrapper:
                 The number of evaluations that optimizers do. Must be >= n_evals + n_workers.
             n_evals (int):
                 How many configurations we would like to collect.
-            fidel_keys (list[str] | None):
-                The fidelity names to be used in the objective function.
-                If None, we assume that no fidelity is used.
             obj_keys (list[str] | None):
                 The keys of the objective metrics used in `results` returned by func.
             runtime_key (str):
@@ -98,7 +91,6 @@ class ObjectiveFuncWrapper:
             n_workers=n_workers,
             n_actual_evals_in_opt=n_actual_evals_in_opt,
             n_evals=n_evals,
-            fidel_keys=fidel_keys,
             obj_keys=obj_keys if obj_keys is not None else ["loss"],
             runtime_key=runtime_key,
             seed=seed,
@@ -118,10 +110,6 @@ class ObjectiveFuncWrapper:
     @property
     def runtime_key(self) -> str:
         return self._main_wrapper.runtime_key
-
-    @property
-    def fidel_keys(self) -> list[str]:
-        return self._main_wrapper.fidel_keys
 
     @property
     def n_actual_evals_in_opt(self) -> int:
