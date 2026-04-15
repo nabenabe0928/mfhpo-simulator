@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from src._constants import AbstractAskTellOptimizer
-from src.simulator import ObjectiveFuncWrapper
+from ._ask_tell_manager import AsyncOptBenchmarkSimulator
 
 
-__all__ = ["AbstractAskTellOptimizer", "ObjectiveFuncWrapper"]
+__all__ = ["AsyncOptBenchmarkSimulator"]

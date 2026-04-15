@@ -1,55 +1,67 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
-
-from src._constants import _ResultData
-from src._constants import _WrapperVars
-from src._constants import AbstractAskTellOptimizer
-from src._constants import NEGLIGIBLE_SEC
+import optuna
 
 
-class _AskTellWorkerManager:
-    def __init__(self, wrapper_vars: _WrapperVars):
-        self._wrapper_vars = wrapper_vars
-        self._init_wrapper()
+if TYPE_CHECKING:
+    from typing import Final
 
-    def _init_wrapper(self) -> None:
-        self._start_time = time.time()
+    from optunahub.benchmarks import BaseProblem
+
+
+NEGLIGIBLE_SEC: Final[float] = 1e-12
+
+
+class AsyncOptBenchmarkSimulator:
+    def __init__(self, n_workers: int, expensive_sampler: bool, allow_parallel_sampling: bool) -> None:
+        """a simulator class for async optimization using zero-cost benchmark without waiting.
+
+        Args:
+            n_workers (int):
+                The number of simulated workers. In other words, how many parallel workers to simulate.
+            allow_parallel_sampling (bool):
+                Whether sampling can happen in parallel.
+            expensive_sampler (bool):
+                Whether the optimizer is expensive relative to a function evaluation.
+        """
+        if allow_parallel_sampling and expensive_sampler:
+            raise ValueError(
+                "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"
+                "Note that allow_parallel_sampling=True correctly handles expensive samplers"
+                " if sampling happens in parallel."
+            )
+        self._n_workers = n_workers
+        self._expensive_sampler = expensive_sampler
+        self._allow_parallel_sampling = allow_parallel_sampling
         self._timenow = 0.0
-        self._cumtimes = np.zeros(self._wrapper_vars.n_workers, dtype=float)
-        self._worker_indices = np.arange(self._wrapper_vars.n_workers)
-        self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
-        self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": [], "worker_index": []}
-        self._results: dict[str, list[Any]] = {
-            "worker_index": [],
-            "cumtime": [],
-            "objectives": [],
-            "actual_cumtime": [],
-        }
+        self._cumtimes = np.zeros(n_workers, dtype=float)
+        self._worker_indices = np.arange(n_workers)
+        self._pending_results: list[tuple[int, list[float]] | None] = [None] * n_workers
+        self._after_sample_times: list[float] = []
 
-    def _proc_obj_func(self, eval_config: dict[str, Any], worker_id: int) -> None:
-        results = self._wrapper_vars.obj_func(eval_config=eval_config)
-        self._cumtimes[worker_id] += results[-1]
-        self._pending_results[worker_id] = _ResultData(
-            cumtime=self._cumtimes[worker_id], eval_config=eval_config, results=results
-        )
+    def _proc_obj_func(self, trial: optuna.Trial, problem: BaseProblem, worker_id: int) -> None:
+        output = problem(trial)
+        trial.set_user_attr("worker_id", worker_id)
+        if "runtime" not in trial.user_attrs:
+            raise KeyError(
+                "`runtime` must be set from the problem side. Please override the objective to set the runtime."
+            )
 
-    def _record_result_data(self, result_data: _ResultData, worker_id: int) -> None:
-        self._results["worker_index"].append(worker_id)
-        self._results["cumtime"].append(result_data.cumtime)
-        self._results["objectives"].append(result_data.results[:-1])
-        self._results["actual_cumtime"].append(time.time() - self._start_time)
+        self._cumtimes[worker_id] += float(trial.user_attrs["runtime"])
+        trial.set_user_attr("cumtime", self._cumtimes[worker_id].item())
+        self._pending_results[worker_id] = (trial.number, [output] if isinstance(output, float) else list(output))
 
-    def _ask_with_timer(self, opt: AbstractAskTellOptimizer, worker_id: int) -> dict[str, Any]:
+    def _ask_with_timer(self, study: optuna.Study, problem: BaseProblem, worker_id: int) -> optuna.Trial:
         start = time.time()
-        eval_config = opt.ask()
+        trial = study.ask(problem.search_space)
         sampling_time = time.time() - start
         is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
-        if self._wrapper_vars.allow_parallel_sampling:
+        if self._allow_parallel_sampling:
             before_sample = self._cumtimes[worker_id]
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
         else:
@@ -57,11 +69,12 @@ class _AskTellWorkerManager:
             self._timenow = before_sample + sampling_time
             self._cumtimes[worker_id] = self._timenow
 
-        self._sampled_time["worker_index"].append(worker_id)
-        self._sampled_time["before_sample"].append(before_sample)
-        self._sampled_time["after_sample"].append(self._cumtimes[worker_id])
+        trial.set_user_attr("worker_index", worker_id)
+        trial.set_user_attr("before_sample", before_sample)
+        trial.set_user_attr("after_sample", self._cumtimes[worker_id])
+        self._after_sample_times.append(self._cumtimes[worker_id])
         if (
-            not self._wrapper_vars.expensive_sampler
+            not self._expensive_sampler
             and is_first_sample
             and self._cumtimes[worker_id] > NEGLIGIBLE_SEC
             and self._cumtimes[worker_id] != np.min(self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC])
@@ -71,61 +84,47 @@ class _AskTellWorkerManager:
                 "In principle, n_workers is too large for the objective to simulate correctly.\n"
                 "Please set expensive_sampler=True or a smaller n_workers, or use a cheaper initialization.\n"
             )
-        return eval_config
+        return trial
 
-    def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
+    def _tell_pending_result(self, study: optuna.Study, worker_id: int) -> None:
         free_worker_idxs = np.array([worker_id], dtype=int)
-        if self._wrapper_vars.expensive_sampler:
-            before_eval = self._sampled_time["after_sample"][-1]
+        if self._expensive_sampler:
+            before_eval = self._after_sample_times[-1]
             free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
         else:
             warnings.warn(f"Use expensive_sampler=True for {self.__class__.__name__} as it is more precise")
 
         for _worker_id in free_worker_idxs.astype(int).tolist():
-            result_data = self._pending_results[_worker_id]
-            if result_data is None:
+            result = self._pending_results[_worker_id]
+            if result is None:
                 continue
 
-            self._record_result_data(result_data=result_data, worker_id=_worker_id)
-            opt.tell(eval_config=result_data.eval_config, results=result_data.results)
+            trial_number, values = result
+            study.tell(trial_number, values)
             self._pending_results[_worker_id] = None
 
-    def _finalize_results(self) -> None:
-        cumtime = np.array(self._results["cumtime"])
-        order = np.argsort(cumtime) if self._wrapper_vars.expensive_sampler else np.arange(cumtime.size)
-        self._final_results = {k: np.asarray(v)[order].tolist() for k, v in self._results.items()}
-        self._final_sampled_time = {k: np.asarray(v).tolist() for k, v in self._sampled_time.items()}
+    def optimize(
+        self, study: optuna.Study, problem: BaseProblem, *, n_trials: int | None = None, timeout: float | None = None
+    ) -> None:
+        """
+        Start the async optimization using zero-cost benchmark without any sleep.
 
-    def get_results(self) -> dict[str, list[int | float | str | bool]]:
-        return self._final_results
-
-    def get_optimizer_overhead(self) -> dict[str, list[float]]:
-        return self._final_sampled_time
-
-    def simulate(self, opt: AbstractAskTellOptimizer) -> None:
-        if not hasattr(opt, "ask") or not hasattr(opt, "tell"):
-            opt_cls = AbstractAskTellOptimizer
-            error_lines = [
-                "opt must have `ask` and `tell` methods.",
-                f"Inherit `{opt_cls.__name__}` and encapsulate your optimizer instance in the child class.",
-                "The description of `ask` method is as follows:",
-                f"\033[32m{opt_cls.ask.__doc__}\033[0m",
-                "The description of `tell` method is as follows:",
-                f"\033[32m{opt_cls.tell.__doc__}\033[0m",
-            ]
-            raise ValueError("\n".join(error_lines))
+        Args:
+            n_trials (int):
+                How many trials we would like to collect.
+            timeout (float):
+                The maximum total evaluation time for the optimization (in simulated time but not the actual runtime).
+        """
         worker_id = 0
-        for i in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
-            eval_config = self._ask_with_timer(opt=opt, worker_id=worker_id)
-            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id)
+        n_trials = n_trials or 2**20  # Sufficiently large number to finish optimizing.
+        timeout = timeout or float("inf")
+        for i in range(n_trials + self._n_workers - 1):
+            trial = self._ask_with_timer(study, problem, worker_id=worker_id)
+            self._proc_obj_func(trial=trial, problem=problem, worker_id=worker_id)
             worker_id = np.argmin(self._cumtimes).item()
-
-            if i + 1 >= self._wrapper_vars.n_workers:
+            if i + 1 >= self._n_workers:
                 # This `if` is needed for the compatibility with the other modes.
                 # It ensures that all workers filled out first.
-                self._tell_pending_result(opt=opt, worker_id=worker_id)
-
-            if self._cumtimes[worker_id] > self._wrapper_vars.max_total_eval_time:  # exceed time limit
+                self._tell_pending_result(study=study, worker_id=worker_id)
+            if self._cumtimes[worker_id] > timeout:  # exceed time limit
                 break
-
-        self._finalize_results()
