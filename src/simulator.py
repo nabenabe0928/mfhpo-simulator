@@ -43,10 +43,8 @@ class ObjectiveFuncWrapper:
         n_evals: int = 100,
         obj_keys: list[str] | None = None,
         runtime_key: str = "runtime",
-        seed: int | None = None,
         store_actual_cumtime: bool = False,
         allow_parallel_sampling: bool = False,
-        config_tracking: bool = True,
         max_total_eval_time: float = np.inf,
         expensive_sampler: bool = False,
     ):
@@ -57,8 +55,6 @@ class ObjectiveFuncWrapper:
                 A callable object that serves as the objective function.
                 Args:
                     eval_config: dict[str, Any]
-                    seed: int | None
-                    **data_to_scatter: Any
                 Returns:
                     results: dict[str, float]
                         It must return `objective metric` and `runtime` at least.
@@ -72,14 +68,10 @@ class ObjectiveFuncWrapper:
                 The keys of the objective metrics used in `results` returned by func.
             runtime_key (str):
                 The key of the runtime metric used in `results` returned by func.
-            seed (int | None):
-                The random seed to be used to allocate random seed to each call.
             store_actual_cumtime (bool):
                 Whether to store actual cumulative time at each point.
             allow_parallel_sampling (bool):
                 Whether sampling can happen in parallel.
-            config_tracking (bool):
-                Whether to validate config_id provided from the user side.
             max_total_eval_time (float):
                 The maximum total evaluation time for the optimization.
             expensive_sampler (bool):
@@ -93,11 +85,9 @@ class ObjectiveFuncWrapper:
             n_evals=n_evals,
             obj_keys=obj_keys if obj_keys is not None else ["loss"],
             runtime_key=runtime_key,
-            seed=seed,
             max_total_eval_time=max_total_eval_time,
             store_actual_cumtime=store_actual_cumtime,
             allow_parallel_sampling=allow_parallel_sampling,
-            config_tracking=config_tracking,
             expensive_sampler=expensive_sampler,
         )
 

@@ -11,25 +11,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Protocol
 
-    import numpy as np
-
     class ObjectiveFuncType(Protocol):
-        def __call__(
-            self,
-            eval_config: dict[str, Any],
-            *,
-            seed: int | None = None,
-            **data_to_scatter: Any,
-        ) -> dict[str, float]:
+        def __call__(self, eval_config: dict[str, Any]) -> dict[str, float]:
             """The prototype of the objective function.
 
             Args:
                 eval_config (dict[str, Any]):
                     The configuration to be used in the objective function.
-                seed (int | None):
-                    The random seed to be used in the objective function.
-                **data_to_scatter (Any):
-                    Data to scatter across workers.
 
             Returns:
                 results (dict[str, float]):
@@ -48,8 +36,6 @@ class _ResultData:
     cumtime: float
     eval_config: dict[str, Any]
     results: dict[str, float]
-    seed: int | None
-    config_id: int | None
 
 
 @dataclass(frozen=True)
@@ -61,10 +47,8 @@ class _WrapperVars:
     max_total_eval_time: float
     obj_keys: list[str]
     runtime_key: str
-    seed: int | None
     store_actual_cumtime: bool
     allow_parallel_sampling: bool
-    config_tracking: bool
     expensive_sampler: bool
 
     def validate(self) -> None:
@@ -84,37 +68,20 @@ class _WrapperVars:
             )
 
 
-@dataclass(frozen=True)
-class _WorkerVars:
-    worker_id: str
-    worker_index: int
-    rng: np.random.RandomState
-    stored_obj_keys: list[str]
-
-
 class AbstractAskTellOptimizer(metaclass=ABCMeta):
     @abstractmethod
-    def ask(self) -> tuple[dict[str, Any], int | None]:
+    def ask(self) -> dict[str, Any]:
         """
         The ask method to sample a configuration using an optimizer.
 
         Returns:
-            (eval_config, config_id):
-                * eval_config (dict[str, Any]):
-                    The configuration to evaluate.
-                * config_id (int | None):
-                    The identifier of configuration if needed.
+            eval_config (dict[str, Any]):
+                The configuration to evaluate.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def tell(
-        self,
-        eval_config: dict[str, Any],
-        results: dict[str, float],
-        *,
-        config_id: int | None = None,
-    ) -> None:
+    def tell(self, eval_config: dict[str, Any], results: dict[str, float]) -> None:
         """
         The tell method to register a tuple of configuration and results to an optimizer.
 
@@ -123,7 +90,5 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
                 The configuration to be used in the objective function.
             results (dict[str, float]):
                 The dict of the return values from the objective function.
-            config_id (int | None):
-                The identifier of configuration if needed for continual learning.
         """
         raise NotImplementedError

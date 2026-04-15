@@ -339,13 +339,11 @@ def get_configs(index: int, unittime: float) -> np.ndarray:
 
 def simplest_dummy_func(
     eval_config: dict[str, Any],
-    seed: int | None = None,
 ) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=eval_config["x"])
 
 
 def dummy_no_fidel_func(
     eval_config: dict[str, Any],
-    seed: int | None = None,
 ) -> dict[str, float]:
     return dict(loss=eval_config["x"], runtime=10)

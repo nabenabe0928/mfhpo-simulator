@@ -30,7 +30,7 @@ class MyOptimizer(AbstractAskTellOptimizer):
 
     def ask(self):
         time.sleep(self._sleep)
-        ret = dict(index=min(self._count, self._max_count - 1)), None
+        ret = dict(index=min(self._count, self._max_count - 1))
         self._count += 1
         return ret
 

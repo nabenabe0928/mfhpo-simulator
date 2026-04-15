@@ -3,7 +3,6 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-import pytest
 
 from src._constants import AbstractAskTellOptimizer
 from src.simulator import ObjectiveFuncWrapper
@@ -24,99 +23,10 @@ class _DummyOpt(AbstractAskTellOptimizer):
 
     def ask(self):
         self._n_calls += 1
-        return {"x": self._n_calls}, None
+        return {"x": self._n_calls}
 
     def tell(self, *args, **kwargs):
         pass
-
-
-class _DummyOptWithConfigId(AbstractAskTellOptimizer):
-    """Optimizer that returns config_id for config tracking tests."""
-
-    def __init__(self, valid: bool = True):
-        self._n_calls = -1
-        self._valid = valid
-
-    def ask(self):
-        self._n_calls += 1
-        if self._valid:
-            # Same config_id=0 always maps to same config {"x": 0}
-            config_id = 0 if self._n_calls % 2 == 0 else 1
-            return {"x": config_id}, config_id
-        else:
-            # Invalid: config_id=0 with different configs
-            return {"x": self._n_calls}, 0
-
-    def tell(self, *args, **kwargs):
-        pass
-
-
-class _DummyOptWithConfigIdNoFidel(AbstractAskTellOptimizer):
-    """Optimizer that returns config_id."""
-
-    def __init__(self, valid: bool = True):
-        self._n_calls = -1
-        self._valid = valid
-
-    def ask(self):
-        self._n_calls += 1
-        if self._valid:
-            config_id = self._n_calls % 3
-            return {"x": config_id}, config_id
-        else:
-            # config_id=0 with different configs
-            return {"x": self._n_calls}, 0
-
-    def tell(self, *args, **kwargs):
-        pass
-
-
-# --- config_tracking=False tests ---
-
-
-def test_config_tracking_disabled_skips_validation():
-    """When config_tracking=False, duplicated config_id with different configs should NOT raise."""
-    kwargs = DEFAULT_KWARGS.copy()
-    kwargs["config_tracking"] = False
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    # This optimizer gives config_id=0 to different configs — would fail with config_tracking=True
-    wrapper.simulate(_DummyOptWithConfigId(valid=False))
-    results = wrapper.get_results()
-    assert len(results["cumtime"]) == kwargs["n_evals"]
-
-
-def test_config_tracking_enabled_catches_invalid():
-    """When config_tracking=True (default), duplicated config_id with different configs should raise."""
-    kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    with pytest.raises(ValueError, match=r".*got the duplicated config_id.*"):
-        wrapper.simulate(_DummyOptWithConfigId(valid=False))
-
-
-def test_config_tracking_enabled_valid():
-    """When config_tracking=True, consistent config_id should pass without errors."""
-    kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
-    wrapper.simulate(_DummyOptWithConfigId(valid=True))
-    results = wrapper.get_results()
-    assert len(results["cumtime"]) == kwargs["n_evals"]
-
-
-def test_config_tracking_valid():
-    """Config tracking works correctly."""
-    kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, config_tracking=True, **kwargs)
-    wrapper.simulate(_DummyOptWithConfigIdNoFidel(valid=True))
-    results = wrapper.get_results()
-    assert len(results["cumtime"]) == kwargs["n_evals"]
-
-
-def test_config_tracking_invalid():
-    """Config tracking catches duplicated config_id."""
-    kwargs = DEFAULT_KWARGS.copy()
-    wrapper = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, config_tracking=True, **kwargs)
-    with pytest.raises(ValueError, match=r".*got the duplicated config_id.*"):
-        wrapper.simulate(_DummyOptWithConfigIdNoFidel(valid=False))
 
 
 # --- get_optimizer_overhead tests ---
@@ -167,7 +77,7 @@ class _MultiWorkerOpt(AbstractAskTellOptimizer):
 
     def ask(self):
         self._n_calls += 1
-        return {"x": self._n_calls}, None
+        return {"x": self._n_calls}
 
     def tell(self, *args, **kwargs):
         pass

@@ -24,7 +24,7 @@ class _DummyOpt(AbstractAskTellOptimizer):
 
     def ask(self):
         self._n_calls += 1
-        return {"x": self._n_calls}, None
+        return {"x": self._n_calls}
 
     def tell(self, *args, **kwargs):
         pass
@@ -48,7 +48,7 @@ def test_error_unneeded_fidel_in_call():
     kwargs = DEFAULT_KWARGS.copy()
     worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, **kwargs)
     worker._main_wrapper._proc_obj_func(  # no error without fidel!
-        eval_config=SIMPLE_CONFIG, worker_id=0, config_id=None
+        eval_config=SIMPLE_CONFIG, worker_id=0
     )
 
 
@@ -71,7 +71,7 @@ def _weird_obj_keys(obj_keys: list[str]):
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, obj_keys=["dummy_loss"], **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, config_id=None)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0)
 
 
 @pytest.mark.parametrize("obj_keys", (["dummy_loss"], ["dummy_loss", "loss"]))
@@ -83,7 +83,7 @@ def test_weird_runtime_key():
     kwargs = DEFAULT_KWARGS.copy()
     with pytest.raises(KeyError, match=r"The output of objective must be a superset*"):
         worker = ObjectiveFuncWrapper(obj_func=dummy_no_fidel_func, runtime_key="dummy_runtime", **kwargs)
-        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0, config_id=None)
+        worker._main_wrapper._proc_obj_func(eval_config=SIMPLE_CONFIG, worker_id=0)
 
 
 def test_store_actual_cumtime() -> None:

@@ -7,29 +7,12 @@ import warnings
 import numpy as np
 
 from src._constants import _ResultData
-from src._constants import _WorkerVars
 from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
 from src._validators import _raise_optimizer_init_error
 from src._validators import _validate_opt_class
 from src._validators import _validate_output
-
-
-def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
-    """for atol and rtol, I referred to numpy.isclose"""
-    if set(d1.keys()) != set(d2.keys()):
-        return False
-
-    for k in d1.keys():
-        v1, v2 = d1[k], d2[k]
-        if isinstance(v1, (float, int)) and isinstance(v2, (float, int)):
-            if not np.isclose(v1, v2):
-                return False
-        elif v1 != v2:
-            return False
-
-    return True
 
 
 class _AskTellWorkerManager:
@@ -47,13 +30,7 @@ class _AskTellWorkerManager:
         return self._runtime_key
 
     def _init_wrapper(self) -> None:
-        self._worker_vars = _WorkerVars(
-            rng=np.random.RandomState(self._wrapper_vars.seed),
-            stored_obj_keys=list(set(self.obj_keys + [self.runtime_key])),
-            worker_id="",
-            worker_index=-1,
-        )
-        self._existing_configs: dict[str, dict[str, Any]] = {}
+        self._stored_obj_keys = list(set(self.obj_keys + [self.runtime_key]))
 
         self._wrapper_vars.validate()
 
@@ -68,42 +45,17 @@ class _AskTellWorkerManager:
         if self._wrapper_vars.store_actual_cumtime:
             self._results.update({"actual_cumtime": []})
 
-    def _validate_config_id(self, config: dict[str, Any], config_id: int) -> None:
-        config_id_str = str(config_id)
-        if config_id_str not in self._existing_configs:
-            self._existing_configs[config_id_str] = config.copy()
-            return
+    def _proc(self, eval_config: dict[str, Any]) -> dict[str, float]:
+        results = self._wrapper_vars.obj_func(eval_config=eval_config)
+        _validate_output(results, stored_obj_keys=self._stored_obj_keys)
+        return results
 
-        existing_config = self._existing_configs[config_id_str]
-        if not _two_dicts_almost_equal(existing_config, config):
-            raise ValueError(
-                f"{config_id=} already exists ({existing_config=}), but got the duplicated config_id for {config=}"
-            )
-
-    def _proc(
-        self,
-        eval_config: dict[str, Any],
-    ) -> tuple[dict[str, float], int]:
-        seed = self._worker_vars.rng.randint(1 << 30)
-        results = self._wrapper_vars.obj_func(eval_config=eval_config, seed=seed)
-        _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
-        return results, seed
-
-    def _proc_obj_func(
-        self,
-        eval_config: dict[str, Any],
-        worker_id: int,
-        config_id: int | None,
-    ) -> None:
-        results, seed = self._proc(eval_config=eval_config)
+    def _proc_obj_func(self, eval_config: dict[str, Any], worker_id: int) -> None:
+        results = self._proc(eval_config=eval_config)
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]
         self._pending_results[worker_id] = _ResultData(
-            cumtime=self._cumtimes[worker_id],
-            eval_config=eval_config,
-            results=results,
-            seed=seed,
-            config_id=config_id,
+            cumtime=self._cumtimes[worker_id], eval_config=eval_config, results=results
         )
 
     def _record_result_data(self, result_data: _ResultData, worker_id: int) -> None:
@@ -115,18 +67,10 @@ class _AskTellWorkerManager:
         if self._wrapper_vars.store_actual_cumtime:
             self._results["actual_cumtime"].append(time.time() - self._start_time)
 
-    def _ask_with_timer(
-        self,
-        opt: AbstractAskTellOptimizer,
-        worker_id: int,
-    ) -> tuple[dict[str, Any], int | None]:
+    def _ask_with_timer(self, opt: AbstractAskTellOptimizer, worker_id: int) -> dict[str, Any]:
         start = time.time()
-        eval_config, config_id = opt.ask()
+        eval_config = opt.ask()
         sampling_time = time.time() - start
-        config_tracking = config_id is not None and self._wrapper_vars.config_tracking
-        if config_tracking:  # validate the config_id to ensure the user implementation is correct
-            assert config_id is not None  # mypy redefinition
-            self._validate_config_id(config=eval_config, config_id=config_id)
 
         is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
         if self._wrapper_vars.allow_parallel_sampling:
@@ -151,7 +95,7 @@ class _AskTellWorkerManager:
         ):
             _raise_optimizer_init_error()
 
-        return eval_config, config_id
+        return eval_config
 
     def _tell_pending_result(self, opt: AbstractAskTellOptimizer, worker_id: int) -> None:
         free_worker_idxs = np.array([worker_id], dtype=np.int32)
@@ -167,11 +111,7 @@ class _AskTellWorkerManager:
                 continue
 
             self._record_result_data(result_data=result_data, worker_id=_worker_id)
-            opt.tell(
-                eval_config=result_data.eval_config,
-                results=result_data.results,
-                config_id=result_data.config_id,
-            )
+            opt.tell(eval_config=result_data.eval_config, results=result_data.results)
             self._pending_results[_worker_id] = None
 
     def _finalize_results(self) -> None:
@@ -190,8 +130,8 @@ class _AskTellWorkerManager:
         _validate_opt_class(opt)
         worker_id = 0
         for i in range(self._wrapper_vars.n_evals + self._wrapper_vars.n_workers - 1):
-            eval_config, config_id = self._ask_with_timer(opt=opt, worker_id=worker_id)
-            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id, config_id=config_id)
+            eval_config = self._ask_with_timer(opt=opt, worker_id=worker_id)
+            self._proc_obj_func(eval_config=eval_config, worker_id=worker_id)
             worker_id = np.argmin(self._cumtimes)
 
             if i + 1 >= self._wrapper_vars.n_workers:

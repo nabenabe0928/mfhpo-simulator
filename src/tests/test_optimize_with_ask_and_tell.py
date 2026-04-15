@@ -9,7 +9,6 @@ import numpy as np
 
 from src import AbstractAskTellOptimizer
 from src import ObjectiveFuncWrapper
-from src._ask_tell_manager import _two_dicts_almost_equal
 
 
 if TYPE_CHECKING:
@@ -41,16 +40,13 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
     def __init__(self, opt: RandomOptimizer):
         self._opt = opt
 
-    def ask(self) -> tuple[dict[str, Any], int | None]:
-        eval_config = self._opt.ask()
-        return eval_config, None
+    def ask(self) -> dict[str, Any]:
+        return self._opt.ask()
 
     def tell(
         self,
         eval_config: dict[str, Any],
         results: dict[str, float],
-        *,
-        config_id: int | None,
     ) -> None:
         pass
 
@@ -58,8 +54,8 @@ class RandomOptimizerWrapper(AbstractAskTellOptimizer):
 def _wrap_bench(bench: MFBranin):
     max_fidels = bench.max_fidels
 
-    def wrapped(eval_config: dict[str, Any], seed: int | None = None, **kwargs: Any) -> dict[str, float]:
-        return bench(eval_config, fidels=max_fidels, seed=seed)
+    def wrapped(eval_config: dict[str, Any], **kwargs: Any) -> dict[str, float]:
+        return bench(eval_config, fidels=max_fidels)
 
     return wrapped
 
@@ -106,21 +102,6 @@ def test_random_with_ask_and_tell_many_parallel():
     out = optimize(n_evals=10000)["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-
-
-def test_two_dicts_almost_equal():
-    d1, d2 = {"x": 1.0}, {"x": 1.0 + 1e-12}
-    assert _two_dicts_almost_equal(d1, d2)
-    assert d1 != d2
-    d2["y"] = 1
-    assert not _two_dicts_almost_equal(d1, d2)
-    d1, d2 = {"x": 1.0}, {"x": 2.0}
-    assert not _two_dicts_almost_equal(d1, d2)
-    d1, d2 = {"x": "a"}, {"x": "A"}
-    assert not _two_dicts_almost_equal(d1, d2)
-    d1, d2 = {"x": 1.0, "y": 1.0}, {"x": 1.0 + 1e-12, "y": 1.0 - 1e-12}
-    assert _two_dicts_almost_equal(d1, d2)
-    assert d1 != d2
 
 
 if __name__ == "__main__":
