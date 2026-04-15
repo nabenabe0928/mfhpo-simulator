@@ -153,5 +153,3 @@ class AbstractAskTellOptimizer(metaclass=ABCMeta):
                 The identifier of configuration if needed for continual learning.
         """
         raise NotImplementedError
-
-

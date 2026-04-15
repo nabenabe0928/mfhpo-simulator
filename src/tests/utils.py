@@ -377,5 +377,3 @@ def dummy_func_with_many_fidelities(
 ) -> dict[str, float]:
     runtime = fidels["z1"] + fidels["z2"] + fidels["z3"]
     return dict(loss=eval_config["x"], runtime=runtime)
-
-
