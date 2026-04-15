@@ -6,11 +6,10 @@ import warnings
 
 import numpy as np
 
-from src._base_wrapper import _BaseWrapperInterface
-from src._config_tracker import _AskTellConfigIDTracker
 from src._constants import _ResultData
 from src._constants import _StateType
 from src._constants import _WorkerVars
+from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
 from src._state_tracker import _AskTellStateTracker
@@ -22,7 +21,58 @@ from src._validators import _validate_opt_class
 from src._validators import _validate_output
 
 
-class _AskTellWorkerManager(_BaseWrapperInterface):
+def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
+    """for atol and rtol, I referred to numpy.isclose"""
+    if set(d1.keys()) != set(d2.keys()):
+        return False
+
+    for k in d1.keys():
+        v1, v2 = d1[k], d2[k]
+        if isinstance(v1, (float, int)) and isinstance(v2, (float, int)):
+            if not np.isclose(v1, v2):
+                return False
+        elif v1 != v2:
+            return False
+
+    return True
+
+
+class _AskTellConfigIDTracker:
+    def __init__(self) -> None:
+        self._existing_configs: dict[str, dict[str, Any]] = {}
+
+    def validate(self, config: dict[str, Any], config_id: int) -> None:
+        config_id_str = str(config_id)
+        if config_id_str not in self._existing_configs:
+            self._existing_configs[config_id_str] = config.copy()
+            return
+
+        existing_config = self._existing_configs[config_id_str]
+        if not _two_dicts_almost_equal(existing_config, config):
+            raise ValueError(
+                f"{config_id=} already exists ({existing_config=}), but got the duplicated config_id for {config=}"
+            )
+
+
+class _AskTellWorkerManager:
+    def __init__(self, wrapper_vars: _WrapperVars):
+        self._wrapper_vars = wrapper_vars
+        self._obj_keys, self._runtime_key = wrapper_vars.obj_keys, wrapper_vars.runtime_key
+        self._fidel_keys = [] if wrapper_vars.fidel_keys is None else wrapper_vars.fidel_keys[:]
+        self._init_wrapper()
+
+    @property
+    def obj_keys(self) -> list[str]:
+        return self._obj_keys[:]
+
+    @property
+    def runtime_key(self) -> str:
+        return self._runtime_key
+
+    @property
+    def fidel_keys(self) -> list[str]:
+        return self._fidel_keys[:]
+
     def _init_wrapper(self) -> None:
         self._worker_vars = _WorkerVars(
             continual_eval=self._wrapper_vars.continual_max_fidel is not None,
