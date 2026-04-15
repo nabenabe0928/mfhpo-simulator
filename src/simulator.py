@@ -47,8 +47,6 @@ class ObjectiveFuncWrapper:
         obj_keys: list[str] | None = None,
         runtime_key: str = "runtime",
         seed: int | None = None,
-        continual_max_fidel: int | None = None,
-        store_config: bool = False,
         store_actual_cumtime: bool = False,
         allow_parallel_sampling: bool = False,
         config_tracking: bool = True,
@@ -83,11 +81,6 @@ class ObjectiveFuncWrapper:
                 The key of the runtime metric used in `results` returned by func.
             seed (int | None):
                 The random seed to be used to allocate random seed to each call.
-            continual_max_fidel (int | None):
-                The maximum fidelity used in continual evaluations.
-                Valid only if a single fidelity is used.
-            store_config (bool):
-                Whether to store all config/fidel information.
             store_actual_cumtime (bool):
                 Whether to store actual cumulative time at each point.
             allow_parallel_sampling (bool):
@@ -109,9 +102,7 @@ class ObjectiveFuncWrapper:
             obj_keys=obj_keys if obj_keys is not None else ["loss"],
             runtime_key=runtime_key,
             seed=seed,
-            continual_max_fidel=continual_max_fidel,
             max_total_eval_time=max_total_eval_time,
-            store_config=store_config,
             store_actual_cumtime=store_actual_cumtime,
             allow_parallel_sampling=allow_parallel_sampling,
             config_tracking=config_tracking,

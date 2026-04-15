@@ -26,12 +26,6 @@ def _validate_opt_class(opt: AbstractAskTellOptimizer) -> None:
         raise ValueError("\n".join(error_lines))
 
 
-def _validate_fidel_args(continual_eval: bool, fidel_keys: list[str]) -> None:
-    # Guarantee the sufficiency: continual_eval ==> len(fidel_keys) == 1
-    if continual_eval and len(fidel_keys) != 1:
-        raise ValueError(f"continual_max_fidel is valid only if fidel_keys has only one element, but got {fidel_keys=}")
-
-
 def _validate_output(results: dict[str, float], stored_obj_keys: list[str]) -> None:
     keys_in_output = set(results.keys())
     keys = set(stored_obj_keys)
@@ -46,7 +40,6 @@ def _validate_fidels(
     fidels: dict[str, int | float] | None,
     fidel_keys: list[str],
     use_fidel: bool,
-    continual_eval: bool,
 ) -> None:
     if not use_fidel and fidels is not None:
         raise ValueError(
@@ -57,22 +50,6 @@ def _validate_fidels(
             "Objective function did not get keyword `fidels`, but fidel_keys was provided in worker instantiation."
         )
 
-    if continual_eval:
-        return
-
     fidel_key_set = set(({} if fidels is None else fidels).keys())
     if use_fidel and fidel_key_set != set(fidel_keys):
         raise KeyError(f"The keys in fidels must be identical to {fidel_keys=}, but got {fidels=}")
-
-
-def _validate_fidels_continual(fidels: dict[str, int | float] | None) -> int:
-    if fidels is None or len(fidels.values()) != 1:
-        raise ValueError(f"fidels must have only one element when continual_max_fidel is provided, but got {fidels=}")
-
-    fidel = next(iter(fidels.values()))
-    if not isinstance(fidel, int):
-        raise ValueError(f"Fidelity for continual evaluation must be integer, but got {fidel=}")
-    if fidel < 0:
-        raise ValueError(f"Fidelity for continual evaluation must be non-negative, but got {fidel=}")
-
-    return fidel

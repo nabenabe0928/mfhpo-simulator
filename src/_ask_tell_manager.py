@@ -7,16 +7,12 @@ import warnings
 import numpy as np
 
 from src._constants import _ResultData
-from src._constants import _StateType
 from src._constants import _WorkerVars
 from src._constants import _WrapperVars
 from src._constants import AbstractAskTellOptimizer
 from src._constants import NEGLIGIBLE_SEC
-from src._state_tracker import _AskTellStateTracker
 from src._validators import _raise_optimizer_init_error
-from src._validators import _validate_fidel_args
 from src._validators import _validate_fidels
-from src._validators import _validate_fidels_continual
 from src._validators import _validate_opt_class
 from src._validators import _validate_output
 
@@ -58,7 +54,6 @@ class _AskTellWorkerManager:
 
     def _init_wrapper(self) -> None:
         self._worker_vars = _WorkerVars(
-            continual_eval=self._wrapper_vars.continual_max_fidel is not None,
             use_fidel=self._wrapper_vars.fidel_keys is not None,
             rng=np.random.RandomState(self._wrapper_vars.seed),
             stored_obj_keys=list(set(self.obj_keys + [self.runtime_key])),
@@ -66,24 +61,17 @@ class _AskTellWorkerManager:
             worker_index=-1,
         )
         self._existing_configs: dict[str, dict[str, Any]] = {}
-        self._state_tracker = _AskTellStateTracker(continual_max_fidel=self._wrapper_vars.continual_max_fidel)
 
         self._wrapper_vars.validate()
-        _validate_fidel_args(continual_eval=self._worker_vars.continual_eval, fidel_keys=self._fidel_keys)
 
         self._start_time = time.time()
         self._timenow = 0.0
         self._cumtimes: np.ndarray = np.zeros(self._wrapper_vars.n_workers, dtype=np.float64)
         self._worker_indices = np.arange(self._wrapper_vars.n_workers)
         self._pending_results: list[_ResultData | None] = [None] * self._wrapper_vars.n_workers
-        self._seen_config_keys: list[str] = []
         self._sampled_time: dict[str, list[float]] = {"before_sample": [], "after_sample": [], "worker_index": []}
         self._results: dict[str, list[Any]] = {"worker_index": [], "cumtime": []}
         self._results.update({k: [] for k in self._obj_keys})
-        if self._wrapper_vars.store_config:
-            self._results.update({k: [] for k in self._fidel_keys + ["seed"]})
-            if self._wrapper_vars.continual_max_fidel is not None:
-                self._results["prev_fidel"] = []
         if self._wrapper_vars.store_actual_cumtime:
             self._results.update({"actual_cumtime": []})
 
@@ -102,43 +90,12 @@ class _AskTellWorkerManager:
     def _proc(
         self,
         eval_config: dict[str, Any],
-        worker_id: int,
         fidels: dict[str, int | float] | None,
-        config_id: int | None,
-    ) -> tuple[dict[str, float], int | None, int | None]:
-        if not self._worker_vars.continual_eval:  # not continual learning
-            seed = self._worker_vars.rng.randint(1 << 30)
-            results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
-            _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
-            return results, seed, None
-
-        fidel = _validate_fidels_continual(fidels)
-        runtime_key = self._wrapper_vars.runtime_key
-        config_hash = int(hash(str(eval_config))) if config_id is None else config_id
-        seed = self._state_tracker.fetch_prev_seed(
-            config_hash=config_hash,
-            fidel=fidel,
-            cumtime=self._cumtimes[worker_id],
-            rng=self._worker_vars.rng,
-        )
+    ) -> tuple[dict[str, float], int]:
+        seed = self._worker_vars.rng.randint(1 << 30)
         results = self._wrapper_vars.obj_func(eval_config=eval_config, fidels=fidels, seed=seed)
         _validate_output(results, stored_obj_keys=self._worker_vars.stored_obj_keys)
-        old_state = self._state_tracker.pop_old_state(
-            config_hash=config_hash, fidel=fidel, cumtime=self._cumtimes[worker_id]
-        )
-        old_state = _StateType(seed=seed) if old_state is None else old_state
-
-        results[runtime_key] = max(0.0, results[runtime_key] - old_state.runtime)
-        # NOTE(nabenabe0928): We update here to prevent the re-use of the previous state.
-        self._state_tracker.update_state(
-            config_hash=config_hash,
-            fidel=fidel,
-            runtime=results[runtime_key],
-            cumtime=self._cumtimes[worker_id],
-            seed=old_state.seed,
-        )
-
-        return results, seed, old_state.fidel
+        return results, seed
 
     def _proc_obj_func(
         self,
@@ -151,11 +108,8 @@ class _AskTellWorkerManager:
             fidels=fidels,
             fidel_keys=self._fidel_keys,
             use_fidel=self._worker_vars.use_fidel,
-            continual_eval=self._worker_vars.continual_eval,
         )
-        results, seed, prev_fidel = self._proc(
-            eval_config=eval_config, worker_id=worker_id, fidels=fidels, config_id=config_id
-        )
+        results, seed = self._proc(eval_config=eval_config, fidels=fidels)
         runtime_key = self._wrapper_vars.runtime_key
         self._cumtimes[worker_id] += results[runtime_key]
         self._pending_results[worker_id] = _ResultData(
@@ -165,11 +119,9 @@ class _AskTellWorkerManager:
             fidels=fidels if fidels is not None else {},
             seed=seed,
             config_id=config_id,
-            prev_fidel=prev_fidel,
         )
 
     def _record_result_data(self, result_data: _ResultData, worker_id: int) -> None:
-        prev_size = len(self._results["cumtime"])
         self._results["worker_index"].append(worker_id)
         self._results["cumtime"].append(result_data.cumtime)
         for k in self._obj_keys:
@@ -177,25 +129,6 @@ class _AskTellWorkerManager:
 
         if self._wrapper_vars.store_actual_cumtime:
             self._results["actual_cumtime"].append(time.time() - self._start_time)
-
-        if not self._wrapper_vars.store_config:
-            return
-        if result_data.prev_fidel is not None:
-            self._results["prev_fidel"].append(result_data.prev_fidel)
-
-        self._results["seed"].append(result_data.seed)
-        for k in self._fidel_keys:
-            self._results[k].append(result_data.fidels[k])
-
-        eval_config = result_data.eval_config
-        unseen_keys = [k for k in eval_config.keys() if k not in self._seen_config_keys]
-        self._seen_config_keys.extend(unseen_keys)
-        for k in self._seen_config_keys:
-            val = eval_config.get(k, None)
-            if k in unseen_keys:
-                self._results[k] = [None] * prev_size + [val]
-            else:
-                self._results[k].append(val)
 
     def _ask_with_timer(
         self,

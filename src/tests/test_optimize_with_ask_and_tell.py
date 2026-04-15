@@ -6,12 +6,10 @@ import unittest
 
 from benchmark_apis import MFBranin
 import numpy as np
-import pytest
 
 from src import AbstractAskTellOptimizer
 from src import ObjectiveFuncWrapper
 from src._ask_tell_manager import _two_dicts_almost_equal
-from src.tests.utils import dummy_func
 
 
 if TYPE_CHECKING:
@@ -119,52 +117,10 @@ def test_random_with_ask_and_tell_with_max_total_eval_time():
     assert len(out) < 300  # terminated by time limit
 
 
-def test_random_with_ask_and_tell_store_config():
-    out = optimize(store_config=True)
-    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
-    assert np.allclose(diffs, 0.0)
-    assert all(k in list(out.keys()) for k in MFBranin().config_space)
-    for k in out.keys():
-        assert diffs.size == len(out[k])
-
-
-def test_random_with_ask_and_tell_continual_eval():
-    out = optimize(discrete=True, very_random=True, continual_max_fidel=MFBranin().max_fidels["z0"])
-    diffs = np.abs(out["cumtime"] - np.maximum.accumulate(out["cumtime"]))
-    assert np.allclose(diffs, 0.0)
-    for k in out.keys():
-        assert diffs.size == len(out[k])
-
-
 def test_random_with_ask_and_tell_many_parallel():
     out = optimize(n_evals=10000)["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-
-
-class ConfigTrackerOptimizer(AbstractAskTellOptimizer):
-    def __init__(self, valid: bool = True):
-        self._count = 0
-        if valid:
-            self._configs = [0, 0, 0, 0, 1, 1]
-            self._fidels = [1, 3, 9, 10, 10, 10]
-            self._config_ids = [0, 0, 0, 1, 2, 3]
-            self._ans = [0, 1, 3, 0, 0, 0]
-        else:
-            self._configs = [0, 1]
-            self._fidels = [10, 10]
-            self._config_ids = [0, 0]
-
-        self._n_evals = len(self._configs)
-
-    def ask(self):
-        config, fidels = {"x": self._configs[self._count]}, {"epoch": self._fidels[self._count]}
-        config_id = self._config_ids[self._count]
-        self._count += 1
-        return config, fidels, config_id
-
-    def tell(self, *args, **kwargs):
-        pass
 
 
 def test_two_dicts_almost_equal():
@@ -180,35 +136,6 @@ def test_two_dicts_almost_equal():
     d1, d2 = {"x": 1.0, "y": 1.0}, {"x": 1.0 + 1e-12, "y": 1.0 - 1e-12}
     assert _two_dicts_almost_equal(d1, d2)
     assert d1 != d2
-
-
-def optimize_config_tracker(valid: bool):
-    opt = ConfigTrackerOptimizer(valid=valid)
-    wrapper = ObjectiveFuncWrapper(
-        obj_func=dummy_func,
-        n_workers=1,
-        continual_max_fidel=10,
-        fidel_keys=["epoch"],
-        store_config=True,
-        n_evals=opt._n_evals,
-        n_actual_evals_in_opt=opt._n_evals + 1,
-    )
-    if not valid:
-        with pytest.raises(ValueError, match=r".*got the duplicated config_id.*"):
-            wrapper.simulate(opt)
-
-        return
-    else:
-        wrapper.simulate(opt)
-
-    out = wrapper.get_results()["prev_fidel"]
-
-    assert out == opt._ans
-
-
-@pytest.mark.parametrize("valid", (True, False))
-def test_config_tracker(valid: bool):
-    optimize_config_tracker(valid=valid)
 
 
 if __name__ == "__main__":

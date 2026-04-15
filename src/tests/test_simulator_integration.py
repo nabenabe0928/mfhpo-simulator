@@ -16,7 +16,6 @@ DEFAULT_KWARGS = dict(
     n_workers=1,
     n_actual_evals_in_opt=11,
     n_evals=10,
-    continual_max_fidel=10,
     fidel_keys=["epoch"],
 )
 

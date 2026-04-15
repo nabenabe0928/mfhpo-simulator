@@ -62,7 +62,6 @@ class _ResultData:
     results: dict[str, float]
     fidels: dict[str, int | float]
     seed: int | None
-    prev_fidel: int | None
     config_id: int | None
 
 
@@ -77,8 +76,6 @@ class _WrapperVars:
     runtime_key: str
     fidel_keys: list[str] | None
     seed: int | None
-    continual_max_fidel: int | None
-    store_config: bool
     store_actual_cumtime: bool
     allow_parallel_sampling: bool
     config_tracking: bool
@@ -103,7 +100,6 @@ class _WrapperVars:
 
 @dataclass(frozen=True)
 class _WorkerVars:
-    continual_eval: bool
     worker_id: str
     worker_index: int
     rng: np.random.RandomState
