@@ -274,7 +274,8 @@ def _store_actual_cumtime(store_config: bool) -> None:
     assert "actual_cumtime" in results
     actual_cumtimes = np.array(results["actual_cumtime"])
     assert len(actual_cumtimes) == kwargs["n_evals"]
-    assert np.allclose(np.maximum.accumulate(actual_cumtimes), actual_cumtimes)
+    if np.size(actual_cumtimes) != 0:
+        assert np.allclose(np.maximum.accumulate(actual_cumtimes), actual_cumtimes)
 
 
 @pytest.mark.parametrize("store_config", (True, False))
