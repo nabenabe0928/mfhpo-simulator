@@ -37,23 +37,6 @@ def _two_dicts_almost_equal(d1: dict[str, Any], d2: dict[str, Any]) -> bool:
     return True
 
 
-class _AskTellConfigIDTracker:
-    def __init__(self) -> None:
-        self._existing_configs: dict[str, dict[str, Any]] = {}
-
-    def validate(self, config: dict[str, Any], config_id: int) -> None:
-        config_id_str = str(config_id)
-        if config_id_str not in self._existing_configs:
-            self._existing_configs[config_id_str] = config.copy()
-            return
-
-        existing_config = self._existing_configs[config_id_str]
-        if not _two_dicts_almost_equal(existing_config, config):
-            raise ValueError(
-                f"{config_id=} already exists ({existing_config=}), but got the duplicated config_id for {config=}"
-            )
-
-
 class _AskTellWorkerManager:
     def __init__(self, wrapper_vars: _WrapperVars):
         self._wrapper_vars = wrapper_vars
@@ -82,7 +65,7 @@ class _AskTellWorkerManager:
             worker_id="",
             worker_index=-1,
         )
-        self._config_tracker = _AskTellConfigIDTracker()
+        self._existing_configs: dict[str, dict[str, Any]] = {}
         self._state_tracker = _AskTellStateTracker(continual_max_fidel=self._wrapper_vars.continual_max_fidel)
 
         self._wrapper_vars.validate()
@@ -103,6 +86,18 @@ class _AskTellWorkerManager:
                 self._results["prev_fidel"] = []
         if self._wrapper_vars.store_actual_cumtime:
             self._results.update({"actual_cumtime": []})
+
+    def _validate_config_id(self, config: dict[str, Any], config_id: int) -> None:
+        config_id_str = str(config_id)
+        if config_id_str not in self._existing_configs:
+            self._existing_configs[config_id_str] = config.copy()
+            return
+
+        existing_config = self._existing_configs[config_id_str]
+        if not _two_dicts_almost_equal(existing_config, config):
+            raise ValueError(
+                f"{config_id=} already exists ({existing_config=}), but got the duplicated config_id for {config=}"
+            )
 
     def _proc(
         self,
@@ -213,7 +208,7 @@ class _AskTellWorkerManager:
         config_tracking = config_id is not None and self._wrapper_vars.config_tracking
         if config_tracking:  # validate the config_id to ensure the user implementation is correct
             assert config_id is not None  # mypy redefinition
-            self._config_tracker.validate(config=eval_config, config_id=config_id)
+            self._validate_config_id(config=eval_config, config_id=config_id)
 
         is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
         if self._wrapper_vars.allow_parallel_sampling:
