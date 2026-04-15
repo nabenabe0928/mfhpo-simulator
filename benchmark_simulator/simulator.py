@@ -85,6 +85,7 @@ from __future__ import annotations
 from datetime import datetime
 import os
 from typing import Any
+from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
@@ -93,10 +94,13 @@ import ujson as json  # type: ignore
 from benchmark_simulator._constants import _WrapperVars
 from benchmark_simulator._constants import AbstractAskTellOptimizer
 from benchmark_simulator._constants import DIR_NAME
-from benchmark_simulator._constants import ObjectiveFuncType
 from benchmark_simulator._simulator._worker import _ObjectiveFuncWorker
 from benchmark_simulator._simulator._worker_manager import _CentralWorkerManager
 from benchmark_simulator._simulator._worker_manager_for_ask_and_tell import _AskTellWorkerManager
+
+
+if TYPE_CHECKING:
+    from benchmark_simulator._constants import ObjectiveFuncType
 
 
 def get_multiple_wrappers(
