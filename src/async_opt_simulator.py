@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
-import optuna
 
 
 if TYPE_CHECKING:
     from typing import Final
 
+    import optuna
     from optunahub.benchmarks import BaseProblem
 
 
