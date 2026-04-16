@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from optunahub.benchmarks import BaseProblem
 
 
-NEGLIGIBLE_SEC: Final[float] = 1e-12
+_NEGLIGIBLE_SEC: Final[float] = 1e-12
 
 
 class AsyncOptBenchmarkSimulator:
@@ -34,9 +34,6 @@ class AsyncOptBenchmarkSimulator:
                 "allow_parallel_sampling=True uses an imprecise simulation. "
                 "Results may not accurately reflect the behavior of expensive samplers."
             )
-            self._expensive_sampler = False
-        else:
-            self._expensive_sampler = True
         self._timenow = 0.0
         self._cumtimes = np.zeros(n_workers, dtype=float)
         self._worker_indices = np.arange(n_workers)
@@ -59,7 +56,7 @@ class AsyncOptBenchmarkSimulator:
         start = time.time()
         trial = study.ask(problem.search_space)
         sampling_time = time.time() - start
-        is_first_sample = bool(self._cumtimes[worker_id] < NEGLIGIBLE_SEC)
+        is_first_sample = bool(self._cumtimes[worker_id] < _NEGLIGIBLE_SEC)
         if self._allow_parallel_sampling:
             before_sample = self._cumtimes[worker_id]
             self._cumtimes[worker_id] = self._cumtimes[worker_id] + sampling_time
@@ -73,10 +70,10 @@ class AsyncOptBenchmarkSimulator:
         trial.set_user_attr("after_sample", self._cumtimes[worker_id])
         self._after_sample_times.append(self._cumtimes[worker_id])
         if (
-            not self._expensive_sampler
+            self._allow_parallel_sampling
             and is_first_sample
-            and self._cumtimes[worker_id] > NEGLIGIBLE_SEC
-            and self._cumtimes[worker_id] != np.min(self._cumtimes[self._cumtimes > NEGLIGIBLE_SEC])
+            and self._cumtimes[worker_id] > _NEGLIGIBLE_SEC
+            and self._cumtimes[worker_id] != np.min(self._cumtimes[self._cumtimes > _NEGLIGIBLE_SEC])
         ):
             raise TimeoutError(
                 "The initialization of the optimizer must be cheaper than one objective evuation.\n"
@@ -87,7 +84,7 @@ class AsyncOptBenchmarkSimulator:
 
     def _tell_pending_result(self, study: optuna.Study, worker_id: int) -> None:
         free_worker_idxs = np.array([worker_id], dtype=int)
-        if self._expensive_sampler:
+        if not self._allow_parallel_sampling:
             before_eval = self._after_sample_times[-1]
             free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
 
