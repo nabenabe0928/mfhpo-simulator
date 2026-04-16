@@ -35,11 +35,20 @@ class AsyncOptBenchmarkSimulator:
                 "allow_parallel_sampling=True uses an imprecise simulation. "
                 "Results may not accurately reflect the behavior of expensive samplers."
             )
-        self._timenow = 0.0
-        self._cumtimes = np.zeros(n_workers, dtype=float)
         self._worker_indices = np.arange(n_workers)
-        self._pending_results: list[tuple[int, list[float]] | None] = [None] * n_workers
-        self._after_sample_times: list[float] = []
+
+        # --- Data associated with a simulation ---
+        self._timenow: float
+        self._cumtimes: np.ndarray
+        self._pending_results: list[tuple[int, list[float]] | None]
+        self._after_sample_times: list[float]
+        self._init_simulation_data()
+
+    def _init_simulation_data(self) -> None:
+        self._timenow = 0.0
+        self._cumtimes = np.zeros(self._n_workers, dtype=float)
+        self._pending_results = [None] * self._n_workers
+        self._after_sample_times = []
 
     def _proc_obj_func(self, trial: optuna.Trial, problem: BaseProblem, worker_id: int) -> None:
         output = problem(trial)
@@ -139,3 +148,5 @@ class AsyncOptBenchmarkSimulator:
                 self._tell_pending_result(study=study, worker_id=worker_id)
             if self._cumtimes[worker_id] > timeout:  # exceed time limit
                 break
+
+        self._init_simulation_data()
