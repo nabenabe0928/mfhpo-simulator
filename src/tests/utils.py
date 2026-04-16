@@ -400,3 +400,7 @@ def dummy_no_fidel_func(
     eval_config: dict[str, Any],
 ) -> list[float]:
     return [eval_config["x"], 10]
+
+
+def default_runtime_func(trial: optuna.Trial) -> float:
+    return trial.user_attrs["runtime"]

@@ -7,6 +7,7 @@ import numpy as np
 import optuna
 
 from .. import AsyncOptBenchmarkSimulator
+from .utils import default_runtime_func
 
 
 class MFBraninProblem:
@@ -38,7 +39,7 @@ def optimize(n_trials: int = 400, timeout: float | None = None):
         n_workers=n_workers,
         allow_parallel_sampling=False,
     )
-    simulator.optimize(study, problem, n_trials=n_trials, timeout=timeout)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials, timeout=timeout)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     if timeout is None:

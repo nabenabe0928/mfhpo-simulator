@@ -1,127 +1,74 @@
 ---
 author: Shuhei Watanabe
-title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
-description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
-tags: [benchmark,simulator,surrogate,tabular]
+title: Async Optimization Benchmark Simulator
+description: A simulator for asynchronous multi-fidelity or parallel optimization using tabular or surrogate benchmarks without any wait.
+tags: [benchmark, simulator, surrogate, tabular]
 optuna_versions: [3.12]
 license: MIT License
 ---
 
-<!--
-This is an example of the frontmatters.
-All columns must be string.
-You can omit quotes when value types are not ambiguous.
-For tags, a package placed in
-- package/samplers/ must include the tag "sampler"
-- package/visualilzation/ must include the tag "visualization"
-- package/pruners/ must include the tag "pruner"
-respectively.
-
----
-author: Optuna team
-title: My Sampler
-description: A description for My Sampler.
-tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: [3.6.1]
-license: "MIT License"
----
--->
-
-Instruction (Please remove this instruction after you carefully read)
-
-- Please read the [tutorial guide](https://optuna.github.io/optunahub/generated/recipes/001_first.html) to register your feature in OptunaHub. You can find more detailed explanation of the following contents in the tutorial.
-- Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) would also be helpful.
-- **Please do not use HTML tags in the `README.md` file. Only markdown is allowed. For security reasons, the HTML tags will be removed when the package is registered on the web page.**
-
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
+When running parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration would take in reality.
+However, the evaluation of tabular or surrogate benchmarks, by design, does not take long.
+For this reason, the timing of each configuration must be ordered as if we actually evaluated each configuration.
 
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+This package provides a simulator that automatically handles this problem by internally managing the order of hyperparameter configuration evaluations.
+Users can pass the optimizer to the simulator directly, and it automatically performs the optimization loop as if function calls are run in parallel -- all without any actual waiting.
 
 ## APIs
 
-Please provide API documentation describing how to use your package's functionalities.
-The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
-More users will take advantage of your package by providing detailed and helpful documentation.
+- `AsyncOptBenchmarkSimulator(n_workers: int, allow_parallel_sampling: bool = False)`
+  - `n_workers`: The number of simulated workers. In other words, how many parallel workers to simulate.
+  - `allow_parallel_sampling`: Whether sampling can happen in parallel. If `True`, an imprecise simulation is used and results may not accurately reflect the behavior of expensive samplers.
 
-**Example**
+- `AsyncOptBenchmarkSimulator.optimize(study: optuna.Study, problem: BaseProblem, runtime_func: RuntimeFunc, *, n_trials: int | None = None, timeout: float | None = None) -> None`
+  - Start the async optimization using a zero-cost benchmark without any sleep.
+  - `study`: An Optuna study object.
+  - `problem`: A benchmark problem that implements the `BaseProblem` interface from `optunahub.benchmarks`.
+  - `runtime_func`: A callable that takes an `optuna.Trial` and returns the simulated runtime (float) for that trial.
+  - `n_trials`: How many trials to collect.
+  - `timeout`: The maximum total evaluation time for the optimization (in simulated time, not actual runtime).
 
-- `MoCmaSampler(*, search_space: dict[str, BaseDistribution] | None = None, popsize: int | None = None, seed: int | None = None)`
-  - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
-    Example:
-    ```python
-    search_space = {
-        "x": optuna.distributions.FloatDistribution(-5, 5),
-        "y": optuna.distributions.FloatDistribution(-5, 5),
-    }
-    MoCmaSampler(search_space=search_space)
-    ```
-  - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
-  - `seed`: Seed for random number generator.
-
-Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
-
-## Installation
-
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
-```shell
-$ pip install scipy torch
-```
-
-If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
-
-```shell
- pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
-```
+- `AsyncOptBenchmarkSimulator.get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]` (static method)
+  - Extract results sorted by cumulative time from a completed study.
+  - `study`: An Optuna study object.
+  - `states`: Trial states to include. Defaults to `(TrialState.COMPLETE, TrialState.PRUNED)`. Cannot contain states other than `COMPLETE` and `PRUNED`.
+  - Returns a dictionary with keys `"cumtime"`, `"values"`, and `"worker_index"`.
 
 ## Example
-
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
 
 ```python
 import optuna
 import optunahub
 
 
-def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
-
-
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+AsyncOptBenchmarkSimulator = optunahub.load_module("benchmarks/async_opt_simulator").AsyncOptBenchmarkSimulator
+sim = AsyncOptBenchmarkSimulator(n_workers=4)
+Problem = optunahub.load_module("benchmarks/hpolib").Problem
+problem = Problem(dataset_id=0, metric_names=["val_loss"])
+runtime_func = Problem(dataset_id=0, metric_names=["train_time"])
+study = optuna.create_study(directions=problem.directions)
+sim.optimize(study=study, problem=problem, runtime_func=runtime_func, n_trials=100)
+print(sim.get_results_from_study(study))
 ```
-
-## Others
-
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
-
-<!--
-For example, you can add sections to introduce a corresponding paper.
-
-### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
 
 ### Bibtex
-```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
+
+```bibtex
+@article{watanabe2023mfo-simulator,
+  title   = {{P}ython Wrapper for Simulating Multi-Fidelity Optimization on {HPO} Benchmarks without Any Wait},
+  author  = {S. Watanabe},
+  journal = {arXiv:2305.17595},
+  year    = {2023},
 }
 ```
--->
+
+```bibtex
+@article{watanabe2024mfo-simulator,
+  title   = {Fast Benchmarking of Asynchronous Multi-Fidelity Optimization on Zero-Cost Benchmarks},
+  author  = {S. Watanabe, N. Mallik, E. Bergman, F. Hutter},
+  journal = {arXiv:2403.01888},
+  year    = {2024},
+}
+```

@@ -7,6 +7,7 @@ import optuna
 
 from .. import AsyncOptBenchmarkSimulator
 from .utils import CounterSampler
+from .utils import default_runtime_func
 from .utils import dummy_no_fidel_func
 from .utils import get_overhead_from_study
 from .utils import simplest_dummy_func
@@ -39,7 +40,7 @@ def test_get_optimizer_overhead():
     simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem()
-    simulator.optimize(study, problem, n_trials=n_trials)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials)
 
     overhead = get_overhead_from_study(study)
     assert "before_sample" in overhead
@@ -74,7 +75,7 @@ def test_results_sorted_by_cumtime_without_parallel_sampling():
     simulator = AsyncOptBenchmarkSimulator(n_workers=4, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem(obj_func=simplest_dummy_func)
-    simulator.optimize(study, problem, n_trials=n_trials)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     cumtimes = np.array(results["cumtime"])
@@ -88,7 +89,7 @@ def test_results_cumtime_monotonic_with_parallel_sampling():
     simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem()
-    simulator.optimize(study, problem, n_trials=n_trials)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     cumtimes = np.array(results["cumtime"])
@@ -104,7 +105,7 @@ def test_tell_skips_none_pending_results():
     simulator = AsyncOptBenchmarkSimulator(n_workers=2, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem()
-    simulator.optimize(study, problem, n_trials=n_trials)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     assert len(results["cumtime"]) == n_trials
@@ -117,7 +118,7 @@ def test_multi_worker_all_results_collected():
     simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem()
-    simulator.optimize(study, problem, n_trials=n_trials)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     assert len(results["cumtime"]) == n_trials

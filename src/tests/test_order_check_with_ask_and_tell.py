@@ -8,6 +8,7 @@ import pytest
 
 from .. import AsyncOptBenchmarkSimulator
 from .utils import CounterSampler
+from .utils import default_runtime_func
 from .utils import OrderCheckConfigs
 from .utils import OrderCheckConfigsWithSampleLatency
 from .utils import TestProblem
@@ -35,7 +36,7 @@ def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False,
         n_workers=n_workers,
         allow_parallel_sampling=parallel_sampler,
     )
-    simulator.optimize(study, problem, n_trials=n_evals)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_evals)
 
     out = np.array(AsyncOptBenchmarkSimulator.get_results_from_study(study)["cumtime"])[:n_evals]
     diffs = np.abs(out - np.maximum.accumulate(out))

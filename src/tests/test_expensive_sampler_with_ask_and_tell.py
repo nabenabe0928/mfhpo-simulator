@@ -9,6 +9,7 @@ import optuna
 import pytest
 
 from .. import AsyncOptBenchmarkSimulator
+from .utils import default_runtime_func
 from .utils import get_configs
 from .utils import ON_UBUNTU
 from .utils import simplest_dummy_func
@@ -56,7 +57,7 @@ def optimize(index: int, n_workers: int):
         n_workers=n_workers,
         allow_parallel_sampling=False,
     )
-    simulator.optimize(study, problem, n_trials=n_evals)
+    simulator.optimize(study, problem, default_runtime_func, n_trials=n_evals)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     diff = np.abs(np.array(results["cumtime"])[:n_evals] - ans)
