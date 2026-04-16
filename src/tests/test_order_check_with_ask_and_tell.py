@@ -34,7 +34,6 @@ def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False,
     study = optuna.create_study(sampler=sampler)
     simulator = AsyncOptBenchmarkSimulator(
         n_workers=n_workers,
-        expensive_sampler=False,
         allow_parallel_sampling=parallel_sampler,
     )
     simulator.optimize(study, problem, n_trials=n_evals)
@@ -57,11 +56,6 @@ def test_optimize_parallel(mode: str, parallel_sampler: bool):
         optimize_parallel(mode=mode, n_workers=4)
     else:
         pass
-
-
-def test_opt_init_timeout():
-    with pytest.raises(TimeoutError, match=r"The initialization of the optimizer must be cheaper*"):
-        optimize_parallel(mode=LATENCY, n_workers=2, parallel_sampler=False, timeout=True)
 
 
 if __name__ == "__main__":

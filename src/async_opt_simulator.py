@@ -18,7 +18,7 @@ NEGLIGIBLE_SEC: Final[float] = 1e-12
 
 
 class AsyncOptBenchmarkSimulator:
-    def __init__(self, n_workers: int, expensive_sampler: bool, allow_parallel_sampling: bool) -> None:
+    def __init__(self, n_workers: int, allow_parallel_sampling: bool) -> None:
         """a simulator class for async optimization using zero-cost benchmark without waiting.
 
         Args:
@@ -26,18 +26,17 @@ class AsyncOptBenchmarkSimulator:
                 The number of simulated workers. In other words, how many parallel workers to simulate.
             allow_parallel_sampling (bool):
                 Whether sampling can happen in parallel.
-            expensive_sampler (bool):
-                Whether the optimizer is expensive relative to a function evaluation.
         """
-        if allow_parallel_sampling and expensive_sampler:
-            raise ValueError(
-                "expensive_sampler and allow_parallel_sampling cannot be True simultaneously.\n"
-                "Note that allow_parallel_sampling=True correctly handles expensive samplers"
-                " if sampling happens in parallel."
-            )
         self._n_workers = n_workers
-        self._expensive_sampler = expensive_sampler
         self._allow_parallel_sampling = allow_parallel_sampling
+        if allow_parallel_sampling:
+            warnings.warn(
+                "allow_parallel_sampling=True uses an imprecise simulation. "
+                "Results may not accurately reflect the behavior of expensive samplers."
+            )
+            self._expensive_sampler = False
+        else:
+            self._expensive_sampler = True
         self._timenow = 0.0
         self._cumtimes = np.zeros(n_workers, dtype=float)
         self._worker_indices = np.arange(n_workers)
@@ -82,7 +81,7 @@ class AsyncOptBenchmarkSimulator:
             raise TimeoutError(
                 "The initialization of the optimizer must be cheaper than one objective evuation.\n"
                 "In principle, n_workers is too large for the objective to simulate correctly.\n"
-                "Please set expensive_sampler=True or a smaller n_workers, or use a cheaper initialization.\n"
+                "Please set allow_parallel_sampling=False or a smaller n_workers, or use a cheaper initialization.\n"
             )
         return trial
 
@@ -91,8 +90,6 @@ class AsyncOptBenchmarkSimulator:
         if self._expensive_sampler:
             before_eval = self._after_sample_times[-1]
             free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
-        else:
-            warnings.warn(f"Use expensive_sampler=True for {self.__class__.__name__} as it is more precise")
 
         for _worker_id in free_worker_idxs.astype(int).tolist():
             result = self._pending_results[_worker_id]

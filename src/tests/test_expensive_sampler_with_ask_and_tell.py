@@ -55,7 +55,6 @@ def optimize(index: int, n_workers: int):
     study = optuna.create_study(sampler=sampler)
     simulator = AsyncOptBenchmarkSimulator(
         n_workers=n_workers,
-        expensive_sampler=True,
         allow_parallel_sampling=False,
     )
     simulator.optimize(study, problem, n_trials=n_evals)

@@ -31,23 +31,18 @@ def _create_problem() -> TestProblem:
 
 def test_proc_obj_func_works():
     """_proc_obj_func works without fidels."""
-    simulator = AsyncOptBenchmarkSimulator(n_workers=1, expensive_sampler=False, allow_parallel_sampling=False)
+    simulator = AsyncOptBenchmarkSimulator(n_workers=1, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem()
     trial = study.ask(problem.search_space)
     simulator._proc_obj_func(trial=trial, problem=problem, worker_id=0)
 
 
-def test_no_expensive_parallel_sample():
-    with pytest.raises(ValueError, match=r"expensive_sampler and allow_parallel_sampling cannot*"):
-        AsyncOptBenchmarkSimulator(n_workers=1, allow_parallel_sampling=True, expensive_sampler=True)
-
-
 def test_results_monotonically_ordered() -> None:
     """Results should be reported in non-decreasing cumtime order."""
     n_workers = 4
     n_trials = 10
-    simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, expensive_sampler=False, allow_parallel_sampling=False)
+    simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, allow_parallel_sampling=False)
     study = _create_study()
     problem = _create_problem()
     simulator.optimize(study, problem, n_trials=n_trials)
@@ -60,7 +55,7 @@ def test_results_monotonically_ordered() -> None:
 
 def test_error_missing_runtime():
     """Problem must set runtime user_attr."""
-    simulator = AsyncOptBenchmarkSimulator(n_workers=1, expensive_sampler=False, allow_parallel_sampling=False)
+    simulator = AsyncOptBenchmarkSimulator(n_workers=1, allow_parallel_sampling=False)
     study = optuna.create_study(sampler=CounterSampler())
 
     class BadProblem:

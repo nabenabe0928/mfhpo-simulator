@@ -37,7 +37,6 @@ def optimize(n_trials: int = 400, timeout: float | None = None):
     study = optuna.create_study(sampler=optuna.samplers.RandomSampler())
     simulator = AsyncOptBenchmarkSimulator(
         n_workers=n_workers,
-        expensive_sampler=False,
         allow_parallel_sampling=False,
     )
     simulator.optimize(study, problem, n_trials=n_trials, timeout=timeout)
