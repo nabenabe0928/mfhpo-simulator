@@ -9,7 +9,6 @@ from src import AsyncOptBenchmarkSimulator
 from src.tests.utils import CounterSampler
 from src.tests.utils import dummy_no_fidel_func
 from src.tests.utils import get_overhead_from_study
-from src.tests.utils import get_results_from_study
 from src.tests.utils import simplest_dummy_func
 from src.tests.utils import TestProblem
 
@@ -77,7 +76,7 @@ def test_results_sorted_by_cumtime_without_parallel_sampling():
     problem = _create_problem(obj_func=simplest_dummy_func)
     simulator.optimize(study, problem, n_trials=n_trials)
 
-    results = get_results_from_study(study)
+    results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     cumtimes = np.array(results["cumtime"])
     assert np.all(cumtimes[:-1] <= cumtimes[1:])
 
@@ -91,7 +90,7 @@ def test_results_cumtime_monotonic_with_parallel_sampling():
     problem = _create_problem()
     simulator.optimize(study, problem, n_trials=n_trials)
 
-    results = get_results_from_study(study)
+    results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     cumtimes = np.array(results["cumtime"])
     assert np.all(cumtimes[:-1] <= cumtimes[1:])
 
@@ -107,7 +106,7 @@ def test_tell_skips_none_pending_results():
     problem = _create_problem()
     simulator.optimize(study, problem, n_trials=n_trials)
 
-    results = get_results_from_study(study)
+    results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     assert len(results["cumtime"]) == n_trials
 
 
@@ -120,9 +119,9 @@ def test_multi_worker_all_results_collected():
     problem = _create_problem()
     simulator.optimize(study, problem, n_trials=n_trials)
 
-    results = get_results_from_study(study)
+    results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     assert len(results["cumtime"]) == n_trials
-    assert len(results["objectives"]) == n_trials
+    assert len(results["values"]) == n_trials
     assert len(results["worker_index"]) == n_trials
 
 

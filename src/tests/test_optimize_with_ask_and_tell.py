@@ -7,7 +7,6 @@ import numpy as np
 import optuna
 
 from src import AsyncOptBenchmarkSimulator
-from src.tests.utils import get_results_from_study
 
 
 class MFBraninProblem:
@@ -41,7 +40,7 @@ def optimize(n_trials: int = 400, timeout: float | None = None):
     )
     simulator.optimize(study, problem, n_trials=n_trials, timeout=timeout)
 
-    results = get_results_from_study(study)
+    results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     if timeout is None:
         assert len(results["cumtime"]) >= n_trials
 

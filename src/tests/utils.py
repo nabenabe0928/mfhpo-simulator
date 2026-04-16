@@ -56,17 +56,6 @@ class CounterSampler(optuna.samplers.BaseSampler):
         return n
 
 
-def get_results_from_study(study: optuna.Study) -> dict[str, list]:
-    """Extract results from completed trials, sorted by cumtime."""
-    completed = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
-    sorted_trials = sorted(completed, key=lambda t: t.user_attrs["cumtime"])
-    return {
-        "cumtime": [t.user_attrs["cumtime"] for t in sorted_trials],
-        "objectives": [list(t.values) for t in sorted_trials],
-        "worker_index": [t.user_attrs["worker_id"] for t in sorted_trials],
-    }
-
-
 def get_overhead_from_study(study: optuna.Study) -> dict[str, list[float]]:
     """Extract optimizer overhead (sampling time) from all trials."""
     trials = sorted(study.trials, key=lambda t: t.number)

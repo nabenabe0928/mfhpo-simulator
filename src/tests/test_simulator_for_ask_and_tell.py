@@ -9,7 +9,6 @@ import pytest
 from src import AsyncOptBenchmarkSimulator
 from src.tests.utils import CounterSampler
 from src.tests.utils import dummy_no_fidel_func
-from src.tests.utils import get_results_from_study
 from src.tests.utils import TestProblem
 
 
@@ -47,7 +46,7 @@ def test_results_monotonically_ordered() -> None:
     problem = _create_problem()
     simulator.optimize(study, problem, n_trials=n_trials)
 
-    results = get_results_from_study(study)
+    results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     cumtimes = np.array(results["cumtime"])
     assert len(cumtimes) == n_trials
     assert np.allclose(np.maximum.accumulate(cumtimes), cumtimes)

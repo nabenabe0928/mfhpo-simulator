@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
+from optuna.trial import TrialState
 
 
 if TYPE_CHECKING:
@@ -96,6 +97,22 @@ class AsyncOptBenchmarkSimulator:
             trial_number, values = result
             study.tell(trial_number, values)
             self._pending_results[_worker_id] = None
+
+    @staticmethod
+    def get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]:
+        """Extract results sorted by cumtime."""
+        valid_states = (TrialState.COMPLETE, TrialState.PRUNED)
+        states = states or valid_states
+        if any(s not in valid_states for s in states):
+            raise ValueError(f"{states=} cannot contain states other than COMPLETE and PRUNED.")
+
+        trials = [t for t in study.get_trials(deepcopy=False, states=states) if "cumtime" in t.user_attrs]
+        sorted_trials = sorted(trials, key=lambda t: t.user_attrs["cumtime"])
+        return {
+            "cumtime": [t.user_attrs["cumtime"] for t in sorted_trials],
+            "values": [list(t.values) for t in sorted_trials],
+            "worker_index": [t.user_attrs["worker_id"] for t in sorted_trials],
+        }
 
     def optimize(
         self, study: optuna.Study, problem: BaseProblem, *, n_trials: int | None = None, timeout: float | None = None
