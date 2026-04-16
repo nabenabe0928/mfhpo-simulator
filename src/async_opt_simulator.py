@@ -11,8 +11,13 @@ from optuna.trial import TrialState
 
 if TYPE_CHECKING:
     from typing import Final
+    from typing import Protocol
 
     from optunahub.benchmarks import BaseProblem
+
+    class RuntimeFunc(Protocol):
+        def __call__(self, trial: optuna.Trial) -> float:
+            raise NotImplementedError
 
 
 _NEGLIGIBLE_SEC: Final[float] = 1e-12
@@ -52,15 +57,12 @@ class AsyncOptBenchmarkSimulator:
         self._pending_results = [None] * self._n_workers
         self._after_sample_times = []
 
-    def _proc_obj_func(self, trial: optuna.Trial, problem: BaseProblem, worker_id: int) -> None:
+    def _proc_obj_func(
+        self, trial: optuna.Trial, problem: BaseProblem, runtime_func: RuntimeFunc, worker_id: int
+    ) -> None:
         output = problem(trial)
         trial.set_user_attr("worker_id", worker_id)
-        if "runtime" not in trial.user_attrs:
-            raise KeyError(
-                "`runtime` must be set from the problem side. Please override the objective to set the runtime."
-            )
-
-        self._cumtimes[worker_id] += float(trial.user_attrs["runtime"])
+        self._cumtimes[worker_id] += runtime_func(trial)
         trial.set_user_attr("cumtime", self._cumtimes[worker_id].item())
         self._pending_results[worker_id] = (trial.number, [output] if isinstance(output, float) else list(output))
 
@@ -107,9 +109,7 @@ class AsyncOptBenchmarkSimulator:
 
             trial_number, values = result
             study.tell(trial_number, values)
-            _logger.info(
-                f"Trial {trial_number} ({worker_id=}) finished with values: {values}."
-            )
+            _logger.info(f"Trial {trial_number} ({worker_id=}) finished with values: {values}.")
             self._pending_results[_worker_id] = None
 
     @staticmethod
@@ -129,7 +129,13 @@ class AsyncOptBenchmarkSimulator:
         }
 
     def optimize(
-        self, study: optuna.Study, problem: BaseProblem, *, n_trials: int | None = None, timeout: float | None = None
+        self,
+        study: optuna.Study,
+        problem: BaseProblem,
+        runtime_func: RuntimeFunc,
+        *,
+        n_trials: int | None = None,
+        timeout: float | None = None,
     ) -> None:
         """
         Start the async optimization using zero-cost benchmark without any sleep.
@@ -145,7 +151,7 @@ class AsyncOptBenchmarkSimulator:
         timeout = timeout or float("inf")
         for i in range(n_trials + self._n_workers - 1):
             trial = self._ask_with_timer(study, problem, worker_id=worker_id)
-            self._proc_obj_func(trial=trial, problem=problem, worker_id=worker_id)
+            self._proc_obj_func(trial=trial, problem=problem, runtime_func=runtime_func, worker_id=worker_id)
             worker_id = np.argmin(self._cumtimes).item()
             if i + 1 >= self._n_workers:
                 # This `if` is needed for the compatibility with the other modes.
