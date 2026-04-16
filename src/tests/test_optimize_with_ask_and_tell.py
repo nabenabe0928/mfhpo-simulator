@@ -6,7 +6,7 @@ from benchmark_apis import MFBranin
 import numpy as np
 import optuna
 
-from src import AsyncOptBenchmarkSimulator
+from .. import AsyncOptBenchmarkSimulator
 
 
 class MFBraninProblem:

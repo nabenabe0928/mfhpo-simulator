@@ -6,12 +6,12 @@ import numpy as np
 import optuna
 import pytest
 
-from src import AsyncOptBenchmarkSimulator
-from src.tests.utils import CounterSampler
-from src.tests.utils import OrderCheckConfigs
-from src.tests.utils import OrderCheckConfigsWithSampleLatency
-from src.tests.utils import TestProblem
-from src.tests.utils import UNIT_TIME
+from .. import AsyncOptBenchmarkSimulator
+from .utils import CounterSampler
+from .utils import OrderCheckConfigs
+from .utils import OrderCheckConfigsWithSampleLatency
+from .utils import TestProblem
+from .utils import UNIT_TIME
 
 
 N_EVALS = 20

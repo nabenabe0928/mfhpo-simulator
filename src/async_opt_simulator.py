@@ -5,21 +5,23 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
+import optuna
 from optuna.trial import TrialState
 
 
 if TYPE_CHECKING:
     from typing import Final
 
-    import optuna
     from optunahub.benchmarks import BaseProblem
 
 
 _NEGLIGIBLE_SEC: Final[float] = 1e-12
+# NOTE(nabenabe): The prefix `optuna.` enables us to use the optuna logger externally.
+_logger = optuna.logging.get_logger(f"optuna.{__name__}")
 
 
 class AsyncOptBenchmarkSimulator:
-    def __init__(self, n_workers: int, allow_parallel_sampling: bool) -> None:
+    def __init__(self, n_workers: int, allow_parallel_sampling: bool = False) -> None:
         """a simulator class for async optimization using zero-cost benchmark without waiting.
 
         Args:
@@ -105,6 +107,9 @@ class AsyncOptBenchmarkSimulator:
 
             trial_number, values = result
             study.tell(trial_number, values)
+            _logger.info(
+                f"Trial {trial_number} ({worker_id=}) finished with values: {values}."
+            )
             self._pending_results[_worker_id] = None
 
     @staticmethod

@@ -8,11 +8,11 @@ import numpy as np
 import optuna
 import pytest
 
-from src import AsyncOptBenchmarkSimulator
-from src.tests.utils import get_configs
-from src.tests.utils import ON_UBUNTU
-from src.tests.utils import simplest_dummy_func
-from src.tests.utils import TestProblem
+from .. import AsyncOptBenchmarkSimulator
+from .utils import get_configs
+from .utils import ON_UBUNTU
+from .utils import simplest_dummy_func
+from .utils import TestProblem
 
 
 class ExpensiveSampler(optuna.samplers.BaseSampler):

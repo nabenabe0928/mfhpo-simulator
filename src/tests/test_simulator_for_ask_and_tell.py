@@ -6,10 +6,10 @@ import numpy as np
 import optuna
 import pytest
 
-from src import AsyncOptBenchmarkSimulator
-from src.tests.utils import CounterSampler
-from src.tests.utils import dummy_no_fidel_func
-from src.tests.utils import TestProblem
+from .. import AsyncOptBenchmarkSimulator
+from .utils import CounterSampler
+from .utils import dummy_no_fidel_func
+from .utils import TestProblem
 
 
 DEFAULT_KWARGS = dict(
