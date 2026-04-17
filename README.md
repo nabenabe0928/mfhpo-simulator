@@ -1,12 +1,14 @@
+# Please read this first
+
+> [!IMPORTANT]
+> I integrated the simulator into [OptunaHub](hub.optuna.org), enabling users to enjoy my simulator from the Optuna API.
+> Since this software will not be maintained actively, I kindly ask users to use [the OptunaHub version](http://hub.optuna.org/benchmarks/async_opt_simulator) primarily.
+
 # A Simulator for Multi-Fidelity or Parallel Optimization Using Tabular or Surrogate Benchmarks
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1O5EtSDJAKyQryVsZWTxdcZGAqZiMDQyl?usp=sharing)
 [![Build Status](https://github.com/nabenabe0928/mfhpo-simulator/workflows/Functionality%20test/badge.svg?branch=main)](https://github.com/nabenabe0928/mfhpo-simulator)
 [![codecov](https://codecov.io/gh/nabenabe0928/mfhpo-simulator/branch/main/graph/badge.svg?token=ZXWLF1HM2K)](https://codecov.io/gh/nabenabe0928/mfhpo-simulator)
-
-> [!IMPORTANT]
-> I integrated the simulator into [OptunaHub](hub.optuna.org), enabling users to enjoy my simulator from the Optuna API.
-> Since this software will not be maintained actively, I kindly ask users to use [the OptunaHub version](http://hub.optuna.org/benchmarks/async_opt_simulator) primarily.
 
 > [!TIP]
 > For more details, please check out the following documents as well!
