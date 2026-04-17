@@ -4,6 +4,10 @@
 [![Build Status](https://github.com/nabenabe0928/mfhpo-simulator/workflows/Functionality%20test/badge.svg?branch=main)](https://github.com/nabenabe0928/mfhpo-simulator)
 [![codecov](https://codecov.io/gh/nabenabe0928/mfhpo-simulator/branch/main/graph/badge.svg?token=ZXWLF1HM2K)](https://codecov.io/gh/nabenabe0928/mfhpo-simulator)
 
+> [!IMPORTANT]
+> I integrated the simulator into [OptunaHub](hub.optuna.org), enabling users to enjoy my simulator from the Optuna API.
+> Since this software will not be maintained actively, I kindly ask users to use [the OptunaHub version](http://hub.optuna.org/benchmarks/async_opt_simulator) primarily.
+
 > [!TIP]
 > For more details, please check out the following documents as well!
 > - [Usage and the Difference between with or without Our Wrapper](docs/usage.md)
