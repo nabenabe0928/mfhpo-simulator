@@ -42,11 +42,9 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
+        uv sync --extra test
         if [ "${{ matrix.numpy-version }}" = "1.x" ]; then
-          uv sync
-          uv pip install pytest pytest-cov 'numpy<2'
-        else
-          uv sync --extra test
+          uv pip install --upgrade 'numpy<2'
         fi
     - name: Test with pytest
       run: |

@@ -17,6 +17,20 @@
 > - [Arguments Used for Our Wrapper/Attributes Provided for Users](docs/wrapper.md)
 > - [Simulation Using Only the Main Process (Ask-and-Tell)](docs/ask-and-tell.md)
 
+## Setup
+
+The installation is easily done by `pip-install`:
+
+```shell
+$ pip install mfhpo-simulator
+```
+
+The requirements are:
+- Unix system
+- Python 3.9 or later
+
+The dependencies of this package are only **numpy** and **ujson**.
+
 ## Motivation
 
 When we run parallel optimization experiments using tabular or surrogate benchmarks, each evaluation must be ordered based on the runtime that each configuration, in reality, takes.
@@ -55,20 +69,6 @@ In exchange for the strict constraint, it stabilizes the simulation.
 > Therefore, if any workers die, our current wrapper hangs and keeps warning except we provide `max_waiting_time` for the instantiation.
 > Furthermore, our package **cannot be run on Windows OS** because the Python module `fcntl` is not supported on Windows OS.
 > Although our package supports MacOS, it is advisable to use Linux system.
-
-## Setup
-
-The installation is easily done by `pip-install`:
-
-```shell
-$ pip install mfhpo-simulator
-```
-
-The requirements are:
-- Unix system
-- Python 3.8 or later
-
-The dependencies of this package are only **numpy** and **ujson**.
 
 Basic usage is available at [Usage and the Difference between with or without Our Wrapper](docs/usage.md) and [Tests Using Various Open Source Optimizers](docs/examples.md)
 
