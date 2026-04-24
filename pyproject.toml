@@ -1,16 +1,16 @@
 [project]
 name = "mfhpo-simulator"
-version = "0.1.0"
+version = "1.5.0"
 description = "The simulator for multi-fidelity or parallel optimization using tabular or surrogate benchmarks"
 authors = [
     {name = "Shuhei Watanabe", email = "shuhei.watanabe.utokyo@gmail.com"}
 ]
 license = {text = "Apache-2.0"}
 readme = "README.md"
-requires-python = ">=3.9,<3.11"
+requires-python = ">=3.9"
 dependencies = [
     "ujson>=5.7.0",
-    "numpy>=1.24.3,<2.0.0",
+    "numpy",
 ]
 
 [project.optional-dependencies]
