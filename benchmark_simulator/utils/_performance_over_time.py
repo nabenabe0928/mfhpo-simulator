@@ -319,9 +319,9 @@ def _rankdata(x: np.ndarray) -> np.ndarray:
         for j in range(n_steps):
             vec = x[i, :, j]
             _, inv, counts = np.unique(vec, return_inverse=True, return_counts=True)
-            end_counts = np.cumsum(counts)
-            start_counts = end_counts - counts + 1
-            ranks[i, :, j] = ((start_counts + end_counts) * 0.5)[inv]
+            end_ranks = np.cumsum(counts)
+            start_ranks = end_ranks - counts + 1
+            ranks[i, :, j] = ((start_ranks + end_ranks) * 0.5)[inv]
     return ranks
 
 
