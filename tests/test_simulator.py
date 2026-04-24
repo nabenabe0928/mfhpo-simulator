@@ -6,7 +6,6 @@ import time
 from typing import Any
 import unittest
 
-from benchmark_apis import MFBranin
 import numpy as np
 import pytest
 import ujson as json
@@ -56,17 +55,20 @@ def test_validate_in_obj_func_wrapper():
         ObjectiveFuncWrapper(
             ask_and_tell=True,
             launch_multiple_wrappers_from_user_side=True,
-            obj_func=MFBranin(),
+            obj_func=dummy_func_with_data,
         )
     with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side is False*"):
-        ObjectiveFuncWrapper(launch_multiple_wrappers_from_user_side=True, obj_func=MFBranin())
+        ObjectiveFuncWrapper(launch_multiple_wrappers_from_user_side=True, obj_func=dummy_func_with_data)
     with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side=False or ask_and_tell=True*"):
-        ObjectiveFuncWrapper(obj_func=MFBranin(), worker_index=0)
+        ObjectiveFuncWrapper(obj_func=dummy_func_with_data, worker_index=0)
     with pytest.raises(ValueError, match=r"When launch_multiple_wrappers_from_user_side=False or ask_and_tell=True*"):
-        ObjectiveFuncWrapper(ask_and_tell=True, obj_func=MFBranin(), worker_index=0)
+        ObjectiveFuncWrapper(ask_and_tell=True, obj_func=dummy_func_with_data, worker_index=0)
     with pytest.raises(ValueError, match=r"worker_index must be in*"):
         ObjectiveFuncWrapper(
-            save_dir_name="dummy", launch_multiple_wrappers_from_user_side=True, obj_func=MFBranin(), worker_index=-1
+            save_dir_name="dummy",
+            launch_multiple_wrappers_from_user_side=True,
+            obj_func=dummy_func_with_data,
+            worker_index=-1,
         )
 
 

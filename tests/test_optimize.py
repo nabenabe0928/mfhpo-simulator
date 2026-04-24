@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import numpy as np
+import pytest
+
+
+if int(np.__version__.split(".")[0]) < 2:
+    pytest.skip("Requires NumPy >= 2.0", allow_module_level=True)
+
 import os
 import shutil
 from typing import Any
@@ -7,8 +14,6 @@ import unittest
 
 import ConfigSpace as CS
 from dehb import DEHB
-import numpy as np
-import pytest
 
 from benchmark_simulator._constants import DIR_NAME
 from benchmark_simulator.simulator import ObjectiveFuncWrapper

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import numpy as np
+import pytest
+
+
+if int(np.__version__.split(".")[0]) < 2:
+    pytest.skip("Requires NumPy >= 2.0", allow_module_level=True)
+
 import shutil
 from typing import Any
 from typing import TYPE_CHECKING
 import unittest
 
 from benchmark_apis import MFBranin
-import numpy as np
 
 from benchmark_simulator import AbstractAskTellOptimizer
 from benchmark_simulator import ObjectiveFuncWrapper
