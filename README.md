@@ -1,7 +1,7 @@
 # Please read this first
 
 > [!IMPORTANT]
-> I integrated the simulator into [OptunaHub](hub.optuna.org), enabling users to enjoy my simulator from the Optuna API.
+> I integrated the simulator into [OptunaHub](https://hub.optuna.org), enabling users to enjoy my simulator from the Optuna API.
 > Since this software will not be maintained actively, I kindly ask users to use [the OptunaHub version](http://hub.optuna.org/benchmarks/async_opt_simulator) primarily.
 
 # A Simulator for Multi-Fidelity or Parallel Optimization Using Tabular or Surrogate Benchmarks
