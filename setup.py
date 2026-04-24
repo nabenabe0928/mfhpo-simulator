@@ -15,12 +15,12 @@ pkgs = [
 
 setuptools.setup(
     name="mfhpo-simulator",
-    version="1.4.6",
+    version="1.5.0",
     author="nabenabe0928",
     author_email="shuhei.watanabe.utokyo@gmail.com",
     url="https://github.com/nabenabe0928/mfhpo-simulator",
     packages=pkgs,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     platforms=["Linux", "Darwin"],
     install_requires=requirements,
     include_package_data=True,

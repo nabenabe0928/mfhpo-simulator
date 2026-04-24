@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 
 import numpy as np
-from scipy.stats import rankdata
 import ujson as json  # type: ignore
 
 
@@ -313,6 +312,19 @@ def get_performance_over_time_with_same_time_scale(
     return np.asarray(_results), frac
 
 
+def _rankdata(x: np.ndarray) -> np.ndarray:
+    n_setups, _n_opts, n_steps = x.shape
+    ranks = np.empty_like(x, dtype=float)
+    for i in range(n_setups):
+        for j in range(n_steps):
+            vec = x[i, :, j]
+            _, inv, counts = np.unique(vec, return_inverse=True, return_counts=True)
+            end_counts = np.cumsum(counts)
+            start_counts = end_counts - counts + 1
+            ranks[i, :, j] = ((start_counts + end_counts) * 0.5)[inv]
+    return ranks
+
+
 def get_average_rank(
     all_path_list: list[list[list[str]]],
     obj_key: str = "loss",
@@ -373,5 +385,5 @@ def get_average_rank(
         step_avg_rank=step_avg_rank,
         min_time_step_ratio=min_time_step_ratio,
     )
-    avg_rank = np.mean(rankdata(results, axis=1), axis=0)
+    avg_rank = np.mean(_rankdata(results), axis=0)
     return avg_rank, frac

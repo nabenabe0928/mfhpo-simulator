@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from benchmark_simulator._constants import ObjectiveFuncType
 
 
-__version__ = "1.4.6"
-__copyright__ = "Copyright (C) 2023 Shuhei Watanabe"
+__version__ = "1.5.0"
+__copyright__ = "Copyright (C) 2026 Shuhei Watanabe"
 __licence__ = "Apache-2.0 License"
 __author__ = "Shuhei Watanabe"
 __author_email__ = "shuhei.watanabe.utokyo@gmail.com"
