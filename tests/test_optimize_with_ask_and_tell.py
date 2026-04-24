@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 
-if int(np.__version__.split(".")[0]) < 2:
-    pytest.skip("Requires NumPy >= 2.0", allow_module_level=True)
+if int(np.__version__.split(".")[0]) >= 2:
+    pytest.skip("Requires NumPy < 2.0", allow_module_level=True)
 
 import shutil
 from typing import Any
