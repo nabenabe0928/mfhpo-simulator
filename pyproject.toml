@@ -11,7 +11,6 @@ requires-python = ">=3.9,<3.11"
 dependencies = [
     "ujson>=5.7.0",
     "numpy>=1.24.3,<2.0.0",
-    "scipy",
 ]
 
 [project.optional-dependencies]
@@ -38,7 +37,6 @@ smac = [
 ]
 # Test dependencies
 test = [
-    "scipy",
     "dehb==0.0.5",
     "mfhpo-benchmark-api>=2.0.0",
     "pytest>=7.3.1",
